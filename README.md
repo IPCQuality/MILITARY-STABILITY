@@ -28,14 +28,14 @@ Aplikasi pencatatan dan serah terima laporan pekerjaan antar-shift produksi (**S
    - Indeks pencarian tanggal, shift, kategori, mesin, dan pembuat
    - Trigger audit (`created_by` tidak bisa diubah saat update, `updated_at` otomatis)
    - Row Level Security (**RLS aktif**) tanpa kebijakan `DELETE`
-5. Buat minimal 2 akun uji di **Authentication → Users** (misalnya untuk Shift 1 dan Shift 2).
-   - Untuk menaikkan salah satu akun menjadi Supervisor/Admin agar bisa mengedit semua laporan shift:
+5. Buat / daftarkan akun Admin utama **`suryadi.k94@gmail.com`** (melalui **Authentication → Users → Add user** di Dashboard Supabase atau melalui tab **Registrasi** di aplikasi). Script `supabase-schema.sql` otomatis memberikan `role = 'admin'` dan `can_edit_all = TRUE` untuk email tersebut.
+   - Untuk akun lain yang ingin dijadikan Supervisor/Admin tambahan:
      ```sql
      UPDATE public.profiles
      SET role = 'supervisor', can_edit_all = TRUE
      WHERE email = 'supervisor@perusahaan.co.id';
      ```
-   - Jika ingin menonaktifkan pendaftaran mandiri publik, buka **Authentication → Providers → Email** atau **Sign In / Up** di Supabase dan nonaktifkan *Allow new users to sign up*.
+   - Jika ingin menonaktifkan pendaftaran mandiri publik setelah semua akun tim dibuat, buka **Authentication → Providers → Email** atau **Sign In / Up** di Supabase dan nonaktifkan *Allow new users to sign up*.
 
 ---
 

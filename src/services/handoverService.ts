@@ -7,14 +7,15 @@ import type {
   UserProfile,
   UserRole,
 } from '../types/handover';
-import { createInitialDemoReports, DEMO_ACCOUNTS } from '../utils/demoSeed';
 import { validateHandoverInput } from '../utils/handoverLogic';
 
 export const DEFAULT_SUPABASE_URL = 'https://dkyjfoxruqoqlhxrmcac.supabase.co';
 const CONFIG_STORAGE_KEY = 'ms_handover_supabase_config_v1';
-const DEMO_REPORTS_KEY = 'ms_handover_demo_reports_v2';
-const LEGACY_DEMO_REPORTS_KEY = 'ms_handover_demo_reports_v1';
-const DEMO_SESSION_KEY = 'ms_handover_demo_session_v1';
+const LEGACY_DEMO_KEYS = [
+  'ms_handover_demo_reports_v1',
+  'ms_handover_demo_reports_v2',
+  'ms_handover_demo_session_v1',
+];
 
 export interface SupabaseConfig {
   url: string;
@@ -48,6 +49,17 @@ interface DbProfileRow {
   can_edit_all: boolean;
 }
 
+export function clearLegacyDemoStorage(): void {
+  if (typeof window === 'undefined') return;
+  for (const key of LEGACY_DEMO_KEYS) {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // ignore storage access issues
+    }
+  }
+}
+
 function mapDbRowToReport(row: DbHandoverRow): HandoverReport {
   return {
     id: row.id,
@@ -72,7 +84,6 @@ export function isDangerousSecretKey(key: string): boolean {
   const trimmed = key.trim();
   if (!trimmed) return false;
   if (trimmed.startsWith('sb_secret_')) return true;
-  // Detect JWT with service_role claim if pasted accidentally
   const parts = trimmed.split('.');
   if (parts.length === 3) {
     try {
@@ -177,13 +188,20 @@ export function mapAuthErrorMessage(message: string): string {
     return 'Email atau kata sandi tidak sesuai. Periksa kembali kredensial Anda.';
   }
   if (lower.includes('email not confirmed')) {
-    return 'Email akun belum dikonfirmasi. Cek inbox atau hubungi Admin Supabase.';
+    return 'Email akun belum dikonfirmasi. Cek inbox email Anda atau konfirmasi manual di Supabase Authentication → Users.';
   }
   if (lower.includes('signups not allowed')) {
     return 'Pendaftaran akun mandiri sedang dinonaktifkan oleh Admin.';
   }
   if (lower.includes('user already registered')) {
     return 'Email ini sudah terdaftar. Silakan login dengan akun tersebut.';
+  }
+  if (
+    lower.includes('schema cache') ||
+    lower.includes('does not exist') ||
+    lower.includes('pgrst205')
+  ) {
+    return 'Tabel database Supabase belum dibuat. Jalankan isi file supabase-schema.sql di Supabase SQL Editor terlebih dahulu.';
   }
   if (lower.includes('jwt') || lower.includes('expired') || lower.includes('refresh_token')) {
     return 'Sesi login Anda telah berakhir. Silakan login ulang.';
@@ -195,89 +213,7 @@ export function mapAuthErrorMessage(message: string): string {
 }
 
 // ============================================================================
-// Demo Sandbox Persistence (digunakan hanya saat Publishable Key belum diisi
-// atau pengguna memilih Mode Demo Lokal)
-// ============================================================================
-
-function normalizeDemoReport(raw: Partial<HandoverReport>): HandoverReport {
-  const nowIso = new Date().toISOString();
-  return {
-    id: raw.id || `demo-${Date.now()}`,
-    reportDate: raw.reportDate ?? '',
-    shift: raw.shift ?? 'Shift 1',
-    category: raw.category ?? 'OVERHAUL',
-    machine: raw.machine ?? null,
-    information: raw.information ?? '',
-    issue: raw.issue ?? '',
-    followUp: raw.followUp ?? '',
-    isCompleted: Boolean(raw.isCompleted),
-    createdBy: raw.createdBy ?? '',
-    createdByName: raw.createdByName ?? '',
-    updatedBy: raw.updatedBy ?? null,
-    updatedByName: raw.updatedByName ?? null,
-    createdAt: raw.createdAt ?? nowIso,
-    updatedAt: raw.updatedAt ?? nowIso,
-  };
-}
-
-function getDemoReports(): HandoverReport[] {
-  if (typeof window === 'undefined') return createInitialDemoReports();
-  try {
-    window.localStorage.removeItem(LEGACY_DEMO_REPORTS_KEY);
-    const raw = window.localStorage.getItem(DEMO_REPORTS_KEY);
-    if (!raw) {
-      const seeded = createInitialDemoReports();
-      window.localStorage.setItem(DEMO_REPORTS_KEY, JSON.stringify(seeded));
-      return seeded;
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-      return createInitialDemoReports();
-    }
-    return (parsed as Partial<HandoverReport>[]).map(normalizeDemoReport);
-  } catch {
-    return createInitialDemoReports();
-  }
-}
-
-function saveDemoReports(reports: HandoverReport[]): void {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(DEMO_REPORTS_KEY, JSON.stringify(reports));
-}
-
-export function getDemoSessionUser(): UserProfile | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(DEMO_SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as UserProfile;
-  } catch {
-    return null;
-  }
-}
-
-export function signInDemoAccount(email: string): UserProfile {
-  const found = DEMO_ACCOUNTS.find((a) => a.email === email) ?? DEMO_ACCOUNTS[0];
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify(found.profile));
-  }
-  return found.profile;
-}
-
-export function signOutDemoAccount(): void {
-  if (typeof window !== 'undefined') {
-    window.localStorage.removeItem(DEMO_SESSION_KEY);
-  }
-}
-
-export function resetDemoData(): void {
-  if (typeof window === 'undefined') return;
-  const seeded = createInitialDemoReports();
-  saveDemoReports(seeded);
-}
-
-// ============================================================================
-// Unified Auth & Data Operations (Supabase Cloud vs Local Demo Sandbox)
+// Supabase Auth & Data Operations
 // ============================================================================
 
 export async function fetchUserProfileFromSupabase(
@@ -327,7 +263,7 @@ export async function signInSupabase(
   const client = getSupabaseClient();
   if (!client) {
     return {
-      error: 'Publishable Key Supabase belum dikonfigurasi. Isi di halaman Settings atau gunakan Mode Demo.',
+      error: 'Publishable Key Supabase belum dikonfigurasi. Masukkan key di panel konfigurasi di bawah.',
     };
   }
 
@@ -380,24 +316,17 @@ export async function signUpSupabase(params: {
   return { user: profile };
 }
 
-export async function signOutUnified(mode: 'supabase' | 'demo'): Promise<void> {
-  if (mode === 'demo') {
-    signOutDemoAccount();
-    return;
-  }
+export async function signOutSupabase(): Promise<void> {
   const client = getSupabaseClient();
   if (client) {
     await client.auth.signOut();
   }
 }
 
-export async function loadReportsUnified(
-  mode: 'supabase' | 'demo'
-): Promise<{ reports: HandoverReport[]; error?: string }> {
-  if (mode === 'demo') {
-    return { reports: getDemoReports() };
-  }
-
+export async function loadReportsSupabase(): Promise<{
+  reports: HandoverReport[];
+  error?: string;
+}> {
   const client = getSupabaseClient();
   if (!client) {
     return { reports: [], error: 'Konfigurasi Supabase belum lengkap.' };
@@ -423,8 +352,7 @@ export async function loadReportsUnified(
   };
 }
 
-export async function createReportUnified(
-  mode: 'supabase' | 'demo',
+export async function createReportSupabase(
   input: HandoverFormInput,
   user: UserProfile
 ): Promise<{ report?: HandoverReport; error?: string }> {
@@ -432,33 +360,6 @@ export async function createReportUnified(
   if (!validation.valid) {
     const firstErr = Object.values(validation.errors)[0] || 'Data laporan tidak valid.';
     return { error: firstErr };
-  }
-
-  if (mode === 'demo') {
-    const nowIso = new Date().toISOString();
-    const newReport: HandoverReport = {
-      id:
-        typeof crypto !== 'undefined' && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `demo-${Date.now()}`,
-      reportDate: input.reportDate,
-      shift: input.shift,
-      category: input.category,
-      machine: validation.sanitizedMachine,
-      information: input.information.trim(),
-      issue: input.issue.trim(),
-      followUp: input.followUp.trim(),
-      isCompleted: Boolean(input.isCompleted),
-      createdBy: user.id,
-      createdByName: user.fullName,
-      updatedBy: user.id,
-      updatedByName: user.fullName,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    };
-    const existing = getDemoReports();
-    saveDemoReports([newReport, ...existing]);
-    return { report: newReport };
   }
 
   const client = getSupabaseClient();
@@ -488,14 +389,15 @@ export async function createReportUnified(
     .single();
 
   if (error || !data) {
-    return { error: mapAuthErrorMessage(error?.message || 'Gagal menyimpan laporan ke Supabase.') };
+    return {
+      error: mapAuthErrorMessage(error?.message || 'Gagal menyimpan laporan ke Supabase.'),
+    };
   }
 
   return { report: mapDbRowToReport(data as DbHandoverRow) };
 }
 
-export async function updateReportUnified(
-  mode: 'supabase' | 'demo',
+export async function updateReportSupabase(
   reportId: string,
   input: HandoverFormInput,
   user: UserProfile
@@ -504,42 +406,6 @@ export async function updateReportUnified(
   if (!validation.valid) {
     const firstErr = Object.values(validation.errors)[0] || 'Data laporan tidak valid.';
     return { error: firstErr };
-  }
-
-  if (mode === 'demo') {
-    const reports = getDemoReports();
-    const idx = reports.findIndex((r) => r.id === reportId);
-    if (idx === -1) {
-      return { error: 'Laporan tidak ditemukan.' };
-    }
-    const existing = reports[idx];
-    const isAllowed =
-      user.role === 'admin' ||
-      user.role === 'supervisor' ||
-      user.canEditAll ||
-      existing.createdBy === user.id;
-
-    if (!isAllowed) {
-      return { error: 'Anda tidak memiliki izin untuk mengedit laporan pengguna lain.' };
-    }
-
-    const updated: HandoverReport = {
-      ...existing,
-      reportDate: input.reportDate,
-      shift: input.shift,
-      category: input.category,
-      machine: validation.sanitizedMachine,
-      information: input.information.trim(),
-      issue: input.issue.trim(),
-      followUp: input.followUp.trim(),
-      isCompleted: Boolean(input.isCompleted),
-      updatedBy: user.id,
-      updatedByName: user.fullName,
-      updatedAt: new Date().toISOString(),
-    };
-    reports[idx] = updated;
-    saveDemoReports(reports);
-    return { report: updated };
   }
 
   const client = getSupabaseClient();

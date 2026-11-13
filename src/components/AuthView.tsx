@@ -1,20 +1,18 @@
 import { useState, type FormEvent } from 'react';
-import { Eye, EyeOff, KeyRound, Lock, LogIn, ShieldCheck, UserPlus, Users } from 'lucide-react';
+import { Eye, EyeOff, KeyRound, Lock, LogIn, ShieldCheck, UserPlus } from 'lucide-react';
 import { SHIFTS, type ShiftType, type UserProfile } from '../types/handover';
-import { DEMO_ACCOUNTS } from '../utils/demoSeed';
 import {
   DEFAULT_SUPABASE_URL,
   getStoredSupabaseConfig,
   isSupabaseConfigured,
   saveSupabaseConfig,
-  signInDemoAccount,
   signInSupabase,
   signUpSupabase,
   testSupabaseConnection,
 } from '../services/handoverService';
 
 interface AuthViewProps {
-  onAuthenticated: (user: UserProfile, mode: 'supabase' | 'demo') => void;
+  onAuthenticated: (user: UserProfile) => void;
   sessionNotice?: string | null;
 }
 
@@ -54,7 +52,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
           setErrorMsg(res.error || 'Gagal login.');
           return;
         }
-        onAuthenticated(res.user, 'supabase');
+        onAuthenticated(res.user);
       } else {
         if (!fullName.trim()) {
           setErrorMsg('Nama lengkap wajib diisi untuk registrasi.');
@@ -76,13 +74,13 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
         }
         if (res.needsEmailConfirm) {
           setInfoMsg(
-            'Akun berhasil dibuat. Periksa email Anda untuk konfirmasi sebelum login.'
+            'Akun berhasil dibuat. Periksa inbox email Anda untuk konfirmasi sebelum login.'
           );
           setTab('login');
           return;
         }
         if (res.user) {
-          onAuthenticated(res.user, 'supabase');
+          onAuthenticated(res.user);
         }
       }
     } finally {
@@ -103,7 +101,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
     if (!configured) {
       setCfgStatus({
         ok: false,
-        text: 'Publishable Key dikosongkan. Gunakan Mode Demo atau masukkan key Supabase.',
+        text: 'Publishable Key dikosongkan. Masukkan key Supabase untuk mengaktifkan login.',
       });
       return;
     }
@@ -111,57 +109,24 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
     setCfgStatus({ ok: ping.ok, text: ping.message });
   }
 
-  function handleDemoLogin(accountEmail: string) {
-    const profile = signInDemoAccount(accountEmail);
-    onAuthenticated(profile, 'demo');
-  }
-
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col justify-center py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-5xl w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Left: Product Context & Demo Multiuser Access */}
-        <div className="lg:col-span-5 bg-[#0F294A] text-white rounded-xl border border-slate-800 p-6 sm:p-8 flex flex-col justify-between gap-6 h-full">
-          <div>
-            <p className="text-xs font-mono tracking-wider text-slate-300 uppercase">
-              Production Operations Log
-            </p>
-            <h1 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-balance">
-              MILITARY &amp; STABILITY
-            </h1>
-            <p className="mt-3 text-sm text-slate-200 leading-relaxed">
-              Sistem serah terima laporan pekerjaan antar-shift (Shift 1, Shift 2, dan Shift 3)
-              dengan sinkronisasi Supabase Cloud dan ekspor Excel terstruktur.
-            </p>
-          </div>
-
-          <div className="border-t border-white/15 pt-5 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-              <Users className="w-4 h-4 shrink-0" />
-              <span>Akses Cepat Simulasi Multiuser (Tanpa Setup)</span>
-            </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Uji alur lintas shift secara langsung jika Publishable Key Supabase belum dimasukkan:
-            </p>
-            <div className="space-y-2">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => handleDemoLogin(acc.email)}
-                  className="w-full min-h-[44px] px-3.5 py-2.5 text-left rounded-lg bg-white/10 hover:bg-white/20 border border-white/15 transition-colors flex items-center justify-between gap-2 text-xs font-medium"
-                >
-                  <span className="truncate">{acc.label}</span>
-                  <span className="font-mono text-[11px] text-slate-300 shrink-0">
-                    {acc.profile.defaultShift}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col justify-center py-8 px-4 sm:px-6">
+      <div className="max-w-md w-full mx-auto space-y-4">
+        {/* Compact Brand Banner */}
+        <div className="bg-[#0F294A] text-white rounded-xl px-6 py-5 border border-slate-800 shadow-xs">
+          <p className="text-[11px] font-mono tracking-wider text-slate-300 uppercase">
+            Shift Handover Log
+          </p>
+          <h1 className="mt-1 text-xl sm:text-2xl font-bold tracking-tight">
+            MILITARY &amp; STABILITY
+          </h1>
+          <p className="mt-1.5 text-xs text-slate-200 leading-relaxed">
+            Masuk menggunakan akun Supabase terdaftar untuk mencatat &amp; memantau handover antar-shift.
+          </p>
         </div>
 
-        {/* Right: Supabase Auth Form & Key Configuration */}
-        <div className="lg:col-span-7 bg-white rounded-xl border border-slate-200 p-6 sm:p-8 space-y-6">
+        {/* Auth Form Card */}
+        <div className="bg-white rounded-xl border border-slate-300 p-6 space-y-5 shadow-xs">
           {sessionNotice && (
             <div
               role="alert"
@@ -171,15 +136,15 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                {tab === 'login' ? 'Masuk Akun Supabase' : 'Registrasi Akun Operator'}
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900">
+                {tab === 'login' ? 'Masuk Akun' : 'Registrasi Akun'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {supabaseReady
-                  ? 'Terhubung ke Supabase Cloud'
-                  : 'Publishable Key belum diisi — atur di bawah atau pilih akun demo'}
+                  ? 'Autentikasi Supabase Cloud aktif'
+                  : 'Publishable Key belum diisi — atur di bawah'}
               </p>
             </div>
             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg shrink-0">
@@ -188,6 +153,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                 onClick={() => {
                   setTab('login');
                   setErrorMsg(null);
+                  setInfoMsg(null);
                 }}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                   tab === 'login'
@@ -202,6 +168,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                 onClick={() => {
                   setTab('register');
                   setErrorMsg(null);
+                  setInfoMsg(null);
                 }}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
                   tab === 'register'
@@ -247,7 +214,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Contoh: Budi Santoso"
+                    placeholder="Contoh: Suryadi"
                     className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
                   />
                 </div>
@@ -287,7 +254,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="operator@perusahaan.co.id"
+                placeholder="nama@email.com"
                 className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               />
             </div>
@@ -355,7 +322,10 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             </button>
 
             {showConfig && (
-              <form onSubmit={handleSaveConfig} className="mt-3 space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
+              <form
+                onSubmit={handleSaveConfig}
+                className="mt-3 space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200"
+              >
                 <div>
                   <label
                     htmlFor="cfg-sb-url"

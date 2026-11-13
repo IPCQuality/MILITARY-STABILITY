@@ -101,10 +101,13 @@ AS $$
 DECLARE
   v_name TEXT;
   v_shift TEXT;
+  v_is_primary_admin BOOLEAN;
 BEGIN
+  v_is_primary_admin := lower(COALESCE(NEW.email, '')) = 'suryadi.k94@gmail.com';
+
   v_name := COALESCE(
     NULLIF(trim(NEW.raw_user_meta_data ->> 'full_name'), ''),
-    split_part(COALESCE(NEW.email, 'Operator'), '@', 1)
+    CASE WHEN v_is_primary_admin THEN 'Suryadi (Admin)' ELSE split_part(COALESCE(NEW.email, 'Operator'), '@', 1) END
   );
 
   v_shift := CASE
@@ -113,9 +116,18 @@ BEGIN
     ELSE 'Shift 1'
   END;
 
-  INSERT INTO public.profiles (id, email, full_name, role, default_shift)
-  VALUES (NEW.id, COALESCE(NEW.email, ''), v_name, 'operator', v_shift)
-  ON CONFLICT (id) DO NOTHING;
+  INSERT INTO public.profiles (id, email, full_name, role, default_shift, can_edit_all)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.email, ''),
+    v_name,
+    CASE WHEN v_is_primary_admin THEN 'admin' ELSE 'operator' END,
+    v_shift,
+    v_is_primary_admin
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET role = CASE WHEN v_is_primary_admin THEN 'admin' ELSE public.profiles.role END,
+      can_edit_all = CASE WHEN v_is_primary_admin THEN TRUE ELSE public.profiles.can_edit_all END;
 
   RETURN NEW;
 END;
@@ -265,3 +277,20 @@ CREATE POLICY "handover_update_authorized"
 
 -- Kebijakan 5: Sengaja TIDAK membuat kebijakan DELETE agar riwayat audit antar-shift
 -- tidak terhapus secara tidak sengaja atau sepihak dari frontend.
+
+-- 12. Sinkronisasi Akun Admin Utama (suryadi.k94@gmail.com)
+-- Jika user suryadi.k94@gmail.com sudah dibuat di Authentication -> Users sebelum script ini dijalankan,
+-- blok di bawah ini otomatis membuat/mempromosikan profilnya menjadi Admin penuh.
+INSERT INTO public.profiles (id, email, full_name, role, default_shift, can_edit_all)
+SELECT
+  u.id,
+  u.email,
+  COALESCE(NULLIF(trim(u.raw_user_meta_data ->> 'full_name'), ''), 'Suryadi (Admin)'),
+  'admin',
+  'Shift 1',
+  TRUE
+FROM auth.users u
+WHERE lower(u.email) = 'suryadi.k94@gmail.com'
+ON CONFLICT (id) DO UPDATE
+SET role = 'admin',
+    can_edit_all = TRUE;

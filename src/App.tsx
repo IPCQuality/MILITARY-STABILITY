@@ -16,15 +16,14 @@ import type {
   UserProfile,
 } from './types/handover';
 import {
-  createReportUnified,
+  clearLegacyDemoStorage,
+  createReportSupabase,
   fetchUserProfileFromSupabase,
-  getDemoSessionUser,
   getSupabaseClient,
   isSupabaseConfigured,
-  loadReportsUnified,
-  signInDemoAccount,
-  signOutUnified,
-  updateReportUnified,
+  loadReportsSupabase,
+  signOutSupabase,
+  updateReportSupabase,
 } from './services/handoverService';
 import { AuthView } from './components/AuthView';
 import { DashboardView } from './components/DashboardView';
@@ -33,7 +32,6 @@ import { HistoryView } from './components/HistoryView';
 import { ExportView } from './components/ExportView';
 import { SettingsView } from './components/SettingsView';
 import { ReportDetailModal } from './components/ReportDetailModal';
-import { DEMO_ACCOUNTS } from './utils/demoSeed';
 import { getCurrentShiftStatus } from './utils/handoverLogic';
 
 const PRIMARY_TABS: {
@@ -50,7 +48,6 @@ const PRIMARY_TABS: {
 export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [authMode, setAuthMode] = useState<'supabase' | 'demo'>('demo');
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
   const [activeNav, setActiveNav] = useState<NavSection>('dashboard');
@@ -85,30 +82,26 @@ export default function App() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
-  const fetchReports = useCallback(
-    async (mode: 'supabase' | 'demo') => {
-      setLoadingReports(true);
-      try {
-        const res = await loadReportsUnified(mode);
-        if (res.error) {
-          showToast(false, res.error);
-        }
-        setReports(res.reports);
-      } finally {
-        setLoadingReports(false);
+  const fetchReports = useCallback(async () => {
+    setLoadingReports(true);
+    try {
+      const res = await loadReportsSupabase();
+      if (res.error) {
+        showToast(false, res.error);
       }
-    },
-    [showToast]
-  );
+      setReports(res.reports);
+    } finally {
+      setLoadingReports(false);
+    }
+  }, [showToast]);
 
   useEffect(() => {
     let active = true;
     let subscription: { unsubscribe: () => void } | null = null;
 
-    async function initAuth() {
-      const params = new URLSearchParams(window.location.search);
-      const autoStart = params.get('autostart') === '1';
+    clearLegacyDemoStorage();
 
+    async function initAuth() {
       if (isSupabaseConfigured()) {
         const client = getSupabaseClient();
         if (client) {
@@ -122,7 +115,6 @@ export default function App() {
               const profile = await fetchUserProfileFromSupabase(client, session);
               if (!active) return;
               setCurrentUser(profile);
-              setAuthMode('supabase');
               setSessionNotice(null);
             }
           });
@@ -137,24 +129,9 @@ export default function App() {
             const profile = await fetchUserProfileFromSupabase(client, data.session);
             if (!active) return;
             setCurrentUser(profile);
-            setAuthMode('supabase');
-            await fetchReports('supabase');
-            setInitializing(false);
-            return;
+            await fetchReports();
           }
         }
-      }
-
-      const demoUser = getDemoSessionUser();
-      if (demoUser) {
-        setCurrentUser(demoUser);
-        setAuthMode('demo');
-        await fetchReports('demo');
-      } else if (autoStart) {
-        const defaultDemo = signInDemoAccount(DEMO_ACCOUNTS[0].email);
-        setCurrentUser(defaultDemo);
-        setAuthMode('demo');
-        await fetchReports('demo');
       }
 
       if (active) setInitializing(false);
@@ -168,16 +145,15 @@ export default function App() {
     };
   }, [fetchReports]);
 
-  async function handleAuthenticated(user: UserProfile, mode: 'supabase' | 'demo') {
+  async function handleAuthenticated(user: UserProfile) {
     setSessionNotice(null);
     setCurrentUser(user);
-    setAuthMode(mode);
     setActiveNav('dashboard');
-    await fetchReports(mode);
+    await fetchReports();
   }
 
   async function handleLogout() {
-    await signOutUnified(authMode);
+    await signOutSupabase();
     setCurrentUser(null);
     setReports([]);
     setEditingReport(null);
@@ -194,12 +170,12 @@ export default function App() {
     }
 
     if (editingId) {
-      const res = await updateReportUnified(authMode, editingId, input, currentUser);
+      const res = await updateReportSupabase(editingId, input, currentUser);
       if (res.error || !res.report) {
         showToast(false, res.error || 'Gagal memperbarui laporan.');
         return { ok: false, error: res.error };
       }
-      await fetchReports(authMode);
+      await fetchReports();
       setEditingReport(null);
       setFormPreset(null);
       setActiveNav('dashboard');
@@ -207,13 +183,13 @@ export default function App() {
       return { ok: true };
     }
 
-    const res = await createReportUnified(authMode, input, currentUser);
+    const res = await createReportSupabase(input, currentUser);
     if (res.error || !res.report) {
       showToast(false, res.error || 'Gagal menyimpan laporan.');
       return { ok: false, error: res.error };
     }
 
-    await fetchReports(authMode);
+    await fetchReports();
     setFormPreset(null);
     setActiveNav('dashboard');
     showToast(true, 'Laporan handover berhasil disimpan.');
@@ -269,7 +245,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col md:flex-row">
-      {/* Desktop Sidebar (4 tab sederhana + tombol Input) */}
+      {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200 z-30">
         <div className="px-5 py-5 border-b border-slate-200">
           <p className="text-[11px] font-mono uppercase tracking-wider text-slate-500">
@@ -350,7 +326,7 @@ export default function App() {
             </span>
             <button
               type="button"
-              onClick={() => fetchReports(authMode)}
+              onClick={() => fetchReports()}
               aria-label="Sinkronkan Data Terbaru"
               className="min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1.5 whitespace-nowrap"
             >
@@ -422,7 +398,6 @@ export default function App() {
 
           {activeNav === 'export' && (
             <ExportView
-              mode={authMode}
               reports={reports}
               onRefreshReports={setReports}
             />
@@ -431,22 +406,13 @@ export default function App() {
           {activeNav === 'settings' && (
             <SettingsView
               currentUser={currentUser}
-              mode={authMode}
-              onSwitchDemoUser={async (user) => {
-                setCurrentUser(user);
-                await fetchReports('demo');
-                showToast(true, `Beralih ke akun ${user.fullName} (${user.defaultShift}).`);
-              }}
-              onResetDemo={async () => {
-                await fetchReports('demo');
-              }}
               onLogout={handleLogout}
             />
           )}
         </main>
       </div>
 
-      {/* Float + Button (Hanya SVG + saja sesuai instruksi) */}
+      {/* Float + Button */}
       {activeNav !== 'input' && !selectedReport && (
         <button
           type="button"
@@ -458,7 +424,7 @@ export default function App() {
         </button>
       )}
 
-      {/* Mobile Bottom Navigation Bar: 4 Tabs exact as wireframe */}
+      {/* Mobile Bottom Navigation Bar */}
       <nav
         aria-label="Navigasi Mobile"
         className="md:hidden fixed bottom-0 left-0 right-0 z-30 h-16 bg-white/95 backdrop-blur-md border-t border-slate-300 grid grid-cols-4 items-center"

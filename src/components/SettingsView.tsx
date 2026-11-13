@@ -1,31 +1,19 @@
 import { useState, type FormEvent } from 'react';
-import { KeyRound, LogOut, RefreshCw, RotateCcw, ShieldCheck, UserCheck } from 'lucide-react';
+import { KeyRound, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { UserProfile } from '../types/handover';
-import { DEMO_ACCOUNTS } from '../utils/demoSeed';
 import {
   DEFAULT_SUPABASE_URL,
   getStoredSupabaseConfig,
-  resetDemoData,
   saveSupabaseConfig,
-  signInDemoAccount,
   testSupabaseConnection,
 } from '../services/handoverService';
 
 interface SettingsViewProps {
   currentUser: UserProfile;
-  mode: 'supabase' | 'demo';
-  onSwitchDemoUser: (user: UserProfile) => void;
-  onResetDemo: () => void;
   onLogout: () => void;
 }
 
-export function SettingsView({
-  currentUser,
-  mode,
-  onSwitchDemoUser,
-  onResetDemo,
-  onLogout,
-}: SettingsViewProps) {
+export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
   const stored = getStoredSupabaseConfig();
   const [url, setUrl] = useState(stored.url || DEFAULT_SUPABASE_URL);
   const [publishableKey, setPublishableKey] = useState(stored.publishableKey);
@@ -50,18 +38,12 @@ export function SettingsView({
     }
   }
 
-  function handleResetDemoClick() {
-    resetDemoData();
-    onResetDemo();
-    setConnMsg({ ok: true, text: 'Seluruh data simulasi lokal berhasil dikosongkan.' });
-  }
-
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h2 className="text-lg sm:text-xl font-bold text-slate-900">Pengaturan &amp; Koneksi</h2>
         <p className="text-sm text-slate-500">
-          Kelola sesi pengguna, peran akses, dan konfigurasi Supabase Cloud.
+          Kelola sesi akun Anda dan konfigurasi Supabase Cloud.
         </p>
       </div>
 
@@ -70,9 +52,7 @@ export function SettingsView({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Profil Sesi Aktif</h3>
-            <p className="text-xs text-slate-500">
-              {mode === 'supabase' ? 'Autentikasi Supabase Cloud' : 'Mode Simulasi Multiuser Lokal'}
-            </p>
+            <p className="text-xs text-slate-500">Autentikasi Supabase Cloud</p>
           </div>
           <span className="px-2.5 py-1 rounded border border-slate-200 bg-slate-50 text-xs font-mono uppercase text-slate-700">
             {currentUser.role}
@@ -113,59 +93,6 @@ export function SettingsView({
           </button>
         </div>
       </section>
-
-      {/* Switch Demo Account (Only in Demo Mode) */}
-      {mode === 'demo' && (
-        <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">
-                Uji Multiuser Antar-Shift (Mode Simulasi)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Ganti akun aktif untuk menguji visibilitas lintas shift dan batasan hak edit.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleResetDemoClick}
-              className="min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1.5 shrink-0"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Kosongkan Data Demo
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            {DEMO_ACCOUNTS.map((acc) => {
-              const active = acc.profile.id === currentUser.id;
-              return (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => {
-                    const user = signInDemoAccount(acc.email);
-                    onSwitchDemoUser(user);
-                  }}
-                  className={`min-h-[44px] p-3 rounded-lg border text-left transition-colors ${
-                    active
-                      ? 'border-[#0F294A] bg-blue-50/70 text-[#0F294A]'
-                      : 'border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold">{acc.profile.fullName}</span>
-                    {active && <UserCheck className="w-4 h-4 shrink-0" />}
-                  </div>
-                  <p className="mt-0.5 text-[11px] font-mono text-slate-500">
-                    {acc.profile.defaultShift} · {acc.profile.role}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
 
       {/* Supabase Configuration */}
       <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4">

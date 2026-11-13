@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { SHIFTS, type HandoverReport, type ShiftType } from '../types/handover';
-import { loadReportsUnified } from '../services/handoverService';
+import { loadReportsSupabase } from '../services/handoverService';
 import {
   buildHandoverFilename,
   downloadHandoverExcel,
@@ -9,12 +9,11 @@ import {
 import { filterAndSortReports, getTodayDateString } from '../utils/handoverLogic';
 
 interface ExportViewProps {
-  mode: 'supabase' | 'demo';
   reports: HandoverReport[];
   onRefreshReports: (nextReports: HandoverReport[]) => void;
 }
 
-export function ExportView({ mode, reports, onRefreshReports }: ExportViewProps) {
+export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
   const [exportDate, setExportDate] = useState('');
   const [exportShift, setExportShift] = useState<ShiftType | 'ALL'>('ALL');
   const [exporting, setExporting] = useState(false);
@@ -37,8 +36,7 @@ export function ExportView({ mode, reports, onRefreshReports }: ExportViewProps)
     setStatusMsg(null);
     setExporting(true);
     try {
-      // Ambil data langsung dari Supabase Cloud (atau store aktif) agar tidak hanya bergantung pada tampilan layar
-      const fresh = await loadReportsUnified(mode);
+      const fresh = await loadReportsSupabase();
       if (fresh.error) {
         setStatusMsg({
           ok: false,
@@ -81,7 +79,7 @@ export function ExportView({ mode, reports, onRefreshReports }: ExportViewProps)
           Report &amp; Export Excel (.xlsx)
         </h2>
         <p className="text-sm text-slate-500">
-          Ekspor seluruh data laporan langsung dari {mode === 'supabase' ? 'Supabase Cloud' : 'Penyimpanan Demo'} ke file Excel dua worksheet.
+          Ekspor seluruh data laporan langsung dari Supabase Cloud ke file Excel dua worksheet.
         </p>
       </div>
 
