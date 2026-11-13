@@ -53,7 +53,7 @@ export function SettingsView({
   function handleResetDemoClick() {
     resetDemoData();
     onResetDemo();
-    setConnMsg({ ok: true, text: 'Data simulasi lokal berhasil dikembalikan ke kondisi awal.' });
+    setConnMsg({ ok: true, text: 'Seluruh data simulasi lokal berhasil dikosongkan.' });
   }
 
   return (
@@ -132,7 +132,7 @@ export function SettingsView({
               className="min-h-[40px] px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1.5 shrink-0"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              Reset Data Demo
+              Kosongkan Data Demo
             </button>
           </div>
 

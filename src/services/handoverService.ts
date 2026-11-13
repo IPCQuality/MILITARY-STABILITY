@@ -12,7 +12,8 @@ import { validateHandoverInput } from '../utils/handoverLogic';
 
 export const DEFAULT_SUPABASE_URL = 'https://dkyjfoxruqoqlhxrmcac.supabase.co';
 const CONFIG_STORAGE_KEY = 'ms_handover_supabase_config_v1';
-const DEMO_REPORTS_KEY = 'ms_handover_demo_reports_v1';
+const DEMO_REPORTS_KEY = 'ms_handover_demo_reports_v2';
+const LEGACY_DEMO_REPORTS_KEY = 'ms_handover_demo_reports_v1';
 const DEMO_SESSION_KEY = 'ms_handover_demo_session_v1';
 
 export interface SupabaseConfig {
@@ -50,20 +51,20 @@ interface DbProfileRow {
 function mapDbRowToReport(row: DbHandoverRow): HandoverReport {
   return {
     id: row.id,
-    reportDate: row.report_date,
-    shift: row.shift,
-    category: row.category,
-    machine: row.machine,
-    information: row.information,
+    reportDate: row.report_date ?? '',
+    shift: row.shift ?? 'Shift 1',
+    category: row.category ?? 'OVERHAUL',
+    machine: row.machine ?? null,
+    information: row.information ?? '',
     issue: row.issue ?? '',
     followUp: row.follow_up ?? '',
     isCompleted: Boolean(row.is_completed),
-    createdBy: row.created_by,
-    createdByName: row.created_by_name,
-    updatedBy: row.updated_by,
-    updatedByName: row.updated_by_name,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdBy: row.created_by ?? '',
+    createdByName: row.created_by_name ?? '',
+    updatedBy: row.updated_by ?? null,
+    updatedByName: row.updated_by_name ?? null,
+    createdAt: row.created_at ?? '',
+    updatedAt: row.updated_at ?? '',
   };
 }
 
@@ -128,14 +129,17 @@ export function saveSupabaseConfig(config: SupabaseConfig): { ok: boolean; error
     };
   }
 
+  const nextKey = `${trimmedUrl}::${trimmedKey}`;
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(
       CONFIG_STORAGE_KEY,
       JSON.stringify({ url: trimmedUrl, publishableKey: trimmedKey })
     );
   }
-  cachedClientKey = '';
-  cachedClient = null;
+  if (cachedClientKey && cachedClientKey !== nextKey) {
+    cachedClientKey = '';
+    cachedClient = null;
+  }
   return { ok: true };
 }
 
@@ -195,16 +199,42 @@ export function mapAuthErrorMessage(message: string): string {
 // atau pengguna memilih Mode Demo Lokal)
 // ============================================================================
 
+function normalizeDemoReport(raw: Partial<HandoverReport>): HandoverReport {
+  const nowIso = new Date().toISOString();
+  return {
+    id: raw.id || `demo-${Date.now()}`,
+    reportDate: raw.reportDate ?? '',
+    shift: raw.shift ?? 'Shift 1',
+    category: raw.category ?? 'OVERHAUL',
+    machine: raw.machine ?? null,
+    information: raw.information ?? '',
+    issue: raw.issue ?? '',
+    followUp: raw.followUp ?? '',
+    isCompleted: Boolean(raw.isCompleted),
+    createdBy: raw.createdBy ?? '',
+    createdByName: raw.createdByName ?? '',
+    updatedBy: raw.updatedBy ?? null,
+    updatedByName: raw.updatedByName ?? null,
+    createdAt: raw.createdAt ?? nowIso,
+    updatedAt: raw.updatedAt ?? nowIso,
+  };
+}
+
 function getDemoReports(): HandoverReport[] {
   if (typeof window === 'undefined') return createInitialDemoReports();
   try {
+    window.localStorage.removeItem(LEGACY_DEMO_REPORTS_KEY);
     const raw = window.localStorage.getItem(DEMO_REPORTS_KEY);
     if (!raw) {
       const seeded = createInitialDemoReports();
       window.localStorage.setItem(DEMO_REPORTS_KEY, JSON.stringify(seeded));
       return seeded;
     }
-    return JSON.parse(raw) as HandoverReport[];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return createInitialDemoReports();
+    }
+    return (parsed as Partial<HandoverReport>[]).map(normalizeDemoReport);
   } catch {
     return createInitialDemoReports();
   }
@@ -562,27 +592,36 @@ export async function testSupabaseConnection(): Promise<{ ok: boolean; message: 
     if (error) {
       return { ok: false, message: mapAuthErrorMessage(error.message) };
     }
-    const { error: dbError } = await client
+    const { error: dbError, status } = await client
       .from('handover_reports')
-      .select('id', { count: 'exact', head: true });
+      .select('id')
+      .limit(1);
 
-    if (dbError) {
-      const msg = dbError.message.toLowerCase();
-      if (msg.includes('relation') || msg.includes('does not exist')) {
+    if (dbError || status === 404) {
+      const msg = (dbError?.message || '').toLowerCase();
+      const code = dbError?.code || '';
+      if (
+        status === 404 ||
+        code === 'PGRST205' ||
+        code === '42P01' ||
+        msg.includes('relation') ||
+        msg.includes('does not exist') ||
+        msg.includes('schema cache')
+      ) {
         return {
           ok: false,
           message:
-            'Koneksi Auth terhubung, namun tabel handover_reports belum dibuat. Jalankan supabase-schema.sql di Supabase SQL Editor.',
+            'Koneksi Auth Supabase terhubung, namun tabel handover_reports & profiles belum dibuat. Jalankan isi file supabase-schema.sql di Supabase SQL Editor terlebih dahulu.',
         };
       }
-      if (msg.includes('permission denied') || msg.includes('rls')) {
+      if (status === 401 || status === 403 || msg.includes('permission denied') || msg.includes('rls')) {
         return {
           ok: true,
           message:
             'Koneksi Supabase & RLS aktif terdeteksi. Silakan login dengan akun terdaftar untuk membaca data.',
         };
       }
-      return { ok: false, message: dbError.message };
+      return { ok: false, message: dbError?.message || `Gagal mengecek tabel (HTTP ${status}).` };
     }
 
     return {

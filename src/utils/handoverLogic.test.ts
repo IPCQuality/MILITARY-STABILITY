@@ -8,7 +8,10 @@ import {
   computeOverhaulMatrix,
   filterAndSortReports,
   getCurrentShiftStatus,
+  getOperationalDateString,
   groupActiveDashboardCases,
+  isReportResultOk,
+  isShiftResultOk,
   validateHandoverInput,
 } from './handoverLogic';
 import { buildHandoverFilename, buildHandoverWorkbook } from './excelExport';
@@ -125,7 +128,7 @@ test('groupActiveDashboardCases hanya memunculkan shift berjalan, carry-over Shi
       shift: 'Shift 3',
       category: 'OVERHAUL',
       machine: 'AST 9-16L',
-      information: 'persiapan rangka OK',
+      information: 'persiapan rangka selesai',
       followUp: 'lanjut press shift 1',
       isCompleted: false,
     },
@@ -270,3 +273,77 @@ test('getCurrentShiftStatus mendeteksi jadwal Senin-Jumat (Shift 2 14:00-22:00) 
   assert.equal(satMid.schedule['Shift 1'], '06:00 - 11:00');
   assert.equal(satMid.schedule['Shift 3'], '16:00 - 21:00');
 });
+
+test('isReportResultOk dan isShiftResultOk hanya bernilai true jika isCompleted dicentang, bukan dari teks saja', () => {
+  assert.equal(isReportResultOk({ isCompleted: false }), false);
+  assert.equal(isReportResultOk({ isCompleted: true }), true);
+
+  assert.equal(isShiftResultOk([]), false);
+  assert.equal(isShiftResultOk([{ isCompleted: false }]), false);
+  assert.equal(
+    isShiftResultOk([{ isCompleted: false }, { isCompleted: true }]),
+    true
+  );
+});
+
+test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s/d jam 05:59 dan hilang saat 14 Nov jam 06:00 Shift 1, sedangkan yang belum dicentang tetap lanjut', () => {
+  const shift3CheckedOk: HandoverReport = {
+    ...sampleReports[0],
+    id: 'nov13-s3-checked-ok',
+    reportDate: '2026-11-13',
+    shift: 'Shift 3',
+    category: 'STABILITY TINGGI',
+    machine: 'AST 67-16L',
+    information: 'uji stability selesai',
+    followUp: 'siap produksi',
+    isCompleted: true,
+  };
+
+  const shift3UncheckedTextOk: HandoverReport = {
+    ...sampleReports[0],
+    id: 'nov13-s3-text-only',
+    reportDate: '2026-11-13',
+    shift: 'Shift 3',
+    category: 'OVERHAUL',
+    machine: 'AST 9-16L',
+    information: 'hasil press OK tapi belum selesai total',
+    followUp: 'lanjut military shift 1',
+    isCompleted: false,
+  };
+
+  // Masih Shift 3 dini hari (14 Nov 04:00 pagi) -> keduanya masih tampil, hanya yang dicentang isOk=true
+  assert.equal(getOperationalDateString(new Date(2026, 10, 14, 4, 0)), '2026-11-13');
+  const preDawn = groupActiveDashboardCases(
+    [shift3CheckedOk, shift3UncheckedTextOk],
+    new Date(2026, 10, 14, 4, 0)
+  );
+  assert.equal(preDawn['STABILITY TINGGI'].length, 1);
+  assert.equal(preDawn['STABILITY TINGGI'][0].rows.at(-1)?.isOk, true);
+  assert.equal(preDawn['OVERHAUL'].length, 1);
+  assert.equal(preDawn['OVERHAUL'][0].rows.at(-1)?.isOk, false);
+
+  // Jam 06:00 pagi tanggal 14 Nov (Shift 1 dimulai) -> yang dicentang selesai hilang, yang belum dicentang lanjut
+  assert.equal(getOperationalDateString(new Date(2026, 10, 14, 6, 0)), '2026-11-14');
+  const nextMorning = groupActiveDashboardCases(
+    [shift3CheckedOk, shift3UncheckedTextOk],
+    new Date(2026, 10, 14, 6, 0)
+  );
+  assert.equal(nextMorning['STABILITY TINGGI'].length, 0);
+  assert.equal(nextMorning['OVERHAUL'].length, 1);
+
+  // Yang sudah hilang dari Dashboard tetap ditemukan di History dan Report Excel
+  const inHistory = filterAndSortReports([shift3CheckedOk], {
+    date: '2026-11-13',
+    shift: 'ALL',
+    category: 'ALL',
+    keyword: 'AST 67-16L',
+  });
+  assert.equal(inHistory.length, 1);
+
+  const wb = buildHandoverWorkbook([shift3CheckedOk]);
+  const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['HANDOVER'], { header: 1 });
+  assert.equal(rows.length, 2);
+});
+
+
+

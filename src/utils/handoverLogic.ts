@@ -17,6 +17,15 @@ export function getTodayDateString(now: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+// Hari operasional pabrik dimulai pukul 06:00 (Shift 1) sampai pukul 05:59 besok (akhir Shift 3)
+export function getOperationalDateString(now: Date = new Date()): string {
+  const shifted = new Date(now);
+  if (shifted.getHours() < 6) {
+    shifted.setDate(shifted.getDate() - 1);
+  }
+  return getTodayDateString(shifted);
+}
+
 export function categoryRequiresMachine(category: CategoryType): boolean {
   return category === 'OVERHAUL';
 }
@@ -141,6 +150,16 @@ export function computeOverhaulMatrix(
   return matrix;
 }
 
+// Status OK / selesai hanya ditentukan jika kotak "Tandai case / pekerjaan selesai" dicentang
+export function isReportResultOk(report: Pick<HandoverReport, 'isCompleted'>): boolean {
+  return Boolean(report.isCompleted);
+}
+
+export function isShiftResultOk(reports: Pick<HandoverReport, 'isCompleted'>[]): boolean {
+  if (reports.length === 0) return false;
+  return reports.some((r) => Boolean(r.isCompleted));
+}
+
 export interface DashboardShiftRow {
   key: string;
   shift: ShiftType;
@@ -151,6 +170,7 @@ export interface DashboardShiftRow {
   reports: HandoverReport[];
   isRunningShift: boolean;
   canFill: boolean;
+  isOk: boolean;
 }
 
 export interface MachineShiftGroup {
@@ -164,8 +184,10 @@ export function groupActiveDashboardCases(
   reports: HandoverReport[],
   now: Date = new Date()
 ): Record<CategoryType, MachineShiftGroup[]> {
-  const today = getTodayDateString(now);
-  const yesterdayDate = new Date(now);
+  const calendarToday = getTodayDateString(now);
+  const today = getOperationalDateString(now);
+  const [ty, tm, td] = today.split('-').map(Number);
+  const yesterdayDate = new Date(ty, (tm || 1) - 1, td || 1);
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
   const yesterday = getTodayDateString(yesterdayDate);
   const liveStatus = getCurrentShiftStatus(now);
@@ -173,6 +195,7 @@ export function groupActiveDashboardCases(
   const activeShiftIdx = SHIFTS.indexOf(activeShift);
   const hasActiveWindow = liveStatus.activeShifts.length > 0;
   const yesterdaySchedule = getShiftScheduleForDate(yesterdayDate);
+  const isPreDawnShift3 = now.getHours() < 6;
 
   const result = {} as Record<CategoryType, MachineShiftGroup[]>;
   for (const category of CATEGORIES) {
@@ -203,9 +226,17 @@ export function groupActiveDashboardCases(
     }
 
     for (const bucket of byMachine.values()) {
-      const todayItems = bucket.items.filter((r) => r.reportDate === today);
+      const todayItems = bucket.items.filter(
+        (r) =>
+          r.reportDate === today ||
+          (isPreDawnShift3 && r.reportDate === calendarToday)
+      );
       const prevItems = bucket.items
-        .filter((r) => r.reportDate < today)
+        .filter(
+          (r) =>
+            r.reportDate < today &&
+            !(isPreDawnShift3 && r.reportDate === calendarToday)
+        )
         .sort((a, b) => {
           if (a.reportDate !== b.reportDate) {
             return b.reportDate.localeCompare(a.reportDate);
@@ -216,13 +247,19 @@ export function groupActiveDashboardCases(
         });
 
       const latestPrev = prevItems[0] ?? null;
-      // Case berkelanjutan jika ada catatan kemarin/sebelumnya yang belum ditandai selesai
+      // Case dianggap tuntas untuk hari sebelumnya hanya jika sudah dicentang selesai (isCompleted)
+      const finishedPrev =
+        latestPrev !== null &&
+        (Boolean(latestPrev.isCompleted) ||
+          prevItems.some((r) => r.reportDate === yesterday && Boolean(r.isCompleted)));
+
+      // Case berkelanjutan hanya jika catatan kemarin belum dicentang selesai
       const hasCarryOver =
         latestPrev !== null &&
-        !latestPrev.isCompleted &&
+        !finishedPrev &&
         latestPrev.reportDate === yesterday;
 
-      // Jika tidak ada laporan hari ini DAN tidak ada case berkelanjutan dari kemarin, jangan tampilkan di Dashboard hari ini
+      // Jika tidak ada laporan hari ini DAN tidak ada case berkelanjutan dari kemarin, hilangkan dari Dashboard hari ini
       if (todayItems.length === 0 && !hasCarryOver) {
         continue;
       }
@@ -242,6 +279,7 @@ export function groupActiveDashboardCases(
           reports: [latestPrev],
           isRunningShift: false,
           canFill: false,
+          isOk: isShiftResultOk([latestPrev]),
         });
       }
 
@@ -284,6 +322,7 @@ export function groupActiveDashboardCases(
           reports: sReports,
           isRunningShift: isRunning,
           canFill: isRunning && !todayCompleted,
+          isOk: isShiftResultOk(sReports),
         });
       }
 

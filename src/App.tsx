@@ -34,6 +34,7 @@ import { ExportView } from './components/ExportView';
 import { SettingsView } from './components/SettingsView';
 import { ReportDetailModal } from './components/ReportDetailModal';
 import { DEMO_ACCOUNTS } from './utils/demoSeed';
+import { getCurrentShiftStatus } from './utils/handoverLogic';
 
 const PRIMARY_TABS: {
   id: Exclude<NavSection, 'input'>;
@@ -67,6 +68,12 @@ export default function App() {
   });
 
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  const [headerNow, setHeaderNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setHeaderNow(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const showToast = useCallback((ok: boolean, text: string) => {
     setToast({ ok, text });
@@ -105,19 +112,6 @@ export default function App() {
       if (isSupabaseConfigured()) {
         const client = getSupabaseClient();
         if (client) {
-          const { data, error } = await client.auth.getSession();
-          if (!active) return;
-
-          if (error) {
-            setSessionNotice('Sesi Anda telah berakhir. Silakan login kembali.');
-          } else if (data.session) {
-            const profile = await fetchUserProfileFromSupabase(client, data.session);
-            if (!active) return;
-            setCurrentUser(profile);
-            setAuthMode('supabase');
-            await fetchReports('supabase');
-          }
-
           const { data: listener } = client.auth.onAuthStateChange(async (event, session) => {
             if (!active) return;
             if (event === 'SIGNED_OUT') {
@@ -133,8 +127,21 @@ export default function App() {
             }
           });
           subscription = listener.subscription;
-          setInitializing(false);
-          return;
+
+          const { data, error } = await client.auth.getSession();
+          if (!active) return;
+
+          if (error) {
+            setSessionNotice('Sesi Anda telah berakhir. Silakan login kembali.');
+          } else if (data.session) {
+            const profile = await fetchUserProfileFromSupabase(client, data.session);
+            if (!active) return;
+            setCurrentUser(profile);
+            setAuthMode('supabase');
+            await fetchReports('supabase');
+            setInitializing(false);
+            return;
+          }
         }
       }
 
@@ -254,6 +261,12 @@ export default function App() {
         : 'Input Handover'
       : PRIMARY_TABS.find((t) => t.id === activeNav)?.label ?? 'Dashboard';
 
+  const headerShiftStatus = getCurrentShiftStatus(headerNow);
+  const headerShiftLabel =
+    headerShiftStatus.activeShifts.length > 0
+      ? headerShiftStatus.primaryShift
+      : 'Di luar jam shift';
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col md:flex-row">
       {/* Desktop Sidebar (4 tab sederhana + tombol Input) */}
@@ -314,15 +327,21 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 md:pl-60 flex flex-col min-w-0">
         {/* Compact Top Web Header */}
-        <header className="sticky top-0 z-20 h-[52px] bg-white/95 backdrop-blur-sm border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-3">
-          <div className="min-w-0 flex items-center gap-2">
-            <span className="text-sm sm:text-base font-bold tracking-wide text-[#0F294A] truncate">
-              MILITARY &amp; STABILITY
-            </span>
-            <span className="hidden md:inline text-xs text-slate-300">/</span>
-            <span className="hidden md:inline text-xs font-medium text-slate-600 whitespace-nowrap">
-              {activeLabel}
-            </span>
+        <header className="sticky top-0 z-20 min-h-[54px] py-2 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-sm sm:text-base font-bold tracking-wide text-[#0F294A] truncate">
+                MILITARY &amp; STABILITY
+              </span>
+              <span className="hidden md:inline text-xs text-slate-300">/</span>
+              <span className="hidden md:inline text-xs font-medium text-slate-600 whitespace-nowrap">
+                {activeLabel}
+              </span>
+            </div>
+            <p className="text-[11px] sm:text-xs text-slate-600 font-medium truncate">
+              {headerShiftStatus.dateFormatted} ·{' '}
+              <span className="text-[#0F294A] font-semibold">{headerShiftLabel}</span>
+            </p>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -365,7 +384,7 @@ export default function App() {
         )}
 
         {/* Active View */}
-        <main className="flex-1 px-3 sm:px-6 py-4 sm:py-6 pb-28 md:pb-16 max-w-5xl w-full mx-auto">
+        <main className="flex-1 px-3 sm:px-6 py-4 sm:py-6 pb-28 md:pb-16 max-w-6xl w-full mx-auto">
           {activeNav === 'dashboard' && (
             <DashboardView
               reports={reports}

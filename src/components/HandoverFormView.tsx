@@ -13,8 +13,8 @@ import {
 import {
   categoryRequiresMachine,
   getCurrentShiftStatus,
+  getOperationalDateString,
   getShiftScheduleForDate,
-  getTodayDateString,
   validateHandoverInput,
 } from '../utils/handoverLogic';
 
@@ -43,12 +43,12 @@ export function HandoverFormView({
   onCancel,
 }: HandoverFormViewProps) {
   const liveStatus = useMemo(() => getCurrentShiftStatus(), []);
-  const todayStr = getTodayDateString();
+  const todayStr = getOperationalDateString();
 
   const [reportDate, setReportDate] = useState(todayStr);
   const [shift, setShift] = useState<ShiftType>(liveStatus.primaryShift);
   const [category, setCategory] = useState<CategoryType>('OVERHAUL');
-  const [machine, setMachine] = useState('AST 9-16L');
+  const [machine, setMachine] = useState('');
   const [information, setInformation] = useState('');
   const [issue, setIssue] = useState('');
   const [followUp, setFollowUp] = useState('');
@@ -72,14 +72,14 @@ export function HandoverFormView({
 
   useEffect(() => {
     if (editingReport) {
-      setReportDate(editingReport.reportDate);
-      setShift(editingReport.shift);
-      setCategory(editingReport.category);
+      setReportDate(editingReport.reportDate || todayStr);
+      setShift(editingReport.shift || liveStatus.primaryShift);
+      setCategory(editingReport.category || 'OVERHAUL');
       setMachine(editingReport.machine ?? '');
-      setInformation(editingReport.information);
-      setIssue(editingReport.issue);
-      setFollowUp(editingReport.followUp);
-      setIsCompleted(editingReport.isCompleted);
+      setInformation(editingReport.information ?? '');
+      setIssue(editingReport.issue ?? '');
+      setFollowUp(editingReport.followUp ?? '');
+      setIsCompleted(Boolean(editingReport.isCompleted));
       setFieldErrors({});
       setSubmitError(null);
       return;
@@ -95,15 +95,16 @@ export function HandoverFormView({
       }
       setCategory(presetValues.category || 'OVERHAUL');
       setMachine(presetValues.machine ?? '');
-      setInformation(presetValues.information || '');
-      setIssue(presetValues.issue || '');
-      setFollowUp(presetValues.followUp || '');
+      setInformation(presetValues.information ?? '');
+      setIssue(presetValues.issue ?? '');
+      setFollowUp(presetValues.followUp ?? '');
       setIsCompleted(Boolean(presetValues.isCompleted));
       setFieldErrors({});
       setSubmitError(null);
     } else {
       setReportDate(todayStr);
       setShift(liveStatus.primaryShift);
+      setMachine('');
       setIsCompleted(false);
     }
   }, [editingReport, presetValues, todayStr, liveStatus.activeShifts.length, liveStatus.primaryShift]);
@@ -389,8 +390,10 @@ export function HandoverFormView({
               className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0F294A] focus:ring-[#0F294A]"
             />
             <span className="text-xs sm:text-sm text-slate-700 leading-snug">
-              <strong className="text-slate-900 block">Tandai case / pekerjaan selesai</strong>
-              Jika tidak dicentang, case otomatis berlanjut ke shift berikutnya hingga hari esok.
+              <strong className="text-slate-900 block">
+                Tandai case / pekerjaan selesai (OK)
+              </strong>
+              Jika dicentang, shift ini berwarna hijau muda (OK) dan mesin otomatis hilang dari Dashboard keesokan harinya (tetap tersimpan di History &amp; Report).
             </span>
           </label>
 
