@@ -1,0 +1,6 @@
+{
+  "name": "MILITARY & STABILITY — Shift Handover",
+  "description": "Aplikasi pencatatan dan penerusan laporan pekerjaan antar-shift produksi dengan sinkronisasi Supabase Cloud dan ekspor Excel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
