@@ -28,14 +28,28 @@ Aplikasi pencatatan dan serah terima laporan pekerjaan antar-shift produksi (**S
    - Indeks pencarian tanggal, shift, kategori, mesin, dan pembuat
    - Trigger audit (`created_by` tidak bisa diubah saat update, `updated_at` otomatis)
    - Row Level Security (**RLS aktif**) tanpa kebijakan `DELETE`
-5. Buat / daftarkan akun Admin utama **`suryadi.k94@gmail.com`** (melalui **Authentication → Users → Add user** di Dashboard Supabase atau melalui tab **Registrasi** di aplikasi). Script `supabase-schema.sql` otomatis memberikan `role = 'admin'` dan `can_edit_all = TRUE` untuk email tersebut.
-   - Untuk akun lain yang ingin dijadikan Supervisor/Admin tambahan:
-     ```sql
-     UPDATE public.profiles
-     SET role = 'supervisor', can_edit_all = TRUE
-     WHERE email = 'supervisor@perusahaan.co.id';
-     ```
-   - Jika ingin menonaktifkan pendaftaran mandiri publik setelah semua akun tim dibuat, buka **Authentication → Providers → Email** atau **Sign In / Up** di Supabase dan nonaktifkan *Allow new users to sign up*.
+5. **Tutorial Membuat Akun Langsung di Supabase Dashboard**:
+   - **A. Membuat Akun Admin Utama (`suryadi.k94@gmail.com`)**:
+     1. Buka menu **Authentication → Users** di Dashboard Supabase → klik **Add user → Create new user**.
+     2. Isi **Email address**: `suryadi.k94@gmail.com` dan **Password** minimal 6 karakter.
+     3. Centang **Auto Confirm User** agar akun langsung aktif tanpa perlu klik link verifikasi email, lalu klik **Create user**.
+     4. Karena trigger pada `supabase-schema.sql` mengenali `suryadi.k94@gmail.com`, profil Anda otomatis mendapat `role = 'admin'` dan `can_edit_all = TRUE`.
+   - **B. Membuat Akun Operator Shift 1, Shift 2, dan Shift 3**:
+     1. Ulangi langkah **Authentication → Users → Add user → Create new user** untuk setiap email operator (misalnya `operator.shift1@pabrik.local`, `operator.shift2@pabrik.local`, `operator.shift3@pabrik.local`), centang **Auto Confirm User**.
+     2. Buka **SQL Editor → New Query** untuk mengatur nama lengkap dan shift default tiap operator agar tampil rapi di aplikasi:
+        ```sql
+        UPDATE public.profiles
+        SET full_name = 'Nama Operator Shift 1', default_shift = 'Shift 1'
+        WHERE email = 'operator.shift1@pabrik.local';
+        ```
+     3. Untuk menaikkan akun lain menjadi Supervisor/Admin tambahan:
+        ```sql
+        UPDATE public.profiles
+        SET role = 'supervisor', can_edit_all = TRUE
+        WHERE email = 'supervisor@perusahaan.co.id';
+        ```
+   - **C. Mengunci Pendaftaran Publik (Disarankan untuk Pabrik/Internal)**:
+     - Setelah semua akun tim selesai dibuat, buka **Authentication → Sign In / Providers → Email** (atau **User Signups**) lalu **matikan *Allow new users to sign up*** agar orang luar tidak bisa mendaftar sendiri lewat web.
 
 ---
 
