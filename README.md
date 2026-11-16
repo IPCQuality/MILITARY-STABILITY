@@ -34,13 +34,13 @@ Aplikasi pencatatan dan serah terima laporan pekerjaan antar-shift produksi (**S
      2. Isi **Email address**: `suryadi.k94@gmail.com` dan **Password** minimal 6 karakter.
      3. Centang **Auto Confirm User** agar akun langsung aktif tanpa perlu klik link verifikasi email, lalu klik **Create user**.
      4. Karena trigger pada `supabase-schema.sql` mengenali `suryadi.k94@gmail.com`, profil Anda otomatis mendapat `role = 'admin'` dan `can_edit_all = TRUE`.
-   - **B. Membuat Akun Operator Shift 1, Shift 2, dan Shift 3**:
-     1. Ulangi langkah **Authentication → Users → Add user → Create new user** untuk setiap email operator (misalnya `operator.shift1@pabrik.local`, `operator.shift2@pabrik.local`, `operator.shift3@pabrik.local`), centang **Auto Confirm User**.
-     2. Buka **SQL Editor → New Query** untuk mengatur nama lengkap dan shift default tiap operator agar tampil rapi di aplikasi:
+   - **B. Membuat Akun Operator / User Tim**:
+     1. Ulangi langkah **Authentication → Users → Add user → Create new user** untuk setiap email anggota tim, centang **Auto Confirm User** *(tanpa perlu mengatur shift tetap karena shift rolling tiap 1 minggu)*.
+     2. Buka **SQL Editor → New Query** untuk mengatur nama lengkap tiap user agar tampil rapi di aplikasi:
         ```sql
         UPDATE public.profiles
-        SET full_name = 'Nama Operator Shift 1', default_shift = 'Shift 1'
-        WHERE email = 'operator.shift1@pabrik.local';
+        SET full_name = 'Nama Lengkap Operator'
+        WHERE email = 'operator@pabrik.local';
         ```
      3. Untuk menaikkan akun lain menjadi Supervisor/Admin tambahan:
         ```sql
@@ -53,14 +53,12 @@ Aplikasi pencatatan dan serah terima laporan pekerjaan antar-shift produksi (**S
 
 ---
 
-## 2. Menghubungkan Publishable Key (Aman untuk Frontend)
+## 2. Menghubungkan Publishable Key Sekali Saja (Otomatis di Semua Device)
 > **PENTING:** Gunakan hanya **Publishable Key** (`sb_publishable_...`) atau **anon public key**. Jangan pernah menaruh `service_role` key atau password database di frontend maupun GitHub.
 
-Anda dapat memasukkan key melalui salah satu cara berikut:
-- **Cara A (Melalui GitHub Repository Variable saat Deploy):**
-  Di GitHub Repo → **Settings → Secrets and variables → Actions → Variables** → buat variable bernama `VITE_SUPABASE_PUBLISHABLE_KEY` berisi Publishable Key Anda.
-- **Cara B (Langsung dari Aplikasi):**
-  Buka tab **SETTINGS** atau panel **Konfigurasi Koneksi Supabase** di halaman Login, tempel **Publishable Key**, lalu klik **Simpan & Uji Koneksi**.
+Agar tidak perlu konfigurasi ulang setiap kali aplikasi dibuka di HP atau perangkat baru:
+- **Melalui GitHub Repository Variable saat Deploy:**
+  Di GitHub Repo → **Settings → Secrets and variables → Actions → Variables** → buat variable bernama `VITE_SUPABASE_PUBLISHABLE_KEY` berisi Publishable Key Anda lalu jalankan ulang workflow deploy. Key otomatis tertanam di hasil build untuk semua perangkat.
 
 ---
 

@@ -285,8 +285,8 @@ export default function App() {
         <div className="p-4 border-t border-slate-200 space-y-3">
           <div className="text-xs">
             <p className="font-semibold text-slate-900 truncate">{currentUser.fullName}</p>
-            <p className="text-slate-500 font-mono text-[11px]">
-              {currentUser.defaultShift} · {currentUser.role}
+            <p className="text-slate-500 font-mono text-[11px] uppercase">
+              {currentUser.role}
             </p>
           </div>
           <button

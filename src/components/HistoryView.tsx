@@ -141,7 +141,7 @@ export function HistoryView({
               type="text"
               value={filters.keyword}
               onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
-              placeholder="AST4S, bearing, nama..."
+              placeholder="..."
               className="w-full min-h-[44px] pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
             />
           </div>

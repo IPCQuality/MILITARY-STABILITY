@@ -10,11 +10,11 @@ import type {
 import { validateHandoverInput } from '../utils/handoverLogic';
 
 export const DEFAULT_SUPABASE_URL = 'https://dkyjfoxruqoqlhxrmcac.supabase.co';
-const CONFIG_STORAGE_KEY = 'ms_handover_supabase_config_v1';
-const LEGACY_DEMO_KEYS = [
+const LEGACY_LOCAL_KEYS = [
   'ms_handover_demo_reports_v1',
   'ms_handover_demo_reports_v2',
   'ms_handover_demo_session_v1',
+  'ms_handover_supabase_config_v1',
 ];
 
 export interface SupabaseConfig {
@@ -45,13 +45,12 @@ interface DbProfileRow {
   email: string;
   full_name: string;
   role: UserRole;
-  default_shift: ShiftType;
   can_edit_all: boolean;
 }
 
 export function clearLegacyDemoStorage(): void {
   if (typeof window === 'undefined') return;
-  for (const key of LEGACY_DEMO_KEYS) {
+  for (const key of LEGACY_LOCAL_KEYS) {
     try {
       window.localStorage.removeItem(key);
     } catch {
@@ -98,24 +97,12 @@ export function isDangerousSecretKey(key: string): boolean {
   return false;
 }
 
-export function getStoredSupabaseConfig(): SupabaseConfig {
-  const envUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+export function getSupabaseEnvConfig(): SupabaseConfig {
+  const envUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || '';
+  const envKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || '';
 
-  let stored: Partial<SupabaseConfig> = {};
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = window.localStorage.getItem(CONFIG_STORAGE_KEY);
-      if (raw) {
-        stored = JSON.parse(raw) as Partial<SupabaseConfig>;
-      }
-    } catch {
-      stored = {};
-    }
-  }
-
-  const url = (stored.url || envUrl || DEFAULT_SUPABASE_URL).trim();
-  const rawKey = (stored.publishableKey || envKey || '').trim();
+  const url = (envUrl || DEFAULT_SUPABASE_URL).trim();
+  const rawKey = envKey.trim();
   const validKey =
     rawKey && rawKey !== 'YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY' && !isDangerousSecretKey(rawKey)
       ? rawKey
@@ -124,38 +111,8 @@ export function getStoredSupabaseConfig(): SupabaseConfig {
   return { url, publishableKey: validKey };
 }
 
-export function saveSupabaseConfig(config: SupabaseConfig): { ok: boolean; error?: string } {
-  const trimmedUrl = config.url.trim();
-  const trimmedKey = config.publishableKey.trim();
-
-  if (!trimmedUrl.startsWith('https://')) {
-    return { ok: false, error: 'Project URL Supabase harus diawali https://.' };
-  }
-
-  if (isDangerousSecretKey(trimmedKey)) {
-    return {
-      ok: false,
-      error:
-        'Dilarang menggunakan service_role / secret key di frontend! Gunakan hanya Publishable Key atau anon public key.',
-    };
-  }
-
-  const nextKey = `${trimmedUrl}::${trimmedKey}`;
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem(
-      CONFIG_STORAGE_KEY,
-      JSON.stringify({ url: trimmedUrl, publishableKey: trimmedKey })
-    );
-  }
-  if (cachedClientKey && cachedClientKey !== nextKey) {
-    cachedClientKey = '';
-    cachedClient = null;
-  }
-  return { ok: true };
-}
-
 export function isSupabaseConfigured(): boolean {
-  const cfg = getStoredSupabaseConfig();
+  const cfg = getSupabaseEnvConfig();
   return Boolean(cfg.url && cfg.publishableKey);
 }
 
@@ -163,7 +120,7 @@ let cachedClient: SupabaseClient | null = null;
 let cachedClientKey = '';
 
 export function getSupabaseClient(): SupabaseClient | null {
-  const cfg = getStoredSupabaseConfig();
+  const cfg = getSupabaseEnvConfig();
   if (!cfg.url || !cfg.publishableKey) {
     return null;
   }
@@ -207,7 +164,7 @@ export function mapAuthErrorMessage(message: string): string {
     return 'Sesi login Anda telah berakhir. Silakan login ulang.';
   }
   if (lower.includes('failed to fetch') || lower.includes('network')) {
-    return 'Gagal terhubung ke server Supabase. Periksa koneksi internet dan konfigurasi URL/Key.';
+    return 'Gagal terhubung ke server Supabase. Periksa koneksi internet Anda.';
   }
   return message;
 }
@@ -225,12 +182,10 @@ export async function fetchUserProfileFromSupabase(
     (user.user_metadata?.full_name as string | undefined) ||
     user.email?.split('@')[0] ||
     'Operator';
-  const fallbackShift =
-    (user.user_metadata?.default_shift as ShiftType | undefined) || 'Shift 1';
 
   const { data, error } = await client
     .from('profiles')
-    .select('id, email, full_name, role, default_shift, can_edit_all')
+    .select('id, email, full_name, role, can_edit_all')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -240,7 +195,6 @@ export async function fetchUserProfileFromSupabase(
       email: user.email ?? '',
       fullName: fallbackName,
       role: 'operator',
-      defaultShift: fallbackShift,
       canEditAll: false,
     };
   }
@@ -251,7 +205,6 @@ export async function fetchUserProfileFromSupabase(
     email: row.email || user.email || '',
     fullName: row.full_name || fallbackName,
     role: row.role || 'operator',
-    defaultShift: row.default_shift || fallbackShift,
     canEditAll: Boolean(row.can_edit_all),
   };
 }
@@ -263,7 +216,8 @@ export async function signInSupabase(
   const client = getSupabaseClient();
   if (!client) {
     return {
-      error: 'Publishable Key Supabase belum dikonfigurasi. Masukkan key di panel konfigurasi di bawah.',
+      error:
+        'Konfigurasi environment VITE_SUPABASE_PUBLISHABLE_KEY belum terpasang pada build aplikasi ini.',
     };
   }
 
@@ -284,12 +238,12 @@ export async function signUpSupabase(params: {
   email: string;
   password: string;
   fullName: string;
-  defaultShift: ShiftType;
 }): Promise<{ user?: UserProfile; needsEmailConfirm?: boolean; error?: string }> {
   const client = getSupabaseClient();
   if (!client) {
     return {
-      error: 'Publishable Key Supabase belum dikonfigurasi.',
+      error:
+        'Konfigurasi environment VITE_SUPABASE_PUBLISHABLE_KEY belum terpasang pada build aplikasi ini.',
     };
   }
 
@@ -299,7 +253,6 @@ export async function signUpSupabase(params: {
     options: {
       data: {
         full_name: params.fullName.trim(),
-        default_shift: params.defaultShift,
       },
     },
   });
@@ -329,7 +282,7 @@ export async function loadReportsSupabase(): Promise<{
 }> {
   const client = getSupabaseClient();
   if (!client) {
-    return { reports: [], error: 'Konfigurasi Supabase belum lengkap.' };
+    return { reports: [], error: 'Konfigurasi Supabase belum terpasang di build.' };
   }
 
   const { data, error } = await client
@@ -449,7 +402,8 @@ export async function testSupabaseConnection(): Promise<{ ok: boolean; message: 
   if (!client) {
     return {
       ok: false,
-      message: 'Publishable Key belum diisi. Masukkan key di kolom di atas terlebih dahulu.',
+      message:
+        'VITE_SUPABASE_PUBLISHABLE_KEY belum terpasang pada build aplikasi ini.',
     };
   }
 

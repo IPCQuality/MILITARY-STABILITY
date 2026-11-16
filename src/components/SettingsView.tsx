@@ -1,10 +1,8 @@
-import { useState, type FormEvent } from 'react';
-import { KeyRound, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { useState } from 'react';
+import { Cloud, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { UserProfile } from '../types/handover';
 import {
-  DEFAULT_SUPABASE_URL,
-  getStoredSupabaseConfig,
-  saveSupabaseConfig,
+  getSupabaseEnvConfig,
   testSupabaseConnection,
 } from '../services/handoverService';
 
@@ -14,21 +12,12 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
-  const stored = getStoredSupabaseConfig();
-  const [url, setUrl] = useState(stored.url || DEFAULT_SUPABASE_URL);
-  const [publishableKey, setPublishableKey] = useState(stored.publishableKey);
+  const envCfg = getSupabaseEnvConfig();
   const [connMsg, setConnMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
 
-  async function handleSaveAndTest(e: FormEvent) {
-    e.preventDefault();
+  async function handleTestConnection() {
     setConnMsg(null);
-    const saved = saveSupabaseConfig({ url, publishableKey });
-    if (!saved.ok) {
-      setConnMsg({ ok: false, text: saved.error || 'Gagal menyimpan konfigurasi.' });
-      return;
-    }
-
     setTesting(true);
     try {
       const res = await testSupabaseConnection();
@@ -41,13 +30,13 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900">Pengaturan &amp; Koneksi</h2>
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900">Pengaturan &amp; Akun</h2>
         <p className="text-sm text-slate-500">
-          Kelola sesi akun Anda dan konfigurasi Supabase Cloud.
+          Informasi profil sesi aktif dan status koneksi Supabase Cloud.
         </p>
       </div>
 
-      {/* Profil Pengguna */}
+      {/* Profil Pengguna (tanpa shift tetap, mengikuti rolling mingguan) */}
       <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -69,8 +58,10 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
             <span className="font-mono text-xs text-slate-800">{currentUser.email}</span>
           </div>
           <div>
-            <span className="text-xs text-slate-500 block">Shift Default</span>
-            <span className="font-medium text-slate-900">{currentUser.defaultShift}</span>
+            <span className="text-xs text-slate-500 block">Peran Akun</span>
+            <span className="font-medium text-slate-900 uppercase font-mono text-xs">
+              {currentUser.role}
+            </span>
           </div>
           <div>
             <span className="text-xs text-slate-500 block">Izin Edit Laporan</span>
@@ -94,73 +85,45 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
         </div>
       </section>
 
-      {/* Supabase Configuration */}
+      {/* Status Koneksi Supabase Cloud (otomatis terpasang dari build, tanpa perlu setup tiap device) */}
       <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4">
         <div className="flex items-center gap-2">
-          <KeyRound className="w-4 h-4 text-[#0F294A]" />
+          <Cloud className="w-4 h-4 text-[#0F294A]" />
           <h3 className="text-sm font-semibold text-slate-900">
-            Konfigurasi Supabase Cloud
+            Status Supabase Cloud
           </h3>
         </div>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Gunakan hanya <strong>Publishable Key</strong> atau <strong>anon public key</strong> dari
-          dashboard Supabase. Jangan pernah memasukkan <code>service_role</code> key.
+          Koneksi proyek <span className="font-mono text-slate-700">{envCfg.url}</span> sudah
+          tertanam otomatis pada aplikasi sehingga tidak perlu konfigurasi ulang saat dibuka di perangkat baru.
         </p>
 
-        <form onSubmit={handleSaveAndTest} className="space-y-4">
-          <div>
-            <label htmlFor="settings-sb-url" className="block text-xs font-medium text-slate-700 mb-1">
-              Project URL
-            </label>
-            <input
-              id="settings-sb-url"
-              type="url"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="settings-sb-key" className="block text-xs font-medium text-slate-700 mb-1">
-              Publishable Key / Anon Public Key
-            </label>
-            <input
-              id="settings-sb-key"
-              type="text"
-              value={publishableKey}
-              onChange={(e) => setPublishableKey(e.target.value)}
-              placeholder="sb_publishable_... atau eyJ..."
-              className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white"
-            />
-          </div>
-
-          {connMsg && (
-            <div
-              role="status"
-              className={`p-3 rounded-lg border text-xs ${
-                connMsg.ok
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border-rose-200 text-rose-800'
-              }`}
-            >
-              {connMsg.text}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={testing}
-            className="min-h-[44px] px-4 py-2 rounded-lg bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 text-white text-sm font-semibold inline-flex items-center gap-2"
+        {connMsg && (
+          <div
+            role="status"
+            className={`p-3 rounded-lg border text-xs ${
+              connMsg.ok
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}
           >
-            {testing ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <ShieldCheck className="w-4 h-4" />
-            )}
-            <span>Simpan &amp; Uji Koneksi</span>
-          </button>
-        </form>
+            {connMsg.text}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleTestConnection}
+          disabled={testing}
+          className="min-h-[44px] px-4 py-2 rounded-lg bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 text-white text-sm font-semibold inline-flex items-center gap-2"
+        >
+          {testing ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            <ShieldCheck className="w-4 h-4" />
+          )}
+          <span>Uji Koneksi Supabase</span>
+        </button>
       </section>
     </div>
   );

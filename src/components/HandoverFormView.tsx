@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Pencil, Save, XCircle } from 'lucide-react';
 import {
+  APK_MACHINES,
+  AST_MACHINES,
   CATEGORIES,
+  MACHINE_OPTIONS,
+  OTHER_MACHINES,
   SHIFTS,
-  SUGGESTED_MACHINES,
   type CategoryType,
   type HandoverFormInput,
   type HandoverReport,
@@ -110,6 +113,9 @@ export function HandoverFormView({
   }, [editingReport, presetValues, todayStr, liveStatus.activeShifts.length, liveStatus.primaryShift]);
 
   const machineRequired = categoryRequiresMachine(category);
+  const isCustomLegacyMachine =
+    Boolean(machine) &&
+    !MACHINE_OPTIONS.includes(machine as (typeof MACHINE_OPTIONS)[number]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -250,7 +256,7 @@ export function HandoverFormView({
             )}
           </div>
 
-          {/* Kategori & Mesin */}
+          {/* Kategori & Dropdown Mesin Lengkap */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label
@@ -283,45 +289,44 @@ export function HandoverFormView({
               >
                 Mesin {machineRequired ? '(Wajib)' : '(Opsional)'}
               </label>
-              <input
+              <select
                 id="input-machine"
-                type="text"
-                list="machine-suggestions"
                 value={machine}
                 onChange={(e) => setMachine(e.target.value)}
-                placeholder="Contoh: AST 9-16L atau AST4S 22-16L"
                 className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-              />
-              <datalist id="machine-suggestions">
-                {SUGGESTED_MACHINES.map((m) => (
-                  <option key={m} value={m} />
-                ))}
-              </datalist>
+              >
+                <option value="">
+                  {machineRequired ? '-- Pilih Mesin (Wajib) --' : '-- Pilih Mesin (Opsional) --'}
+                </option>
+                {isCustomLegacyMachine && (
+                  <option value={machine}>{machine}</option>
+                )}
+                <optgroup label={`Seri AST (${AST_MACHINES.length} Mesin)`}>
+                  {AST_MACHINES.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label={`Seri APK (${APK_MACHINES.length} Mesin)`}>
+                  {APK_MACHINES.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label={`Mesin / Line Lainnya (${OTHER_MACHINES.length} Mesin)`}>
+                  {OTHER_MACHINES.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
               {fieldErrors.machine && (
                 <p className="mt-1 text-xs text-rose-600">{fieldErrors.machine}</p>
               )}
             </div>
-          </div>
-
-          {/* Pilihan cepat mesin umum */}
-          <div className="flex flex-wrap gap-1.5">
-            {SUGGESTED_MACHINES.map((m) => {
-              const selected = machine.trim().toUpperCase() === m.toUpperCase();
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMachine(m)}
-                  className={`px-2.5 py-1 text-[11px] font-mono rounded border transition-colors ${
-                    selected
-                      ? 'bg-[#0F294A] text-white border-[#0F294A]'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {m}
-                </button>
-              );
-            })}
           </div>
 
           {/* Hasil Shift */}

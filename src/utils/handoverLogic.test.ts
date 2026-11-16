@@ -213,7 +213,6 @@ test('canEditReport menerapkan otorisasi pembuat vs supervisor', () => {
     email: 'shift1@plant.id',
     fullName: 'Budi Santoso',
     role: 'operator',
-    defaultShift: 'Shift 1',
     canEditAll: false,
   };
   const supervisor: UserProfile = {
@@ -221,7 +220,6 @@ test('canEditReport menerapkan otorisasi pembuat vs supervisor', () => {
     email: 'sup@plant.id',
     fullName: 'Hendra',
     role: 'supervisor',
-    defaultShift: 'Shift 1',
     canEditAll: true,
   };
 
