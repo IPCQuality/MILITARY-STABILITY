@@ -17,16 +17,18 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 --   'Shift 1', 'Shift 2', 'Shift 3'
 
 -- 3. Tabel Profil Pengguna (untuk Role & Identitas Pembuat yang Terverifikasi)
+-- Tidak menyimpan shift tetap karena setiap akun mengalami rolling shift mingguan.
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
   full_name TEXT NOT NULL DEFAULT 'Operator',
   role TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('operator', 'supervisor', 'admin')),
-  default_shift TEXT NOT NULL DEFAULT 'Shift 1' CHECK (default_shift IN ('Shift 1', 'Shift 2', 'Shift 3')),
   can_edit_all BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.profiles DROP COLUMN IF EXISTS default_shift;
 
 COMMENT ON TABLE public.profiles IS 'Profil operator, supervisor, dan admin Shift Handover.';
 
@@ -100,7 +102,6 @@ SET search_path = public
 AS $$
 DECLARE
   v_name TEXT;
-  v_shift TEXT;
   v_is_primary_admin BOOLEAN;
 BEGIN
   v_is_primary_admin := lower(COALESCE(NEW.email, '')) = 'suryadi.k94@gmail.com';
@@ -110,23 +111,18 @@ BEGIN
     CASE WHEN v_is_primary_admin THEN 'Suryadi (Admin)' ELSE split_part(COALESCE(NEW.email, 'Operator'), '@', 1) END
   );
 
-  v_shift := CASE
-    WHEN NEW.raw_user_meta_data ->> 'default_shift' IN ('Shift 1', 'Shift 2', 'Shift 3')
-      THEN NEW.raw_user_meta_data ->> 'default_shift'
-    ELSE 'Shift 1'
-  END;
-
-  INSERT INTO public.profiles (id, email, full_name, role, default_shift, can_edit_all)
+  INSERT INTO public.profiles (id, email, full_name, role, can_edit_all)
   VALUES (
     NEW.id,
     COALESCE(NEW.email, ''),
     v_name,
     CASE WHEN v_is_primary_admin THEN 'admin' ELSE 'operator' END,
-    v_shift,
     v_is_primary_admin
   )
   ON CONFLICT (id) DO UPDATE
-  SET role = CASE WHEN v_is_primary_admin THEN 'admin' ELSE public.profiles.role END,
+  SET email = EXCLUDED.email,
+      full_name = COALESCE(NULLIF(trim(public.profiles.full_name), ''), EXCLUDED.full_name),
+      role = CASE WHEN v_is_primary_admin THEN 'admin' ELSE public.profiles.role END,
       can_edit_all = CASE WHEN v_is_primary_admin THEN TRUE ELSE public.profiles.can_edit_all END;
 
   RETURN NEW;
@@ -281,13 +277,12 @@ CREATE POLICY "handover_update_authorized"
 -- 12. Sinkronisasi Akun Admin Utama (suryadi.k94@gmail.com)
 -- Jika user suryadi.k94@gmail.com sudah dibuat di Authentication -> Users sebelum script ini dijalankan,
 -- blok di bawah ini otomatis membuat/mempromosikan profilnya menjadi Admin penuh.
-INSERT INTO public.profiles (id, email, full_name, role, default_shift, can_edit_all)
+INSERT INTO public.profiles (id, email, full_name, role, can_edit_all)
 SELECT
   u.id,
   u.email,
   COALESCE(NULLIF(trim(u.raw_user_meta_data ->> 'full_name'), ''), 'Suryadi (Admin)'),
   'admin',
-  'Shift 1',
   TRUE
 FROM auth.users u
 WHERE lower(u.email) = 'suryadi.k94@gmail.com'

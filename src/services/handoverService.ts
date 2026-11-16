@@ -175,6 +175,9 @@ export function mapAuthErrorMessage(message: string): string {
   if (lower.includes('user already registered')) {
     return 'Email ini sudah terdaftar. Silakan login dengan akun tersebut.';
   }
+  if (lower.includes('database error saving new user')) {
+    return 'Database Supabase gagal menyimpan profil user baru (trigger handle_new_user belum sinkron dengan tabel profiles). Jalankan ulang isi file supabase-schema.sql terbaru di Supabase SQL Editor.';
+  }
   if (
     lower.includes('schema cache') ||
     lower.includes('does not exist') ||
