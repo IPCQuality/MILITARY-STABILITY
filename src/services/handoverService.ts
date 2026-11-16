@@ -31,6 +31,7 @@ interface DbHandoverRow {
   information: string;
   issue: string;
   follow_up: string;
+  pallet_location?: string | null;
   is_completed: boolean;
   created_by: string;
   created_by_name: string;
@@ -69,6 +70,7 @@ function mapDbRowToReport(row: DbHandoverRow): HandoverReport {
     information: row.information ?? '',
     issue: row.issue ?? '',
     followUp: row.follow_up ?? '',
+    palletLocation: row.pallet_location ?? '',
     isCompleted: Boolean(row.is_completed),
     createdBy: row.created_by ?? '',
     createdByName: row.created_by_name ?? '',
@@ -263,6 +265,7 @@ export async function signUpSupabase(params: {
   email: string;
   password: string;
   fullName: string;
+  role: UserRole;
 }): Promise<{ user?: UserProfile; needsEmailConfirm?: boolean; error?: string }> {
   const client = getSupabaseClient();
   if (!client) {
@@ -284,6 +287,7 @@ export async function signUpSupabase(params: {
       emailRedirectTo: redirectUrl,
       data: {
         full_name: params.fullName.trim(),
+        role: params.role,
       },
     },
   });
@@ -307,6 +311,47 @@ export async function signOutSupabase(): Promise<void> {
   }
 }
 
+export async function loadProfilesSupabase(): Promise<{
+  profiles: UserProfile[];
+  error?: string;
+}> {
+  const client = getSupabaseClient();
+  if (!client) {
+    return { profiles: [], error: 'Konfigurasi Supabase belum terpasang di build.' };
+  }
+
+  const { data, error } = await client
+    .from('profiles')
+    .select('id, email, full_name, role, can_edit_all')
+    .order('full_name', { ascending: true });
+
+  if (error) {
+    return { profiles: [], error: mapAuthErrorMessage(error.message) };
+  }
+
+  return {
+    profiles: ((data ?? []) as DbProfileRow[]).map((row) => ({
+      id: row.id,
+      email: row.email ?? '',
+      fullName: row.full_name || 'Operator',
+      role: row.role || 'operator',
+      canEditAll: Boolean(row.can_edit_all),
+    })),
+  };
+}
+
+const REPORT_SELECT_WITH_PALLET =
+  'id, report_date, shift, category, machine, information, issue, follow_up, pallet_location, is_completed, created_by, created_by_name, updated_by, updated_by_name, created_at, updated_at';
+
+const REPORT_SELECT_LEGACY =
+  'id, report_date, shift, category, machine, information, issue, follow_up, is_completed, created_by, created_by_name, updated_by, updated_by_name, created_at, updated_at';
+
+function isMissingPalletColumnError(err: { code?: string; message?: string } | null): boolean {
+  if (!err) return false;
+  const msg = (err.message ?? '').toLowerCase();
+  return (err.code === '42703' || err.code === 'PGRST204') && msg.includes('pallet_location');
+}
+
 export async function loadReportsSupabase(): Promise<{
   reports: HandoverReport[];
   error?: string;
@@ -316,13 +361,21 @@ export async function loadReportsSupabase(): Promise<{
     return { reports: [], error: 'Konfigurasi Supabase belum terpasang di build.' };
   }
 
-  const { data, error } = await client
+  let { data, error } = await client
     .from('handover_reports')
-    .select(
-      'id, report_date, shift, category, machine, information, issue, follow_up, is_completed, created_by, created_by_name, updated_by, updated_by_name, created_at, updated_at'
-    )
+    .select(REPORT_SELECT_WITH_PALLET)
     .order('report_date', { ascending: false })
     .order('updated_at', { ascending: false });
+
+  if (error && isMissingPalletColumnError(error)) {
+    const fallback = await client
+      .from('handover_reports')
+      .select(REPORT_SELECT_LEGACY)
+      .order('report_date', { ascending: false })
+      .order('updated_at', { ascending: false });
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
 
   if (error) {
     return {
@@ -360,26 +413,43 @@ export async function createReportSupabase(
     return { error: 'Klien Supabase tidak tersedia.' };
   }
 
-  const { data, error } = await client
+  const trimmedPallet = (input.palletLocation ?? '').trim();
+  const basePayload = {
+    report_date: input.reportDate,
+    shift: input.shift,
+    category: input.category,
+    machine: validation.sanitizedMachine,
+    information: input.information.trim(),
+    issue: input.issue.trim(),
+    follow_up: input.followUp.trim(),
+    is_completed: Boolean(input.isCompleted),
+    created_by: user.id,
+    created_by_name: user.fullName,
+    updated_by: user.id,
+    updated_by_name: user.fullName,
+  };
+
+  let { data, error } = await client
     .from('handover_reports')
-    .insert({
-      report_date: input.reportDate,
-      shift: input.shift,
-      category: input.category,
-      machine: validation.sanitizedMachine,
-      information: input.information.trim(),
-      issue: input.issue.trim(),
-      follow_up: input.followUp.trim(),
-      is_completed: Boolean(input.isCompleted),
-      created_by: user.id,
-      created_by_name: user.fullName,
-      updated_by: user.id,
-      updated_by_name: user.fullName,
-    })
-    .select(
-      'id, report_date, shift, category, machine, information, issue, follow_up, is_completed, created_by, created_by_name, updated_by, updated_by_name, created_at, updated_at'
-    )
+    .insert({ ...basePayload, pallet_location: trimmedPallet })
+    .select(REPORT_SELECT_WITH_PALLET)
     .single();
+
+  if (error && isMissingPalletColumnError(error)) {
+    if (trimmedPallet) {
+      return {
+        error:
+          'Kolom Lokasi Palet (pallet_location) belum ada di Supabase. Jalankan ulang supabase-schema.sql di Supabase SQL Editor.',
+      };
+    }
+    const fallback = await client
+      .from('handover_reports')
+      .insert(basePayload)
+      .select(REPORT_SELECT_LEGACY)
+      .single();
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
 
   if (error || !data) {
     return {
@@ -418,25 +488,43 @@ export async function updateReportSupabase(
     return { error: 'Klien Supabase tidak tersedia.' };
   }
 
-  const { data, error } = await client
+  const trimmedPallet = (input.palletLocation ?? '').trim();
+  const basePayload = {
+    report_date: input.reportDate,
+    shift: input.shift,
+    category: input.category,
+    machine: validation.sanitizedMachine,
+    information: input.information.trim(),
+    issue: input.issue.trim(),
+    follow_up: input.followUp.trim(),
+    is_completed: Boolean(input.isCompleted),
+    updated_by: user.id,
+    updated_by_name: user.fullName,
+  };
+
+  let { data, error } = await client
     .from('handover_reports')
-    .update({
-      report_date: input.reportDate,
-      shift: input.shift,
-      category: input.category,
-      machine: validation.sanitizedMachine,
-      information: input.information.trim(),
-      issue: input.issue.trim(),
-      follow_up: input.followUp.trim(),
-      is_completed: Boolean(input.isCompleted),
-      updated_by: user.id,
-      updated_by_name: user.fullName,
-    })
+    .update({ ...basePayload, pallet_location: trimmedPallet })
     .eq('id', reportId)
-    .select(
-      'id, report_date, shift, category, machine, information, issue, follow_up, is_completed, created_by, created_by_name, updated_by, updated_by_name, created_at, updated_at'
-    )
+    .select(REPORT_SELECT_WITH_PALLET)
     .single();
+
+  if (error && isMissingPalletColumnError(error)) {
+    if (trimmedPallet) {
+      return {
+        error:
+          'Kolom Lokasi Palet (pallet_location) belum ada di Supabase. Jalankan ulang supabase-schema.sql di Supabase SQL Editor.',
+      };
+    }
+    const fallback = await client
+      .from('handover_reports')
+      .update(basePayload)
+      .eq('id', reportId)
+      .select(REPORT_SELECT_LEGACY)
+      .single();
+    data = fallback.data as typeof data;
+    error = fallback.error;
+  }
 
   if (error || !data) {
     return {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as XLSX from 'xlsx';
+import XLSX from 'xlsx-js-style';
 import {
   canEditReport,
   canSubmitReport,
@@ -31,6 +31,7 @@ const sampleReports: HandoverReport[] = [
     information: 'sudah press 10T',
     issue: '',
     followUp: 'lanjut military shift 2',
+    palletLocation: 'Zona A - Rak 02',
     isCompleted: false,
     createdBy: 'user-shift-1',
     createdByName: 'Budi Santoso',
@@ -48,6 +49,7 @@ const sampleReports: HandoverReport[] = [
     information: 'Uji kestabilan chamber suhu 40C/75%RH berjalan stabil.',
     issue: 'Tidak ada deviasi.',
     followUp: 'Catat log pembacaan tiap 2 jam.',
+    palletLocation: 'Zona C - Palet 14',
     isCompleted: false,
     createdBy: 'user-shift-2',
     createdByName: 'Rina Wijaya',
@@ -65,6 +67,7 @@ const sampleReports: HandoverReport[] = [
     information: 'Penggantian seal solenoid valve line B.',
     issue: 'Kebocoran minor pada fitting output.',
     followUp: 'Cek tekanan kerja saat start awal Shift 1.',
+    palletLocation: 'Staging B2',
     isCompleted: false,
     createdBy: 'user-shift-3',
     createdByName: 'Andi Pratama',
@@ -75,15 +78,15 @@ const sampleReports: HandoverReport[] = [
   },
 ];
 
-test('categoryRequiresMachine hanya wajib untuk OVERHAUL', () => {
+test('categoryRequiresMachine mewajibkan pemilihan mesin untuk seluruh kategori', () => {
   assert.equal(categoryRequiresMachine('OVERHAUL'), true);
-  assert.equal(categoryRequiresMachine('STABILITY TINGGI'), false);
-  assert.equal(categoryRequiresMachine('CASE PERBAIKAN PART'), false);
-  assert.equal(categoryRequiresMachine('COMMISSIONING / TRIAL / CHANGE OVER'), false);
+  assert.equal(categoryRequiresMachine('STABILITY TINGGI'), true);
+  assert.equal(categoryRequiresMachine('CASE PERBAIKAN PART'), true);
+  assert.equal(categoryRequiresMachine('COMMISSIONING / TRIAL / CHANGE OVER'), true);
 });
 
-test('validateHandoverInput mewajibkan mesin pada OVERHAUL dan mengizinkan mesin pada kategori lain', () => {
-  const missingMachine = validateHandoverInput({
+test('validateHandoverInput mewajibkan mesin pada semua kategori termasuk STABILITY TINGGI dan menerima lokasi palet', () => {
+  const missingOverhaulMachine = validateHandoverInput({
     reportDate: '2026-11-12',
     shift: 'Shift 1',
     category: 'OVERHAUL',
@@ -91,9 +94,23 @@ test('validateHandoverInput mewajibkan mesin pada OVERHAUL dan mengizinkan mesin
     information: 'Kalibrasi sensor',
     issue: '',
     followUp: '',
+    palletLocation: '',
   });
-  assert.equal(missingMachine.valid, false);
-  assert.ok(missingMachine.errors.machine);
+  assert.equal(missingOverhaulMachine.valid, false);
+  assert.ok(missingOverhaulMachine.errors.machine);
+
+  const missingStabilityMachine = validateHandoverInput({
+    reportDate: '2026-11-12',
+    shift: 'Shift 2',
+    category: 'STABILITY TINGGI',
+    machine: '   ',
+    information: 'Monitoring kestabilan batch.',
+    issue: '',
+    followUp: '',
+    palletLocation: 'Rak A3',
+  });
+  assert.equal(missingStabilityMachine.valid, false);
+  assert.equal(missingStabilityMachine.errors.machine, 'Mesin wajib dipilih.');
 
   const stabilityWithMachine = validateHandoverInput({
     reportDate: '2026-11-12',
@@ -103,6 +120,7 @@ test('validateHandoverInput mewajibkan mesin pada OVERHAUL dan mengizinkan mesin
     information: 'Monitoring kestabilan batch.',
     issue: '',
     followUp: '',
+    palletLocation: 'Zona C - Palet 14',
   });
   assert.equal(stabilityWithMachine.valid, true);
   assert.equal(stabilityWithMachine.sanitizedMachine, 'AST 67-16L');
@@ -124,7 +142,6 @@ test('computeDashboardSummary dan computeOverhaulMatrix menghitung statistik har
 
 test('groupActiveDashboardCases hanya memunculkan shift berjalan, carry-over Shift 3 kemarin, dan maksimal 4 baris', () => {
   const reports: HandoverReport[] = [
-    // Kemarin Shift 3 (belum selesai) -> harus terbawa hari ini!
     {
       ...sampleReports[2],
       id: 'prev-s3',
@@ -134,9 +151,9 @@ test('groupActiveDashboardCases hanya memunculkan shift berjalan, carry-over Shi
       machine: 'AST 9-16L',
       information: 'persiapan rangka selesai',
       followUp: 'lanjut press shift 1',
+      palletLocation: 'Line Press 02',
       isCompleted: false,
     },
-    // Case baru dimulai hari ini (2026-11-13) di Shift 1
     {
       ...sampleReports[0],
       id: 'today-s1-new',
@@ -145,9 +162,9 @@ test('groupActiveDashboardCases hanya memunculkan shift berjalan, carry-over Shi
       category: 'STABILITY TINGGI',
       machine: 'AST 67-16L',
       information: 'mulai stability',
+      palletLocation: 'Chamber 4',
       isCompleted: false,
     },
-    // Case kemarin yang sudah selesai -> tidak boleh terbawa ke hari ini!
     {
       ...sampleReports[1],
       id: 'prev-done',
@@ -159,10 +176,6 @@ test('groupActiveDashboardCases hanya memunculkan shift berjalan, carry-over Shi
     },
   ];
 
-  // 1. Pagi hari ini (2026-11-13 pukul 08:00 = Shift 1):
-  // - OVERHAUL AST 9-16L: 2 baris (Kemarin Shift 3 + Hari ini Shift 1 canFill=true)
-  // - STABILITY TINGGI AST 67-16L: hanya 1 baris (Shift 1)
-  // - COMMISSIONING: kosong (0 grup)
   const atShift1 = groupActiveDashboardCases(reports, new Date(2026, 10, 13, 8, 0));
   assert.equal(atShift1['OVERHAUL'][0].rows.length, 2);
   assert.equal(atShift1['OVERHAUL'][0].rows[0].isCarryOver, true);
@@ -172,24 +185,19 @@ test('groupActiveDashboardCases hanya memunculkan shift berjalan, carry-over Shi
   assert.equal(atShift1['STABILITY TINGGI'][0].rows.length, 1);
   assert.equal(atShift1['COMMISSIONING / TRIAL / CHANGE OVER'].length, 0);
 
-  // 2. Siang hari ini (2026-11-13 pukul 15:00 = Shift 2):
-  // - OVERHAUL AST 9-16L: 3 baris (Kemarin Shift 3, Shift 1, Shift 2 canFill=true)
-  // - STABILITY TINGGI AST 67-16L: 2 baris (Shift 1, Shift 2 canFill=true)
   const atShift2 = groupActiveDashboardCases(reports, new Date(2026, 10, 13, 15, 0));
   assert.equal(atShift2['OVERHAUL'][0].rows.length, 3);
   assert.equal(atShift2['OVERHAUL'][0].rows[2].shift, 'Shift 2');
   assert.equal(atShift2['OVERHAUL'][0].rows[2].canFill, true);
   assert.equal(atShift2['STABILITY TINGGI'][0].rows.length, 2);
 
-  // 3. Malam hari ini (2026-11-13 pukul 22:30 = Shift 3):
-  // - OVERHAUL AST 9-16L: maksimal 4 baris (Kemarin Shift 3, Shift 1, Shift 2, Shift 3)
   const atShift3 = groupActiveDashboardCases(reports, new Date(2026, 10, 13, 22, 30));
   assert.equal(atShift3['OVERHAUL'][0].rows.length, 4);
   assert.equal(atShift3['OVERHAUL'][0].rows[3].shift, 'Shift 3');
   assert.equal(atShift3['OVERHAUL'][0].rows[3].canFill, true);
 });
 
-test('filterAndSortReports menyaring berdasarkan tanggal, shift, kategori, dan keyword serta mengurutkan terbaru', () => {
+test('filterAndSortReports menyaring berdasarkan tanggal, shift, kategori, keyword, dan lokasi palet serta mengurutkan terbaru', () => {
   const filtered = filterAndSortReports(sampleReports, {
     date: '',
     shift: 'ALL',
@@ -198,6 +206,15 @@ test('filterAndSortReports menyaring berdasarkan tanggal, shift, kategori, dan k
   });
   assert.equal(filtered.length, 1);
   assert.equal(filtered[0].id, 'rep-1');
+
+  const byPallet = filterAndSortReports(sampleReports, {
+    date: '',
+    shift: 'ALL',
+    category: 'ALL',
+    keyword: 'Palet 14',
+  });
+  assert.equal(byPallet.length, 1);
+  assert.equal(byPallet[0].id, 'rep-2');
 
   const allSorted = filterAndSortReports(sampleReports, {
     date: '',
@@ -232,31 +249,68 @@ test('canEditReport menerapkan otorisasi pembuat vs supervisor', () => {
   assert.equal(canEditReport(sampleReports[1], supervisor), true);
 });
 
-test('buildHandoverWorkbook membuat worksheet HANDOVER dan DETAIL DATA lengkap dengan autofilter & kolom', () => {
-  const wb = buildHandoverWorkbook(sampleReports);
+test('buildHandoverWorkbook menghasilkan template Excel modern berwarna dengan banner judul, Lokasi Palet, Status, autofilter, dan buffer valid', () => {
+  const reportsForExport: HandoverReport[] = [
+    ...sampleReports,
+    {
+      ...sampleReports[0],
+      id: 'rep-4',
+      reportDate: '2026-11-12',
+      shift: 'Shift 3',
+      category: 'COMMISSIONING / TRIAL / CHANGE OVER',
+      machine: 'AST 50-16L',
+      information: 'Trial berjalan sesuai target',
+      palletLocation: 'Staging Area D',
+      isCompleted: true,
+    },
+  ];
+
+  const wb = buildHandoverWorkbook(reportsForExport);
   assert.deepEqual(wb.SheetNames, ['HANDOVER', 'DETAIL DATA']);
 
   const handoverSheet = wb.Sheets['HANDOVER'];
   const handoverJson = XLSX.utils.sheet_to_json<string[]>(handoverSheet, { header: 1 });
-  assert.deepEqual(handoverJson[0], [
+  assert.equal(handoverJson[0][0], 'LAPORAN SHIFT HANDOVER — MILITARY & STABILITY');
+  assert.deepEqual(handoverJson[3], [
     'Tanggal',
     'Shift',
     'Kategori',
     'Mesin',
-    'Informasi',
+    'Update Shift / Informasi / Keterangan',
     'Masalah',
     'Tindak Lanjut',
+    'Lokasi Palet',
+    'Status',
   ]);
-  assert.equal(handoverJson.length, 4);
-  assert.ok(handoverSheet['!autofilter']);
-  assert.ok(Array.isArray(handoverSheet['!cols']) && handoverSheet['!cols'].length === 7);
+  // 4 baris banner/spacer/header + 4 data = 8 baris total
+  assert.equal(handoverJson.length, 8);
+  assert.equal(handoverSheet['!autofilter']?.ref, 'A4:I8');
+  assert.ok(Array.isArray(handoverSheet['!merges']) && handoverSheet['!merges'].length === 2);
+  assert.ok(Array.isArray(handoverSheet['!cols']) && handoverSheet['!cols'].length === 9);
+
+  // Verifikasi cell styling (banner navy A1, header A4, status badge I5..I8)
+  assert.equal(handoverSheet['A1'].s?.fill?.fgColor?.rgb, '0F294A');
+  assert.equal(handoverSheet['A4'].s?.fill?.fgColor?.rgb, '1E3A5F');
+  assert.equal(handoverSheet['A4'].s?.font?.bold, true);
+  // Baris terakhir data (rep-4, Shift 3 2026-11-12 -> selesai OK)
+  assert.equal(handoverSheet['I7'].v, 'OK (Selesai)');
+  assert.equal(handoverSheet['I7'].s?.fill?.fgColor?.rgb, 'BBF7D0');
 
   const detailSheet = wb.Sheets['DETAIL DATA'];
   const detailJson = XLSX.utils.sheet_to_json<string[]>(detailSheet, { header: 1 });
-  assert.equal(detailJson[0].length, 11);
-  assert.equal(detailJson[0][0], 'ID');
-  assert.equal(detailJson[0][8], 'Pembuat');
+  assert.equal(detailJson[3].length, 13);
+  assert.equal(detailJson[3][0], 'ID');
+  assert.equal(detailJson[3][8], 'Lokasi Palet');
+  assert.equal(detailJson[3][9], 'Status');
+  assert.equal(detailJson[3][10], 'Pembuat');
+  assert.equal(detailSheet['!autofilter']?.ref, 'A4:M8');
   assert.equal(buildHandoverFilename('2026-11-13'), 'HANDOVER_2026-11-13.xlsx');
+
+  // Pastikan xlsx-js-style bisa menulis dan membaca ulang buffer XLSX valid
+  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
+  assert.ok(buffer.byteLength > 2000);
+  const reparsed = XLSX.read(buffer, { type: 'buffer' });
+  assert.deepEqual(reparsed.SheetNames, ['HANDOVER', 'DETAIL DATA']);
 });
 
 test('getCurrentShiftStatus mendeteksi jadwal Senin-Jumat (Shift 2 14:00-22:00) dan Sabtu dengan akurat', () => {
@@ -313,7 +367,6 @@ test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s
     isCompleted: false,
   };
 
-  // Masih Shift 3 dini hari (14 Nov 04:00 pagi) -> keduanya masih tampil, hanya yang dicentang isOk=true
   assert.equal(getOperationalDateString(new Date(2026, 10, 14, 4, 0)), '2026-11-13');
   const preDawn = groupActiveDashboardCases(
     [shift3CheckedOk, shift3UncheckedTextOk],
@@ -324,7 +377,6 @@ test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s
   assert.equal(preDawn['OVERHAUL'].length, 1);
   assert.equal(preDawn['OVERHAUL'][0].rows.at(-1)?.isOk, false);
 
-  // Jam 06:00 pagi tanggal 14 Nov (Shift 1 dimulai) -> yang dicentang selesai hilang, yang belum dicentang lanjut
   assert.equal(getOperationalDateString(new Date(2026, 10, 14, 6, 0)), '2026-11-14');
   const nextMorning = groupActiveDashboardCases(
     [shift3CheckedOk, shift3UncheckedTextOk],
@@ -333,7 +385,6 @@ test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s
   assert.equal(nextMorning['STABILITY TINGGI'].length, 0);
   assert.equal(nextMorning['OVERHAUL'].length, 1);
 
-  // Yang sudah hilang dari Dashboard tetap ditemukan di History dan Report Excel
   const inHistory = filterAndSortReports([shift3CheckedOk], {
     date: '2026-11-13',
     shift: 'ALL',
@@ -344,7 +395,8 @@ test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s
 
   const wb = buildHandoverWorkbook([shift3CheckedOk]);
   const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['HANDOVER'], { header: 1 });
-  assert.equal(rows.length, 2);
+  // 4 baris header/banner + 1 baris data
+  assert.equal(rows.length, 5);
 });
 
 test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, edit bebas)', () => {
@@ -366,7 +418,6 @@ test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, 
   assert.equal(hasFullShiftAccess(admin), true);
   assert.equal(hasFullShiftAccess(supervisor), true);
 
-  // Admin & Supervisor bisa input shift dan tanggal mana pun tanpa batas +4 jam
   const lateTime = new Date(2026, 10, 13, 23, 30);
   assert.equal(
     canSubmitReport({
@@ -385,7 +436,6 @@ test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, 
     true
   );
 
-  // Admin & Supervisor bisa edit laporan milik siapa pun kapan pun termasuk mengubah tanggal/shift
   assert.equal(
     canSubmitReport({
       user: supervisor,
@@ -413,8 +463,6 @@ test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
     canEditAll: false,
   };
 
-  // Jumat 13 Nov 2026:
-  // Shift 1 (06:00-14:00) + 4 jam -> maksimal 18:00
   assert.equal(
     isOperatorShiftInputAllowed('2026-11-13', 'Shift 1', new Date(2026, 10, 13, 18, 0, 0)),
     true
@@ -424,7 +472,6 @@ test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
     false
   );
 
-  // Shift 2 (14:00-22:00) + 4 jam -> maksimal 02:00 tanggal 14 Nov
   assert.equal(
     isOperatorShiftInputAllowed('2026-11-13', 'Shift 2', new Date(2026, 10, 14, 2, 0, 0)),
     true
@@ -434,7 +481,6 @@ test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
     false
   );
 
-  // Shift 3 (22:00-06:00) + 4 jam -> maksimal 10:00 tanggal 14 Nov
   assert.equal(
     isOperatorShiftInputAllowed('2026-11-13', 'Shift 3', new Date(2026, 10, 14, 10, 0, 0)),
     true
@@ -444,7 +490,6 @@ test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
     false
   );
 
-  // Sabtu 14 Nov 2026: Shift 1 (06:00-11:00) + 4 jam -> 15:00; Shift 3 (16:00-21:00) + 4 jam -> Minggu 01:00
   assert.equal(
     isOperatorShiftInputAllowed('2026-11-14', 'Shift 1', new Date(2026, 10, 14, 15, 0, 0)),
     true
@@ -462,14 +507,12 @@ test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
     false
   );
 
-  // Cek getOpenOperatorShiftSlots pukul 08:30 tanggal 14 Nov (Shift 3 tgl 13 masih +4j s/d 10:00, Shift 1 tgl 14 aktif)
   const morningSlots = getOpenOperatorShiftSlots(new Date(2026, 10, 14, 8, 30, 0));
   assert.deepEqual(
     morningSlots.map((s) => `${s.reportDate}:${s.shift}:${s.isGracePeriod}`),
     ['2026-11-13:Shift 3:true', '2026-11-14:Shift 1:false']
   );
 
-  // Operator ditolak membuat laporan baru lewat +4 jam
   const lateNew = canSubmitReport({
     user: op1,
     input: { reportDate: '2026-11-13', shift: 'Shift 1' },
@@ -477,7 +520,6 @@ test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
   });
   assert.equal(lateNew.allowed, false);
 
-  // Operator pembuat asli tetap bisa mengedit laporannya kapan pun (misal 10 hari kemudian)
   const lateOwnEdit = canSubmitReport({
     user: op1,
     input: { reportDate: sampleReports[0].reportDate, shift: sampleReports[0].shift },
@@ -486,7 +528,6 @@ test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
   });
   assert.equal(lateOwnEdit.allowed, true);
 
-  // Operator lain TIDAK bisa mengedit laporan milik op1
   const otherEdit = canSubmitReport({
     user: op2,
     input: { reportDate: sampleReports[0].reportDate, shift: sampleReports[0].shift },
@@ -509,7 +550,6 @@ test('case yang belum ditandai selesai tetap tampil di Dashboard walaupun sudah 
     isCompleted: false,
   };
 
-  // 5 hari kemudian (13 Nov 2026 Shift 1) tanpa laporan di hari-hari antara -> tetap tampil di Dashboard!
   const fiveDaysLater = groupActiveDashboardCases(
     [oldUnfinishedCase],
     new Date(2026, 10, 13, 9, 0)
@@ -519,7 +559,6 @@ test('case yang belum ditandai selesai tetap tampil di Dashboard walaupun sudah 
   assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].rows[0].isCarryOver, true);
   assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].rows[0].carryOverLabel, '2026-11-08');
 
-  // Setelah ditandai selesai pada tanggal 13 Nov, tetap hijau di 13 Nov dan hilang keesokan harinya (14 Nov 06:00)
   const completedToday: HandoverReport = {
     ...oldUnfinishedCase,
     id: 'multi-day-closed',
@@ -542,6 +581,3 @@ test('case yang belum ditandai selesai tetap tampil di Dashboard walaupun sudah 
   );
   assert.equal(day14['CASE PERBAIKAN PART'].length, 0);
 });
-
-
-

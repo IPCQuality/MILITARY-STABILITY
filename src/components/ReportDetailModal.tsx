@@ -68,10 +68,10 @@ export function ReportDetailModal({
           </button>
         </div>
 
-        <div className="p-5 overflow-y-auto space-y-5 text-sm">
+        <div className="p-5 overflow-y-auto space-y-4 text-sm">
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
-              Informasi / Keterangan
+              Update Shift / Informasi / Keterangan
             </h3>
             <p className="text-slate-900 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3.5 rounded-lg border border-slate-200">
               {report.information}
@@ -83,7 +83,7 @@ export function ReportDetailModal({
               Masalah
             </h3>
             <p className="text-slate-900 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3.5 rounded-lg border border-slate-200">
-              {report.issue || 'Tidak ada masalah tercatat.'}
+              {report.issue || '-'}
             </p>
           </div>
 
@@ -92,7 +92,16 @@ export function ReportDetailModal({
               Tindak Lanjut
             </h3>
             <p className="text-slate-900 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3.5 rounded-lg border border-slate-200">
-              {report.followUp || 'Belum ada catatan tindak lanjut.'}
+              {report.followUp || '-'}
+            </p>
+          </div>
+
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+              Lokasi Palet
+            </h3>
+            <p className="font-mono text-slate-900 whitespace-pre-wrap leading-relaxed bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+              {report.palletLocation || '-'}
             </p>
           </div>
 

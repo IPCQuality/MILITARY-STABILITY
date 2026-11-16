@@ -151,6 +151,7 @@ export interface HandoverReport {
   information: string;
   issue: string;
   followUp: string;
+  palletLocation: string;
   isCompleted: boolean;
   createdBy: string;
   createdByName: string;
@@ -168,6 +169,7 @@ export interface HandoverFormInput {
   information: string;
   issue: string;
   followUp: string;
+  palletLocation: string;
   isCompleted?: boolean;
 }
 

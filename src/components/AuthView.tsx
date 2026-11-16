@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
-import type { UserProfile } from '../types/handover';
+import type { UserProfile, UserRole } from '../types/handover';
 import {
   getSupabaseConfigIssue,
   isSupabaseConfigured,
@@ -18,6 +18,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [role, setRole] = useState<UserRole>('operator');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -58,6 +59,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
           email,
           password,
           fullName,
+          role,
         });
         if (res.error) {
           setErrorMsg(res.error);
@@ -190,22 +192,43 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {tab === 'register' && (
-              <div>
-                <label
-                  htmlFor="auth-fullname"
-                  className="block text-sm font-medium text-slate-700 mb-1.5"
-                >
-                  Nama Lengkap
-                </label>
-                <input
-                  id="auth-fullname"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Contoh: Suryadi"
-                  className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-                />
-              </div>
+              <>
+                <div>
+                  <label
+                    htmlFor="auth-fullname"
+                    className="block text-sm font-medium text-slate-700 mb-1.5"
+                  >
+                    Nama Lengkap
+                  </label>
+                  <input
+                    id="auth-fullname"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Contoh: Suryadi"
+                    className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="auth-role"
+                    className="block text-sm font-medium text-slate-700 mb-1.5"
+                  >
+                    Role Akun
+                  </label>
+                  <select
+                    id="auth-role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as UserRole)}
+                    className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                  >
+                    <option value="operator">Operator (Input +4 jam &amp; edit laporan sendiri)</option>
+                    <option value="supervisor">Supervisor (Akses penuh pilih shift &amp; edit semua)</option>
+                    <option value="admin">Admin (Kontrol penuh sistem)</option>
+                  </select>
+                </div>
+              </>
             )}
 
             <div>

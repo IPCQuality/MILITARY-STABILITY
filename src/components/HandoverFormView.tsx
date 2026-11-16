@@ -82,6 +82,7 @@ export function HandoverFormView({
   const [information, setInformation] = useState('');
   const [issue, setIssue] = useState('');
   const [followUp, setFollowUp] = useState('');
+  const [palletLocation, setPalletLocation] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof HandoverFormInput, string>>
@@ -121,6 +122,7 @@ export function HandoverFormView({
       setInformation(editingReport.information ?? '');
       setIssue(editingReport.issue ?? '');
       setFollowUp(editingReport.followUp ?? '');
+      setPalletLocation(editingReport.palletLocation ?? '');
       setIsCompleted(Boolean(editingReport.isCompleted));
       setFieldErrors({});
       setSubmitError(null);
@@ -145,6 +147,7 @@ export function HandoverFormView({
       setInformation(presetValues.information ?? '');
       setIssue(presetValues.issue ?? '');
       setFollowUp(presetValues.followUp ?? '');
+      setPalletLocation(presetValues.palletLocation ?? '');
       setIsCompleted(Boolean(presetValues.isCompleted));
       setFieldErrors({});
       setSubmitError(null);
@@ -160,6 +163,7 @@ export function HandoverFormView({
         setShift(freshStatus.primaryShift);
       }
       setMachine('');
+      setPalletLocation('');
       setIsCompleted(false);
       setFieldErrors({});
       setSubmitError(null);
@@ -183,6 +187,7 @@ export function HandoverFormView({
       information,
       issue,
       followUp,
+      palletLocation,
       isCompleted,
     };
 
@@ -215,6 +220,7 @@ export function HandoverFormView({
         setInformation('');
         setIssue('');
         setFollowUp('');
+        setPalletLocation('');
         setIsCompleted(false);
       }
     } finally {
@@ -392,8 +398,8 @@ export function HandoverFormView({
             )}
           </div>
 
-          {/* Kategori & Dropdown Mesin Lengkap */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Kategori & Dropdown Mesin Lengkap (Wajib) */}
+          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label
                 htmlFor="input-category"
@@ -423,17 +429,16 @@ export function HandoverFormView({
                 htmlFor="input-machine"
                 className="block text-sm font-medium text-slate-700 mb-1.5"
               >
-                Mesin {machineRequired ? '(Wajib)' : '(Opsional)'}
+                Pilih Mesin {machineRequired ? <span className="text-rose-600">* (Wajib)</span> : ''}
               </label>
               <select
                 id="input-machine"
+                required
                 value={machine}
                 onChange={(e) => setMachine(e.target.value)}
                 className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               >
-                <option value="">
-                  {machineRequired ? '-- Pilih Mesin (Wajib) --' : '-- Pilih Mesin (Opsional) --'}
-                </option>
+                <option value="">-- Pilih Mesin (Wajib) --</option>
                 {isCustomLegacyMachine && (
                   <option value={machine}>{machine}</option>
                 )}
@@ -465,61 +470,82 @@ export function HandoverFormView({
             </div>
           </div>
 
-          {/* Hasil Shift */}
-          <div>
-            <label
-              htmlFor="input-information"
-              className="block text-sm font-medium text-slate-700 mb-1.5"
-            >
-              Hasil / Update Shift
-            </label>
-            <textarea
-              id="input-information"
-              rows={3}
-              value={information}
-              onChange={(e) => setInformation(e.target.value)}
-              placeholder="Contoh: sudah press 10T / hasil military OK / hasil stability OK"
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-            />
-            {fieldErrors.information && (
-              <p className="mt-1 text-xs text-rose-600">{fieldErrors.information}</p>
-            )}
-          </div>
+          {/* Blok Isian Terstruktur (urutan identik dengan Dashboard) */}
+          <div className="space-y-4 p-4 rounded-xl border border-slate-200 bg-white">
+            {/* 1. Update Shift / Informasi / Keterangan */}
+            <div>
+              <label
+                htmlFor="input-information"
+                className="block text-sm font-medium text-slate-700 mb-1.5"
+              >
+                Update Shift / Informasi / Keterangan <span className="text-rose-600">*</span>
+              </label>
+              <textarea
+                id="input-information"
+                rows={3}
+                value={information}
+                onChange={(e) => setInformation(e.target.value)}
+                placeholder="Contoh: sudah press 10T / hasil military OK / hasil stability OK"
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              />
+              {fieldErrors.information && (
+                <p className="mt-1 text-xs text-rose-600">{fieldErrors.information}</p>
+              )}
+            </div>
 
-          {/* Instruksi Langkah Selanjutnya */}
-          <div>
-            <label
-              htmlFor="input-followup"
-              className="block text-sm font-medium text-slate-700 mb-1.5"
-            >
-              Instruksi Langkah Selanjutnya
-            </label>
-            <textarea
-              id="input-followup"
-              rows={2}
-              value={followUp}
-              onChange={(e) => setFollowUp(e.target.value)}
-              placeholder="Contoh: lanjut military shift 2 / lanjut stability 8 jam shift 3"
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-            />
-          </div>
+            {/* 2. Masalah */}
+            <div>
+              <label
+                htmlFor="input-issue"
+                className="block text-sm font-medium text-slate-700 mb-1.5"
+              >
+                Masalah
+              </label>
+              <textarea
+                id="input-issue"
+                rows={2}
+                value={issue}
+                onChange={(e) => setIssue(e.target.value)}
+                placeholder="Catat kendala teknis bila ada..."
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              />
+            </div>
 
-          {/* Masalah */}
-          <div>
-            <label
-              htmlFor="input-issue"
-              className="block text-sm font-medium text-slate-700 mb-1.5"
-            >
-              Masalah / Temuan (Opsional)
-            </label>
-            <textarea
-              id="input-issue"
-              rows={2}
-              value={issue}
-              onChange={(e) => setIssue(e.target.value)}
-              placeholder="Catat kendala teknis bila ada..."
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-            />
+            {/* 3. Tindak Lanjut */}
+            <div>
+              <label
+                htmlFor="input-followup"
+                className="block text-sm font-medium text-slate-700 mb-1.5"
+              >
+                Tindak Lanjut
+              </label>
+              <textarea
+                id="input-followup"
+                rows={2}
+                value={followUp}
+                onChange={(e) => setFollowUp(e.target.value)}
+                placeholder="Contoh: lanjut military shift 2 / lanjut stability 8 jam shift 3"
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              />
+            </div>
+
+            {/* 4. Lokasi Palet */}
+            <div>
+              <label
+                htmlFor="input-pallet-location"
+                className="block text-sm font-medium text-slate-700 mb-1.5"
+              >
+                Lokasi Palet
+              </label>
+              <input
+                id="input-pallet-location"
+                type="text"
+                value={palletLocation}
+                onChange={(e) => setPalletLocation(e.target.value)}
+                placeholder="Contoh: Rak B2 / Area Karantina / Line 1"
+                className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              />
+            </div>
           </div>
 
           {/* Status Case Selesai vs Berlanjut */}

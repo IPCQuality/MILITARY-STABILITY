@@ -126,8 +126,9 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
               <span>Sheet 1: HANDOVER</span>
             </div>
             <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-              Dikelompokkan berdasarkan Tanggal, Shift, Kategori, dan Mesin dengan kolom
-              Informasi, Masalah, serta Tindak Lanjut.
+              Template modern berwarna per Shift, Kategori, dan Status dengan kolom Tanggal,
+              Shift, Kategori, Mesin, Update Shift/Informasi/Keterangan, Masalah, Tindak Lanjut,
+              Lokasi Palet, dan Status.
             </p>
           </div>
 
@@ -137,8 +138,8 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
               <span>Sheet 2: DETAIL DATA</span>
             </div>
             <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-              Data mentah lengkap termasuk ID unik, Pembuat, Waktu Dibuat, dan Waktu
-              Diperbarui, dilengkapi AutoFilter dan Freeze Header.
+              Data mentah lengkap beserta ID unik, Lokasi Palet, Status, Pembuat, Waktu Dibuat,
+              dan Waktu Diperbarui, dilengkapi banner judul, AutoFilter, border rapi, dan Freeze Header.
             </p>
           </div>
         </div>

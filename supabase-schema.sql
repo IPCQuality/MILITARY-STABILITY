@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS public.handover_reports (
   information TEXT NOT NULL CHECK (char_length(trim(information)) > 0),
   issue TEXT NOT NULL DEFAULT '',
   follow_up TEXT NOT NULL DEFAULT '',
+  pallet_location TEXT NOT NULL DEFAULT '',
   is_completed BOOLEAN NOT NULL DEFAULT FALSE,
   created_by UUID NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id),
   created_by_name TEXT NOT NULL,
@@ -57,6 +58,8 @@ CREATE TABLE IF NOT EXISTS public.handover_reports (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE public.handover_reports ADD COLUMN IF NOT EXISTS pallet_location TEXT NOT NULL DEFAULT '';
 
 COMMENT ON TABLE public.handover_reports IS 'Catatan laporan serah terima pekerjaan antar-shift MILITARY & STABILITY.';
 
@@ -102,6 +105,8 @@ SET search_path = public
 AS $$
 DECLARE
   v_name TEXT;
+  v_role TEXT;
+  v_can_edit_all BOOLEAN;
   v_is_primary_admin BOOLEAN;
 BEGIN
   v_is_primary_admin := lower(COALESCE(NEW.email, '')) = 'suryadi.k94@gmail.com';
@@ -111,19 +116,28 @@ BEGIN
     CASE WHEN v_is_primary_admin THEN 'Suryadi (Admin)' ELSE split_part(COALESCE(NEW.email, 'Operator'), '@', 1) END
   );
 
+  v_role := CASE
+    WHEN v_is_primary_admin THEN 'admin'
+    WHEN (NEW.raw_user_meta_data ->> 'role') IN ('operator', 'supervisor', 'admin')
+      THEN NEW.raw_user_meta_data ->> 'role'
+    ELSE 'operator'
+  END;
+
+  v_can_edit_all := v_is_primary_admin OR v_role IN ('admin', 'supervisor');
+
   INSERT INTO public.profiles (id, email, full_name, role, can_edit_all)
   VALUES (
     NEW.id,
     COALESCE(NEW.email, ''),
     v_name,
-    CASE WHEN v_is_primary_admin THEN 'admin' ELSE 'operator' END,
-    v_is_primary_admin
+    v_role,
+    v_can_edit_all
   )
   ON CONFLICT (id) DO UPDATE
   SET email = EXCLUDED.email,
       full_name = COALESCE(NULLIF(trim(public.profiles.full_name), ''), EXCLUDED.full_name),
-      role = CASE WHEN v_is_primary_admin THEN 'admin' ELSE public.profiles.role END,
-      can_edit_all = CASE WHEN v_is_primary_admin THEN TRUE ELSE public.profiles.can_edit_all END;
+      role = CASE WHEN v_is_primary_admin THEN 'admin' ELSE EXCLUDED.role END,
+      can_edit_all = CASE WHEN v_is_primary_admin THEN TRUE ELSE EXCLUDED.can_edit_all END;
 
   RETURN NEW;
 END;

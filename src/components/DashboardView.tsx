@@ -171,22 +171,42 @@ export function DashboardView({
                                   key={rep.id}
                                   type="button"
                                   onClick={() => onSelectReport(rep)}
-                                  className={`w-full min-h-[44px] px-3 sm:px-4 py-2 text-left transition-colors block ${reportHoverClass}`}
+                                  className={`w-full min-h-[44px] px-3 sm:px-4 py-2.5 text-left transition-colors block ${reportHoverClass}`}
                                 >
-                                  <p className="text-xs sm:text-sm text-slate-900 leading-snug">
-                                    <span>{rep.information}</span>
-                                    {rep.followUp && (
-                                      <span className="text-[#0F294A] font-medium">
-                                        {' '}
-                                        · {rep.followUp}
+                                  <div className="space-y-1.5 text-left">
+                                    <div>
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                        Update Shift / Informasi / Keterangan
                                       </span>
-                                    )}
-                                  </p>
-                                  {rep.issue && (
-                                    <p className="mt-0.5 text-[11px] text-rose-700 line-clamp-1">
-                                      Masalah: {rep.issue}
-                                    </p>
-                                  )}
+                                      <p className="text-xs sm:text-sm text-slate-900 leading-snug whitespace-pre-wrap">
+                                        {rep.information}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-rose-700/90">
+                                        Masalah
+                                      </span>
+                                      <p className="text-xs text-slate-800 leading-snug whitespace-pre-wrap">
+                                        {rep.issue || '-'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-[#0F294A]">
+                                        Tindak Lanjut
+                                      </span>
+                                      <p className="text-xs text-slate-800 leading-snug whitespace-pre-wrap">
+                                        {rep.followUp || '-'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                        Lokasi Palet
+                                      </span>
+                                      <p className="text-xs font-mono text-slate-800 leading-snug">
+                                        {rep.palletLocation || '-'}
+                                      </p>
+                                    </div>
+                                  </div>
                                 </button>
                               ))}
                             </div>

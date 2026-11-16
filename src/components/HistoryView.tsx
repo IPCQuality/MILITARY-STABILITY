@@ -178,7 +178,8 @@ export function HistoryView({
                     <th className="py-2.5 px-3">Shift</th>
                     <th className="py-2.5 px-3">Kategori</th>
                     <th className="py-2.5 px-3">Mesin</th>
-                    <th className="py-2.5 px-3">Informasi &amp; Tindak Lanjut</th>
+                    <th className="py-2.5 px-3">Informasi, Masalah &amp; Tindak Lanjut</th>
+                    <th className="py-2.5 px-3">Lokasi Palet</th>
                     <th className="py-2.5 px-3">Pembuat</th>
                     <th className="py-2.5 px-3">Waktu Update</th>
                     <th className="py-2.5 pl-3 text-right">Aksi</th>
@@ -201,15 +202,23 @@ export function HistoryView({
                         <td className="py-3 px-3 font-mono text-xs text-slate-900 whitespace-nowrap">
                           {rep.machine || '-'}
                         </td>
-                        <td className="py-3 px-3 max-w-sm">
+                        <td className="py-3 px-3 max-w-sm space-y-1">
                           <p className="text-xs text-slate-800 line-clamp-2 leading-relaxed">
                             {rep.information}
                           </p>
+                          {rep.issue && (
+                            <p className="text-[11px] text-rose-700 line-clamp-1">
+                              Masalah: {rep.issue}
+                            </p>
+                          )}
                           {rep.followUp && (
-                            <p className="mt-1 text-[11px] text-slate-500 line-clamp-1">
+                            <p className="text-[11px] text-slate-500 line-clamp-1">
                               Tindak lanjut: {rep.followUp}
                             </p>
                           )}
+                        </td>
+                        <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
+                          {rep.palletLocation || '-'}
                         </td>
                         <td className="py-3 px-3 text-xs text-slate-700 whitespace-nowrap">
                           {rep.createdByName}
@@ -286,6 +295,12 @@ export function HistoryView({
                     {rep.followUp && (
                       <p className="text-xs text-slate-600 line-clamp-2">
                         Tindak lanjut: {rep.followUp}
+                      </p>
+                    )}
+
+                    {rep.palletLocation && (
+                      <p className="text-xs font-mono text-slate-700">
+                        Lokasi Palet: {rep.palletLocation}
                       </p>
                     )}
 

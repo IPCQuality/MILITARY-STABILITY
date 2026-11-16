@@ -41,8 +41,8 @@ export function getOperationalDateString(now: Date = new Date()): string {
   return getTodayDateString(shifted);
 }
 
-export function categoryRequiresMachine(category: CategoryType): boolean {
-  return category === 'OVERHAUL';
+export function categoryRequiresMachine(_category?: CategoryType): boolean {
+  return true;
 }
 
 export interface ValidationResult {
@@ -70,7 +70,7 @@ export function validateHandoverInput(input: HandoverFormInput): ValidationResul
   const sanitizedMachine = trimmedMachine.length > 0 ? trimmedMachine : null;
 
   if (categoryRequiresMachine(input.category) && !sanitizedMachine) {
-    errors.machine = 'Kode/nama mesin wajib diisi untuk kategori OVERHAUL.';
+    errors.machine = 'Mesin wajib dipilih.';
   }
 
   if (!input.information || input.information.trim().length === 0) {
@@ -390,6 +390,7 @@ export function filterAndSortReports(
           item.information,
           item.issue,
           item.followUp,
+          item.palletLocation,
           item.createdByName,
         ]
           .join(' ')
