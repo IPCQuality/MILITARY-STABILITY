@@ -31,10 +31,26 @@ jobs:
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Verify Supabase build config
+        env:
+          CHECK_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL || vars.SUPABASE_URL || secrets.SUPABASE_URL || 'https://dkyjfoxruqoqlhxrmcac.supabase.co' }}
+          CHECK_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$CHECK_KEY" ]; then
+            echo "::error::VITE_SUPABASE_PUBLISHABLE_KEY kosong di job build! Pastikan ditambahkan sebagai Repository variable atau Repository secret di GitHub -> Settings -> Secrets and variables -> Actions (BUKAN di menu Environments/github-pages, Codespaces, atau Dependabot)."
+            exit 1
+          fi
+          if echo "$CHECK_KEY" | grep -qE '^["'\'']?sb_secret_'; then
+            echo "::error::Key yang terpasang adalah sb_secret_ (rahasia). Ganti dengan Publishable key (sb_publishable_...) atau anon public key dari Supabase -> Project Settings -> API!"
+            exit 1
+          fi
+          echo "Supabase URL siap ($(echo "$CHECK_URL" | sed 's/https:\/\///'))"
+          echo "Supabase Publishable Key terdeteksi (${#CHECK_KEY} karakter)."
+
       - name: Build static bundle (relative paths)
         env:
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL || 'https://dkyjfoxruqoqlhxrmcac.supabase.co' }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL || vars.SUPABASE_URL || secrets.SUPABASE_URL || 'https://dkyjfoxruqoqlhxrmcac.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || vars.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || vars.SUPABASE_ANON_KEY || secrets.SUPABASE_ANON_KEY }}
         run: npm run build
 
       - name: Prepare GitHub Pages SPA fallback & .nojekyll

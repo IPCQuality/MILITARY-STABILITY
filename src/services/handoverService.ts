@@ -98,7 +98,24 @@ export function isDangerousSecretKey(key: string): boolean {
 }
 
 function stripQuotes(val: string): string {
-  return val.trim().replace(/^["']+|["']+$/g, '').trim();
+  return val
+    .trim()
+    .replace(/^(?:VITE_)?SUPABASE_[A-Z0-9_]*\s*=\s*/i, '')
+    .replace(/^["']+|["']+$/g, '')
+    .trim();
+}
+
+export function getSupabaseConfigIssue(): 'missing' | 'secret_key' | null {
+  const rawKey = stripQuotes(
+    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || ''
+  );
+  if (!rawKey || rawKey === 'YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY') {
+    return 'missing';
+  }
+  if (isDangerousSecretKey(rawKey)) {
+    return 'secret_key';
+  }
+  return null;
 }
 
 export function getSupabaseEnvConfig(): SupabaseConfig {

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
 import type { UserProfile } from '../types/handover';
 import {
+  getSupabaseConfigIssue,
   isSupabaseConfigured,
   signInSupabase,
   signUpSupabase,
@@ -23,6 +24,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
   const supabaseReady = isSupabaseConfigured();
+  const configIssue = getSupabaseConfigIssue();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -109,8 +111,17 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
               role="alert"
               className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed"
             >
-              Variabel build <code className="font-mono font-semibold">VITE_SUPABASE_PUBLISHABLE_KEY</code> belum
-              terpasang. Tambahkan sekali di GitHub → Settings → Secrets and variables → Actions (tab Variables atau Secrets) lalu jalankan ulang workflow deploy agar semua perangkat otomatis terhubung.
+              {configIssue === 'secret_key' ? (
+                <>
+                  Key yang terpasang pada build adalah <strong>secret / service_role key</strong> yang dilarang dipakai di browser. Ganti nilai{' '}
+                  <code className="font-mono font-semibold">VITE_SUPABASE_PUBLISHABLE_KEY</code> di GitHub → Settings → Secrets and variables → Actions dengan{' '}
+                  <strong>Publishable key</strong> (<code className="font-mono">sb_publishable_...</code>) atau <strong>anon public</strong> key, lalu jalankan ulang workflow deploy.
+                </>
+              ) : (
+                <>
+                  Variabel build <code className="font-mono font-semibold">VITE_SUPABASE_PUBLISHABLE_KEY</code> belum terpasang pada hasil build ini. Pastikan sudah ditambahkan sebagai <strong>Repository variable</strong> atau <strong>Repository secret</strong> di GitHub → Settings → Secrets and variables → Actions (bukan di Environments/Codespaces), lalu commit workflow <code className="font-mono">.github/workflows/deploy.yml</code> terbaru dan jalankan ulang <strong>Run workflow</strong>.
+                </>
+              )}
             </div>
           )}
 
