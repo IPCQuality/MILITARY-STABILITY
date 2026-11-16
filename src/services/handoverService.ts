@@ -97,15 +97,20 @@ export function isDangerousSecretKey(key: string): boolean {
   return false;
 }
 
-export function getSupabaseEnvConfig(): SupabaseConfig {
-  const envUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || '';
-  const envKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || '';
+function stripQuotes(val: string): string {
+  return val.trim().replace(/^["']+|["']+$/g, '').trim();
+}
 
-  const url = (envUrl || DEFAULT_SUPABASE_URL).trim();
-  const rawKey = envKey.trim();
+export function getSupabaseEnvConfig(): SupabaseConfig {
+  const envUrl = stripQuotes((import.meta.env.VITE_SUPABASE_URL as string | undefined) || '');
+  const envKey = stripQuotes(
+    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined) || ''
+  );
+
+  const url = envUrl || DEFAULT_SUPABASE_URL;
   const validKey =
-    rawKey && rawKey !== 'YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY' && !isDangerousSecretKey(rawKey)
-      ? rawKey
+    envKey && envKey !== 'YOUR_SUPABASE_PUBLISHABLE_OR_ANON_KEY' && !isDangerousSecretKey(envKey)
+      ? envKey
       : '';
 
   return { url, publishableKey: validKey };
@@ -247,10 +252,16 @@ export async function signUpSupabase(params: {
     };
   }
 
+  const redirectUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}`
+      : undefined;
+
   const { data, error } = await client.auth.signUp({
     email: params.email.trim(),
     password: params.password,
     options: {
+      emailRedirectTo: redirectUrl,
       data: {
         full_name: params.fullName.trim(),
       },

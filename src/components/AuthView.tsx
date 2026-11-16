@@ -110,7 +110,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
               className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed"
             >
               Variabel build <code className="font-mono font-semibold">VITE_SUPABASE_PUBLISHABLE_KEY</code> belum
-              terpasang. Tambahkan sekali di GitHub Repository Variables agar semua perangkat otomatis terhubung.
+              terpasang. Tambahkan sekali di GitHub → Settings → Secrets and variables → Actions (tab Variables atau Secrets) lalu jalankan ulang workflow deploy agar semua perangkat otomatis terhubung.
             </div>
           )}
 

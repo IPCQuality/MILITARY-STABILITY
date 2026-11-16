@@ -57,28 +57,30 @@ Aplikasi pencatatan dan serah terima laporan pekerjaan antar-shift produksi (**S
 > **PENTING:** Gunakan hanya **Publishable Key** (`sb_publishable_...`) atau **anon public key**. Jangan pernah menaruh `service_role` key atau password database di frontend maupun GitHub.
 
 Agar tidak perlu konfigurasi ulang setiap kali aplikasi dibuka di HP atau perangkat baru:
-- **Melalui GitHub Repository Variable saat Deploy:**
-  Di GitHub Repo → **Settings → Secrets and variables → Actions → Variables** → buat variable bernama `VITE_SUPABASE_PUBLISHABLE_KEY` berisi Publishable Key Anda lalu jalankan ulang workflow deploy. Key otomatis tertanam di hasil build untuk semua perangkat.
+- **Melalui GitHub Repository Variable / Secret saat Deploy:**
+  Di GitHub Repo → **Settings → Secrets and variables → Actions** (tab **Variables** atau **Secrets**) → tambahkan `VITE_SUPABASE_PUBLISHABLE_KEY` berisi Publishable Key Anda lalu jalankan ulang workflow deploy. Key otomatis tertanam di hasil build untuk semua perangkat.
 
 ---
 
 ## 3. Panduan Deploy ke GitHub Pages (Termasuk dari HP Android)
 
-### A. Menggunakan GitHub Web Interface dari HP Android (Tanpa Terminal)
-1. Login ke [github.com](https://github.com) lewat browser HP Android (Chrome/Edge).
-2. Buat repository baru (**New repository**), misalnya `shift-handover-military-stability` (Public atau Private sesuai paket GitHub Anda).
-3. Unggah seluruh file proyek ini (atau ekstrak ZIP lalu upload melalui **Add file → Upload files**), pastikan folder `.github/workflows/deploy.yml` ikut terunggah.
-4. Masuk ke **Settings → Secrets and variables → Actions → Variables → New repository variable**:
+### A. Menggunakan GitHub Web Interface dari HP Android / Laptop
+1. Login ke [github.com](https://github.com) lewat browser HP atau Laptop.
+2. Buat repository baru (**New repository**), misalnya `shift-handover-military-stability` (pilih **Public** jika memakai GitHub Free agar GitHub Pages aktif gratis).
+3. Unggah seluruh file proyek ini, pastikan folder **`.github/workflows/deploy.yml`** ikut terunggah. *(Jika ada file `.github/workflows/static.yml`, hapus file tersebut agar tidak bentrok).*
+4. Masuk ke **Settings → Secrets and variables → Actions** (boleh di tab **Variables** ataupun **Secrets**):
    - Name: `VITE_SUPABASE_PUBLISHABLE_KEY`
-   - Value: *(tempel Publishable Key Supabase Anda)*
+   - Value: *(tempel Publishable Key `sb_publishable_...` atau anon public key Supabase Anda, tanpa tanda kutip)*
 5. Masuk ke **Settings → Pages**:
    - Pada bagian **Build and deployment → Source**, pilih **GitHub Actions**.
-6. Buka tab **Actions** → pilih workflow **Deploy Shift Handover ke GitHub Pages** → klik **Run workflow** (atau otomatis berjalan saat push ke `main`).
-7. Setelah centang hijau selesai, URL aplikasi Anda siap dibuka di `https://<username>.github.io/<nama-repo>/` dari HP Android semua operator shift.
+6. Buka tab **Actions** → pilih workflow **Deploy Shift Handover ke GitHub Pages** → klik **Run workflow** (atau otomatis berjalan tiap push ke `main`/`master`).
+7. Setelah centang hijau (✓) selesai, URL aplikasi Anda siap dibuka di `https://<username>.github.io/<nama-repo>/` dari semua device tanpa perlu konfigurasi ulang.
+8. *(Opsional jika mengaktifkan konfirmasi email saat Registrasi)*: Di Supabase Dashboard buka **Authentication → URL Configuration**, isi **Site URL** dan tambahkan ke **Redirect URLs**:
+   - `https://<username>.github.io/<nama-repo>/`
 
 ### B. Build Lokal (Jika Menggunakan Laptop/PC)
 ```bash
-npm install
+npm install --legacy-peer-deps
 npm run build
 ```
 Hasil build statis berada di folder `dist/` dengan seluruh path aset bersifat relatif (`base: './'` di `vite.config.ts`) sehingga aman diakses dari subpath GitHub Pages.
