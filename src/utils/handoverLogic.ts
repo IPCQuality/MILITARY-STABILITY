@@ -579,14 +579,14 @@ export function canSubmitReport(params: {
       return {
         allowed: false,
         reason:
-          'Operator hanya dapat mempertahankan tanggal & shift laporan asli saat mengedit, kecuali target shift masih dalam batas input +4 jam.',
+          'Pengawas hanya dapat mempertahankan tanggal & shift laporan asli saat mengedit, kecuali target shift masih dalam batas input +4 jam.',
       };
     }
 
     return { allowed: true };
   }
 
-  // Penginputan baru oleh Operator: hanya selama shift berjalan hingga +4 jam setelah shift selesai
+  // Penginputan baru oleh Pengawas: hanya selama shift berjalan hingga +4 jam setelah shift selesai
   if (isOperatorShiftInputAllowed(input.reportDate, input.shift, now)) {
     return { allowed: true };
   }
@@ -770,4 +770,209 @@ export function getCurrentShiftStatus(now: Date = new Date()): ActiveShiftStatus
     schedule: WEEKDAY_SHIFT_HOURS,
     statusText,
   };
+}
+
+function parseUtcDayNumber(dateStr: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return 0;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return 0;
+  return Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+}
+
+function utcDayNumberToDateInfo(dayNum: number): { dateStr: string; dayOfWeek: number } {
+  const d = new Date(dayNum * 86400000);
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  return {
+    dateStr: `${yyyy}-${mm}-${dd}`,
+    dayOfWeek: d.getUTCDay(), // 0 = Minggu
+  };
+}
+
+export function getShiftSlotRank(dateStr: string, shift: ShiftType): number {
+  return parseUtcDayNumber(dateStr) * SHIFTS.length + SHIFTS.indexOf(shift);
+}
+
+export function buildSundayShiftKey(dateStr: string, shift: ShiftType): string {
+  return `${dateStr}::${shift}`;
+}
+
+export function calculateShiftSpan(
+  startDate: string,
+  startShift: ShiftType,
+  endDate: string,
+  endShift: ShiftType,
+  activeSundayShifts?: Set<string>
+): number {
+  const startRank = getShiftSlotRank(startDate, startShift);
+  const endRank = getShiftSlotRank(endDate, endShift);
+  if (startRank <= 0 || endRank <= 0 || endRank < startRank) {
+    return 1;
+  }
+
+  // Batasi iterasi maksimum agar aman untuk input ekstrem
+  const maxSpan = 3650 * SHIFTS.length;
+  if (endRank - startRank > maxSpan) {
+    return endRank - startRank + 1;
+  }
+
+  let count = 0;
+  for (let rank = startRank; rank <= endRank; rank += 1) {
+    const dayNum = Math.floor(rank / SHIFTS.length);
+    const shiftIdx = ((rank % SHIFTS.length) + SHIFTS.length) % SHIFTS.length;
+    const shift = SHIFTS[shiftIdx];
+    const { dateStr, dayOfWeek } = utcDayNumberToDateInfo(dayNum);
+
+    if (dayOfWeek === 0) {
+      // Hari Minggu: hanya dihitung jika ada shift yang melakukan update pada slot tersebut
+      if (activeSundayShifts?.has(buildSundayShiftKey(dateStr, shift))) {
+        count += 1;
+      }
+    } else {
+      count += 1;
+    }
+  }
+
+  return Math.max(1, count);
+}
+
+export interface CaseDurationItem {
+  id: string;
+  category: CategoryType;
+  machineName: string;
+  startDate: string;
+  startShift: ShiftType;
+  endDate: string;
+  endShift: ShiftType;
+  isCompleted: boolean;
+  durationShifts: number;
+  reportCount: number;
+  reportIds: string[];
+}
+
+export function computeCaseDurations(
+  reports: HandoverReport[],
+  now: Date = new Date()
+): CaseDurationItem[] {
+  const activeSundayShifts = new Set<string>();
+  const byCaseGroup = new Map<
+    string,
+    { category: CategoryType; machineName: string; items: HandoverReport[] }
+  >();
+
+  for (const rep of reports) {
+    const dayNum = parseUtcDayNumber(rep.reportDate);
+    if (dayNum > 0 && utcDayNumberToDateInfo(dayNum).dayOfWeek === 0) {
+      activeSundayShifts.add(buildSundayShiftKey(rep.reportDate, rep.shift));
+    }
+
+    const rawMachine = rep.machine?.trim() || null;
+    const machineKey = rawMachine ? rawMachine.toUpperCase() : '__UMUM__';
+    const groupKey = `${rep.category}::${machineKey}`;
+    let bucket = byCaseGroup.get(groupKey);
+    if (!bucket) {
+      bucket = {
+        category: rep.category,
+        machineName: rawMachine ?? 'Umum / Non-Mesin',
+        items: [],
+      };
+      byCaseGroup.set(groupKey, bucket);
+    }
+    bucket.items.push(rep);
+  }
+
+  const nowDateStr = getOperationalDateString(now);
+  const nowShift = getCurrentShiftStatus(now).primaryShift;
+  const nowRank = getShiftSlotRank(nowDateStr, nowShift);
+
+  const durations: CaseDurationItem[] = [];
+
+  for (const bucket of byCaseGroup.values()) {
+    const sorted = [...bucket.items].sort((a, b) => {
+      if (a.reportDate !== b.reportDate) {
+        return a.reportDate.localeCompare(b.reportDate);
+      }
+      const shiftDiff = SHIFTS.indexOf(a.shift) - SHIFTS.indexOf(b.shift);
+      if (shiftDiff !== 0) return shiftDiff;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+    const episodes: HandoverReport[][] = [];
+    let currentEp: HandoverReport[] = [];
+    let completedRank: number | null = null;
+
+    for (const rep of sorted) {
+      const repRank = getShiftSlotRank(rep.reportDate, rep.shift);
+      if (completedRank !== null && repRank > completedRank) {
+        if (currentEp.length > 0) {
+          episodes.push(currentEp);
+        }
+        currentEp = [];
+        completedRank = null;
+      }
+
+      currentEp.push(rep);
+      if (rep.isCompleted) {
+        completedRank = completedRank === null ? repRank : Math.max(completedRank, repRank);
+      }
+    }
+
+    if (currentEp.length > 0) {
+      episodes.push(currentEp);
+    }
+
+    episodes.forEach((ep, epIdx) => {
+      const startRep = ep[0];
+      const lastRep = ep[ep.length - 1];
+      const isCompleted = ep.some((r) => Boolean(r.isCompleted));
+      const closingRep =
+        [...ep].reverse().find((r) => Boolean(r.isCompleted)) ?? lastRep;
+
+      const endDate = isCompleted ? closingRep.reportDate : lastRep.reportDate;
+      const endShift = isCompleted ? closingRep.shift : lastRep.shift;
+
+      let effectiveEndDate = endDate;
+      let effectiveEndShift = endShift;
+      if (!isCompleted) {
+        const lastRank = getShiftSlotRank(lastRep.reportDate, lastRep.shift);
+        if (nowRank > lastRank) {
+          effectiveEndDate = nowDateStr;
+          effectiveEndShift = nowShift;
+        }
+      }
+
+      durations.push({
+        id: `${bucket.category}::${bucket.machineName}::${startRep.id}::${epIdx}`,
+        category: bucket.category,
+        machineName: bucket.machineName,
+        startDate: startRep.reportDate,
+        startShift: startRep.shift,
+        endDate,
+        endShift,
+        isCompleted,
+        durationShifts: calculateShiftSpan(
+          startRep.reportDate,
+          startRep.shift,
+          effectiveEndDate,
+          effectiveEndShift,
+          activeSundayShifts
+        ),
+        reportCount: ep.length,
+        reportIds: ep.map((r) => r.id),
+      });
+    });
+  }
+
+  return durations.sort((a, b) => {
+    if (a.isCompleted !== b.isCompleted) {
+      return a.isCompleted ? 1 : -1;
+    }
+    if (a.endDate !== b.endDate) {
+      return b.endDate.localeCompare(a.endDate);
+    }
+    const shiftDiff = SHIFTS.indexOf(b.endShift) - SHIFTS.indexOf(a.endShift);
+    if (shiftDiff !== 0) return shiftDiff;
+    return b.durationShifts - a.durationShifts;
+  });
 }

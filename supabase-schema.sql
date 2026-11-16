@@ -21,16 +21,26 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
-  full_name TEXT NOT NULL DEFAULT 'Operator',
-  role TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('operator', 'supervisor', 'admin')),
+  full_name TEXT NOT NULL DEFAULT 'Pengawas',
+  role TEXT NOT NULL DEFAULT 'pengawas' CHECK (role IN ('pengawas', 'supervisor', 'admin')),
   can_edit_all BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 ALTER TABLE public.profiles DROP COLUMN IF EXISTS default_shift;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+UPDATE public.profiles SET role = 'pengawas' WHERE role = 'operator';
+ALTER TABLE public.profiles
+  ALTER COLUMN role SET DEFAULT 'pengawas',
+  ALTER COLUMN full_name SET DEFAULT 'Pengawas';
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_role_check CHECK (role IN ('pengawas', 'supervisor', 'admin'));
+UPDATE public.profiles
+  SET can_edit_all = (role IN ('supervisor', 'admin'))
+  WHERE can_edit_all IS DISTINCT FROM (role IN ('supervisor', 'admin'));
 
-COMMENT ON TABLE public.profiles IS 'Profil operator, supervisor, dan admin Shift Handover.';
+COMMENT ON TABLE public.profiles IS 'Profil pengawas, supervisor, dan admin Shift Handover.';
 
 -- 4. Tabel Laporan Handover
 CREATE TABLE IF NOT EXISTS public.handover_reports (
@@ -106,21 +116,22 @@ AS $$
 DECLARE
   v_name TEXT;
   v_role TEXT;
+  v_raw_role TEXT;
   v_can_edit_all BOOLEAN;
   v_is_primary_admin BOOLEAN;
 BEGIN
   v_is_primary_admin := lower(COALESCE(NEW.email, '')) = 'suryadi.k94@gmail.com';
+  v_raw_role := lower(COALESCE(NEW.raw_user_meta_data ->> 'role', ''));
 
   v_name := COALESCE(
     NULLIF(trim(NEW.raw_user_meta_data ->> 'full_name'), ''),
-    CASE WHEN v_is_primary_admin THEN 'Suryadi (Admin)' ELSE split_part(COALESCE(NEW.email, 'Operator'), '@', 1) END
+    CASE WHEN v_is_primary_admin THEN 'Suryadi (Admin)' ELSE split_part(COALESCE(NEW.email, 'Pengawas'), '@', 1) END
   );
 
   v_role := CASE
     WHEN v_is_primary_admin THEN 'admin'
-    WHEN (NEW.raw_user_meta_data ->> 'role') IN ('operator', 'supervisor', 'admin')
-      THEN NEW.raw_user_meta_data ->> 'role'
-    ELSE 'operator'
+    WHEN v_raw_role IN ('pengawas', 'supervisor', 'admin') THEN v_raw_role
+    ELSE 'pengawas'
   END;
 
   v_can_edit_all := v_is_primary_admin OR v_role IN ('admin', 'supervisor');
@@ -167,7 +178,7 @@ BEGIN
   FROM public.profiles p
   WHERE p.id = auth.uid();
 
-  v_actor_name := COALESCE(NULLIF(trim(v_actor_name), ''), 'Operator');
+  v_actor_name := COALESCE(NULLIF(trim(v_actor_name), ''), 'Pengawas');
 
   IF TG_OP = 'INSERT' THEN
     IF auth.uid() IS NOT NULL THEN

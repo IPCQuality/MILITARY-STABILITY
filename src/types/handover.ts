@@ -132,7 +132,8 @@ export const OVERHAUL_MACHINES = [
   'AST 50-16L',
 ] as const;
 
-export type UserRole = 'operator' | 'supervisor' | 'admin';
+export const USER_ROLES = ['pengawas', 'supervisor', 'admin'] as const;
+export type UserRole = (typeof USER_ROLES)[number];
 
 export interface UserProfile {
   id: string;

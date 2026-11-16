@@ -97,15 +97,42 @@ export function DashboardView({
           <div className="divide-y divide-slate-300">
             {machineGroups.map((group) => (
               <div key={group.machineName}>
-                {/* Machine Sub-header Row */}
+                {/* Machine Sub-header Row dengan indikator bulat hijau (OK) / orange (dalam proses) */}
                 <div className="px-4 py-2 sm:px-5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between gap-2">
-                  <span className="font-mono text-xs sm:text-sm font-bold text-[#0F294A]">
-                    {group.machineName}
-                  </span>
-                  <span className="text-[11px] font-medium text-slate-500 tabular-nums">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span
+                      aria-label={group.isCompleted ? 'Status OK' : 'Dalam proses'}
+                      title={group.isCompleted ? 'Selesai (OK)' : 'Dalam proses'}
+                      data-machine-status={group.isCompleted ? 'ok' : 'in-progress'}
+                      className="relative flex h-2.5 w-2.5 shrink-0"
+                    >
+                      {!group.isCompleted && (
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
+                      )}
+                      <span
+                        className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                          group.isCompleted
+                            ? 'bg-emerald-500 ring-2 ring-emerald-200'
+                            : 'bg-orange-500 ring-2 ring-orange-200'
+                        }`}
+                      />
+                    </span>
+                    <span
+                      className={`font-mono text-xs sm:text-sm font-bold truncate ${
+                        group.isCompleted ? 'text-emerald-900' : 'text-[#0F294A]'
+                      }`}
+                    >
+                      {group.machineName}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-[11px] font-semibold tabular-nums shrink-0 ${
+                      group.isCompleted ? 'text-emerald-700' : 'text-orange-700'
+                    }`}
+                  >
                     {group.isCompleted
                       ? 'Selesai (OK)'
-                      : `${group.rows.length} shift ditampilkan`}
+                      : `Dalam Proses · ${group.rows.length} shift`}
                   </span>
                 </div>
 
@@ -162,7 +189,7 @@ export function DashboardView({
                           </div>
                         </div>
 
-                        {/* Right Column: Hasil Shift & Instruksi Selanjutnya */}
+                        {/* Right Column: 4 poin rata kiri tanpa teks label heading */}
                         <div className="col-span-8 flex items-stretch min-w-0">
                           {row.reports.length > 0 ? (
                             <div className="flex-1 min-w-0 divide-y divide-slate-200/60">
@@ -173,40 +200,60 @@ export function DashboardView({
                                   onClick={() => onSelectReport(rep)}
                                   className={`w-full min-h-[44px] px-3 sm:px-4 py-2.5 text-left transition-colors block ${reportHoverClass}`}
                                 >
-                                  <div className="space-y-1.5 text-left">
-                                    <div>
-                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                        Update Shift / Informasi / Keterangan
+                                  <ul className="space-y-1 text-left">
+                                    <li
+                                      title="Update Shift / Informasi / Keterangan"
+                                      className="flex items-start gap-2 text-xs sm:text-sm text-slate-900 leading-snug"
+                                    >
+                                      <span aria-hidden="true" className="text-slate-400 select-none shrink-0">
+                                        •
                                       </span>
-                                      <p className="text-xs sm:text-sm text-slate-900 leading-snug whitespace-pre-wrap">
+                                      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
                                         {rep.information}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-rose-700/90">
-                                        Masalah
                                       </span>
-                                      <p className="text-xs text-slate-800 leading-snug whitespace-pre-wrap">
+                                    </li>
+                                    <li
+                                      title="Masalah"
+                                      className={`flex items-start gap-2 text-xs leading-snug ${
+                                        rep.issue ? 'text-rose-800' : 'text-slate-400'
+                                      }`}
+                                    >
+                                      <span aria-hidden="true" className="text-slate-400 select-none shrink-0">
+                                        •
+                                      </span>
+                                      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
                                         {rep.issue || '-'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-[#0F294A]">
-                                        Tindak Lanjut
                                       </span>
-                                      <p className="text-xs text-slate-800 leading-snug whitespace-pre-wrap">
+                                    </li>
+                                    <li
+                                      title="Tindak Lanjut"
+                                      className={`flex items-start gap-2 text-xs leading-snug ${
+                                        rep.followUp
+                                          ? 'text-[#0F294A] font-medium'
+                                          : 'text-slate-400'
+                                      }`}
+                                    >
+                                      <span aria-hidden="true" className="text-slate-400 select-none shrink-0">
+                                        •
+                                      </span>
+                                      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
                                         {rep.followUp || '-'}
-                                      </p>
-                                    </div>
-                                    <div>
-                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                                        Lokasi Palet
                                       </span>
-                                      <p className="text-xs font-mono text-slate-800 leading-snug">
+                                    </li>
+                                    <li
+                                      title="Lokasi Palet"
+                                      className={`flex items-start gap-2 text-xs font-mono leading-snug ${
+                                        rep.palletLocation ? 'text-slate-700' : 'text-slate-400'
+                                      }`}
+                                    >
+                                      <span aria-hidden="true" className="text-slate-400 select-none shrink-0 font-sans">
+                                        •
+                                      </span>
+                                      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
                                         {rep.palletLocation || '-'}
-                                      </p>
-                                    </div>
-                                  </div>
+                                      </span>
+                                    </li>
+                                  </ul>
                                 </button>
                               ))}
                             </div>

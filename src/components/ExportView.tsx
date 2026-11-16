@@ -65,7 +65,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
       const result = downloadHandoverExcel(filteredForExport, targetFilename);
       setStatusMsg({
         ok: true,
-        text: `Berhasil mengunduh ${result.filename} (${result.rowCount} laporan, 2 worksheet: HANDOVER & DETAIL DATA).`,
+        text: `Berhasil mengunduh ${result.filename} (${result.rowCount} laporan, 1 worksheet DETAIL DATA).`,
       });
     } finally {
       setExporting(false);
@@ -79,7 +79,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
           Report &amp; Export Excel (.xlsx)
         </h2>
         <p className="text-sm text-slate-500">
-          Ekspor seluruh data laporan langsung dari Supabase Cloud ke file Excel dua worksheet.
+          Ekspor seluruh data laporan langsung dari Supabase Cloud ke file Excel satu worksheet detail.
         </p>
       </div>
 
@@ -119,27 +119,17 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
         </div>
 
         {/* Worksheet Specification Summary */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+        <div className="pt-2">
           <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <FileSpreadsheet className="w-4 h-4 text-[#0F294A]" />
-              <span>Sheet 1: HANDOVER</span>
+              <span>Sheet Tunggal: DETAIL DATA</span>
             </div>
             <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-              Template modern berwarna per Shift, Kategori, dan Status dengan kolom Tanggal,
-              Shift, Kategori, Mesin, Update Shift/Informasi/Keterangan, Masalah, Tindak Lanjut,
-              Lokasi Palet, dan Status.
-            </p>
-          </div>
-
-          <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              <FileSpreadsheet className="w-4 h-4 text-[#0F294A]" />
-              <span>Sheet 2: DETAIL DATA</span>
-            </div>
-            <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-              Data mentah lengkap beserta ID unik, Lokasi Palet, Status, Pembuat, Waktu Dibuat,
-              dan Waktu Diperbarui, dilengkapi banner judul, AutoFilter, border rapi, dan Freeze Header.
+              Seluruh detail laporan dalam 1 worksheet berwarna modern: ID, Tanggal, Shift,
+              Kategori, Mesin, Update Shift/Informasi/Keterangan, Masalah, Tindak Lanjut, Lokasi
+              Palet, Status, Total Durasi (Shift), Pembuat, Waktu Dibuat, dan Waktu Diperbarui,
+              lengkap dengan banner judul, AutoFilter, border rapi, dan Freeze Header.
             </p>
           </div>
         </div>

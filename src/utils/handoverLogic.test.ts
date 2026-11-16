@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import XLSX from 'xlsx-js-style';
 import {
+  calculateShiftSpan,
   canEditReport,
   canSubmitReport,
   categoryRequiresMachine,
+  computeCaseDurations,
   computeDashboardSummary,
   computeOverhaulMatrix,
   filterAndSortReports,
@@ -19,6 +21,7 @@ import {
   validateHandoverInput,
 } from './handoverLogic';
 import { buildHandoverFilename, buildHandoverWorkbook } from './excelExport';
+import { normalizeUserRole } from '../services/handoverService';
 import type { HandoverReport, UserProfile } from '../types/handover';
 
 const sampleReports: HandoverReport[] = [
@@ -233,7 +236,7 @@ test('canEditReport menerapkan otorisasi pembuat vs supervisor', () => {
     id: 'user-shift-1',
     email: 'shift1@plant.id',
     fullName: 'Budi Santoso',
-    role: 'operator',
+    role: 'pengawas',
     canEditAll: false,
   };
   const supervisor: UserProfile = {
@@ -247,9 +250,13 @@ test('canEditReport menerapkan otorisasi pembuat vs supervisor', () => {
   assert.equal(canEditReport(sampleReports[0], shift1User), true);
   assert.equal(canEditReport(sampleReports[1], shift1User), false);
   assert.equal(canEditReport(sampleReports[1], supervisor), true);
+  assert.equal(normalizeUserRole('operator'), 'pengawas');
+  assert.equal(normalizeUserRole('pengawas'), 'pengawas');
+  assert.equal(normalizeUserRole('supervisor'), 'supervisor');
+  assert.equal(normalizeUserRole('admin'), 'admin');
 });
 
-test('buildHandoverWorkbook menghasilkan template Excel modern berwarna dengan banner judul, Lokasi Palet, Status, autofilter, dan buffer valid', () => {
+test('buildHandoverWorkbook menghasilkan 1 worksheet DETAIL DATA modern berwarna lengkap dengan Total Durasi', () => {
   const reportsForExport: HandoverReport[] = [
     ...sampleReports,
     {
@@ -266,12 +273,13 @@ test('buildHandoverWorkbook menghasilkan template Excel modern berwarna dengan b
   ];
 
   const wb = buildHandoverWorkbook(reportsForExport);
-  assert.deepEqual(wb.SheetNames, ['HANDOVER', 'DETAIL DATA']);
+  assert.deepEqual(wb.SheetNames, ['DETAIL DATA']);
 
-  const handoverSheet = wb.Sheets['HANDOVER'];
-  const handoverJson = XLSX.utils.sheet_to_json<string[]>(handoverSheet, { header: 1 });
-  assert.equal(handoverJson[0][0], 'LAPORAN SHIFT HANDOVER — MILITARY & STABILITY');
-  assert.deepEqual(handoverJson[3], [
+  const detailSheet = wb.Sheets['DETAIL DATA'];
+  const detailJson = XLSX.utils.sheet_to_json<string[]>(detailSheet, { header: 1 });
+  assert.equal(detailJson[0][0], 'DETAIL DATA SHIFT HANDOVER — MILITARY & STABILITY');
+  assert.deepEqual(detailJson[3], [
+    'ID',
     'Tanggal',
     'Shift',
     'Kategori',
@@ -281,36 +289,33 @@ test('buildHandoverWorkbook menghasilkan template Excel modern berwarna dengan b
     'Tindak Lanjut',
     'Lokasi Palet',
     'Status',
+    'Total Durasi',
+    'Pembuat',
+    'Waktu Dibuat',
+    'Waktu Diperbarui',
   ]);
   // 4 baris banner/spacer/header + 4 data = 8 baris total
-  assert.equal(handoverJson.length, 8);
-  assert.equal(handoverSheet['!autofilter']?.ref, 'A4:I8');
-  assert.ok(Array.isArray(handoverSheet['!merges']) && handoverSheet['!merges'].length === 2);
-  assert.ok(Array.isArray(handoverSheet['!cols']) && handoverSheet['!cols'].length === 9);
+  assert.equal(detailJson.length, 8);
+  assert.equal(detailSheet['!autofilter']?.ref, 'A4:N8');
+  assert.ok(Array.isArray(detailSheet['!merges']) && detailSheet['!merges'].length === 2);
+  assert.ok(Array.isArray(detailSheet['!cols']) && detailSheet['!cols'].length === 14);
 
-  // Verifikasi cell styling (banner navy A1, header A4, status badge I5..I8)
-  assert.equal(handoverSheet['A1'].s?.fill?.fgColor?.rgb, '0F294A');
-  assert.equal(handoverSheet['A4'].s?.fill?.fgColor?.rgb, '1E3A5F');
-  assert.equal(handoverSheet['A4'].s?.font?.bold, true);
-  // Baris terakhir data (rep-4, Shift 3 2026-11-12 -> selesai OK)
-  assert.equal(handoverSheet['I7'].v, 'OK (Selesai)');
-  assert.equal(handoverSheet['I7'].s?.fill?.fgColor?.rgb, 'BBF7D0');
+  // Verifikasi cell styling (banner navy A1, header A4, status badge & total durasi baris 8)
+  assert.equal(detailSheet['A1'].s?.fill?.fgColor?.rgb, '0F294A');
+  assert.equal(detailSheet['A4'].s?.fill?.fgColor?.rgb, '1E3A5F');
+  assert.equal(detailSheet['A4'].s?.font?.bold, true);
+  assert.equal(detailSheet['J8'].v, 'OK (Selesai)');
+  assert.equal(detailSheet['J8'].s?.fill?.fgColor?.rgb, 'BBF7D0');
+  assert.equal(detailSheet['K8'].v, '1 Shift');
+  assert.equal(detailSheet['K8'].s?.fill?.fgColor?.rgb, 'DCFCE7');
 
-  const detailSheet = wb.Sheets['DETAIL DATA'];
-  const detailJson = XLSX.utils.sheet_to_json<string[]>(detailSheet, { header: 1 });
-  assert.equal(detailJson[3].length, 13);
-  assert.equal(detailJson[3][0], 'ID');
-  assert.equal(detailJson[3][8], 'Lokasi Palet');
-  assert.equal(detailJson[3][9], 'Status');
-  assert.equal(detailJson[3][10], 'Pembuat');
-  assert.equal(detailSheet['!autofilter']?.ref, 'A4:M8');
   assert.equal(buildHandoverFilename('2026-11-13'), 'HANDOVER_2026-11-13.xlsx');
 
   // Pastikan xlsx-js-style bisa menulis dan membaca ulang buffer XLSX valid
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
   assert.ok(buffer.byteLength > 2000);
   const reparsed = XLSX.read(buffer, { type: 'buffer' });
-  assert.deepEqual(reparsed.SheetNames, ['HANDOVER', 'DETAIL DATA']);
+  assert.deepEqual(reparsed.SheetNames, ['DETAIL DATA']);
 });
 
 test('getCurrentShiftStatus mendeteksi jadwal Senin-Jumat (Shift 2 14:00-22:00) dan Sabtu dengan akurat', () => {
@@ -394,7 +399,7 @@ test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s
   assert.equal(inHistory.length, 1);
 
   const wb = buildHandoverWorkbook([shift3CheckedOk]);
-  const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['HANDOVER'], { header: 1 });
+  const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['DETAIL DATA'], { header: 1 });
   // 4 baris header/banner + 1 baris data
   assert.equal(rows.length, 5);
 });
@@ -447,19 +452,19 @@ test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, 
   );
 });
 
-test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu), namun bisa edit laporan sendiri kapan pun', () => {
+test('Pengawas dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu), namun bisa edit laporan sendiri kapan pun', () => {
   const op1: UserProfile = {
     id: 'user-shift-1',
     email: 'op1@plant.id',
     fullName: 'Budi Santoso',
-    role: 'operator',
+    role: 'pengawas',
     canEditAll: false,
   };
   const op2: UserProfile = {
     id: 'user-shift-2',
     email: 'op2@plant.id',
     fullName: 'Rina Wijaya',
-    role: 'operator',
+    role: 'pengawas',
     canEditAll: false,
   };
 
@@ -581,3 +586,144 @@ test('case yang belum ditandai selesai tetap tampil di Dashboard walaupun sudah 
   );
   assert.equal(day14['CASE PERBAIKAN PART'].length, 0);
 });
+
+test('calculateShiftSpan dan computeCaseDurations menghitung total durasi per case dalam satuan Shift dengan akurat', () => {
+  assert.equal(calculateShiftSpan('2026-11-12', 'Shift 1', '2026-11-12', 'Shift 1'), 1);
+  assert.equal(calculateShiftSpan('2026-11-12', 'Shift 1', '2026-11-12', 'Shift 3'), 3);
+  assert.equal(calculateShiftSpan('2026-11-12', 'Shift 3', '2026-11-13', 'Shift 1'), 2);
+  assert.equal(calculateShiftSpan('2026-11-12', 'Shift 1', '2026-11-13', 'Shift 2'), 5);
+
+  const durationReports: HandoverReport[] = [
+    // Episode 1 AST 9-16L (OVERHAUL): 11 Nov Shift 3 -> 12 Nov Shift 2 (selesai) = 3 Shift
+    {
+      ...sampleReports[0],
+      id: 'd-ep1-1',
+      reportDate: '2026-11-11',
+      shift: 'Shift 3',
+      category: 'OVERHAUL',
+      machine: 'AST 9-16L',
+      isCompleted: false,
+    },
+    {
+      ...sampleReports[0],
+      id: 'd-ep1-2',
+      reportDate: '2026-11-12',
+      shift: 'Shift 2',
+      category: 'OVERHAUL',
+      machine: 'AST 9-16L',
+      isCompleted: true,
+    },
+    // Episode 2 AST 9-16L (OVERHAUL baru): dimulai 13 Nov Shift 1 -> masih berjalan pada 13 Nov Shift 3 = 3 Shift
+    {
+      ...sampleReports[0],
+      id: 'd-ep2-1',
+      reportDate: '2026-11-13',
+      shift: 'Shift 1',
+      category: 'OVERHAUL',
+      machine: 'AST 9-16L',
+      isCompleted: false,
+    },
+    // Case selesai di 1 shift yang sama (AST 67-16L) = 1 Shift
+    {
+      ...sampleReports[1],
+      id: 'd-single',
+      reportDate: '2026-11-12',
+      shift: 'Shift 1',
+      category: 'STABILITY TINGGI',
+      machine: 'AST 67-16L',
+      isCompleted: true,
+    },
+  ];
+
+  const nowAtShift3 = new Date(2026, 10, 13, 22, 30);
+  const durations = computeCaseDurations(durationReports, nowAtShift3);
+  assert.equal(durations.length, 3);
+
+  // Case berjalan muncul paling atas
+  assert.equal(durations[0].machineName, 'AST 9-16L');
+  assert.equal(durations[0].isCompleted, false);
+  assert.equal(durations[0].startDate, '2026-11-13');
+  assert.equal(durations[0].startShift, 'Shift 1');
+  assert.equal(durations[0].durationShifts, 3);
+  assert.equal(durations[0].reportCount, 1);
+
+  const ep1 = durations.find((d) => d.startDate === '2026-11-11');
+  assert.ok(ep1);
+  assert.equal(ep1.isCompleted, true);
+  assert.equal(ep1.endDate, '2026-11-12');
+  assert.equal(ep1.endShift, 'Shift 2');
+  assert.equal(ep1.durationShifts, 3);
+  assert.equal(ep1.reportCount, 2);
+
+  const single = durations.find((d) => d.machineName === 'AST 67-16L');
+  assert.ok(single);
+  assert.equal(single.isCompleted, true);
+  assert.equal(single.durationShifts, 1);
+});
+
+test('hari Minggu tidak dihitung jika tidak ada shift yang update, namun dihitung untuk shift Minggu yang memiliki update', () => {
+  // 2026-11-14 = Sabtu, 2026-11-15 = Minggu, 2026-11-16 = Senin
+  // Tanpa update di hari Minggu: Sabtu Shift 3 -> Senin Shift 1 = 2 Shift
+  assert.equal(calculateShiftSpan('2026-11-14', 'Shift 3', '2026-11-16', 'Shift 1'), 2);
+
+  // Dengan update pada Minggu Shift 1: Sabtu Shift 3 -> Senin Shift 1 = 3 Shift
+  assert.equal(
+    calculateShiftSpan(
+      '2026-11-14',
+      'Shift 3',
+      '2026-11-16',
+      'Shift 1',
+      new Set(['2026-11-15::Shift 1'])
+    ),
+    3
+  );
+
+  const weekendOpenCase: HandoverReport = {
+    ...sampleReports[0],
+    id: 'sun-skip-1',
+    reportDate: '2026-11-13', // Jumat
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 25-12L',
+    isCompleted: false,
+  };
+
+  // Diperiksa pada Minggu 15 Nov jam 10:00 tanpa laporan Minggu:
+  // Jumat (3) + Sabtu (3) + Minggu tanpa update (0) = 6 Shift
+  const sundayNoUpdate = computeCaseDurations(
+    [weekendOpenCase],
+    new Date(2026, 10, 15, 10, 0)
+  );
+  assert.equal(sundayNoUpdate[0].durationShifts, 6);
+
+  // Jika selesai Senin 16 Nov Shift 1 tanpa update Minggu:
+  // Jumat (3) + Sabtu (3) + Minggu (0) + Senin Shift 1 (1) = 7 Shift
+  const closedMonday: HandoverReport = {
+    ...weekendOpenCase,
+    id: 'sun-skip-2',
+    reportDate: '2026-11-16',
+    shift: 'Shift 1',
+    isCompleted: true,
+  };
+  const monWithoutSunday = computeCaseDurations(
+    [weekendOpenCase, closedMonday],
+    new Date(2026, 10, 16, 10, 0)
+  );
+  assert.equal(monWithoutSunday[0].durationShifts, 7);
+
+  // Jika ada update pada Minggu 15 Nov Shift 1:
+  // Jumat (3) + Sabtu (3) + Minggu Shift 1 (1) + Senin Shift 1 (1) = 8 Shift
+  const sundayShift1Report: HandoverReport = {
+    ...weekendOpenCase,
+    id: 'sun-active-1',
+    reportDate: '2026-11-15',
+    shift: 'Shift 1',
+    isCompleted: false,
+  };
+  const monWithSundayShift1 = computeCaseDurations(
+    [weekendOpenCase, sundayShift1Report, closedMonday],
+    new Date(2026, 10, 16, 10, 0)
+  );
+  assert.equal(monWithSundayShift1[0].durationShifts, 8);
+});
+

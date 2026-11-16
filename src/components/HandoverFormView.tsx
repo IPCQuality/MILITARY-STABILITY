@@ -320,7 +320,7 @@ export function HandoverFormView({
             )}
           </div>
 
-          {/* Shift (Admin/Supervisor bebas; Operator mengikuti jadwal +4 jam saat input baru) */}
+          {/* Shift (Admin/Supervisor bebas; Pengawas mengikuti jadwal +4 jam saat input baru) */}
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
               <span className="block text-sm font-medium text-slate-700">

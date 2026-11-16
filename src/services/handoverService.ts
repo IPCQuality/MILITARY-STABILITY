@@ -45,8 +45,15 @@ interface DbProfileRow {
   id: string;
   email: string;
   full_name: string;
-  role: UserRole;
+  role: string;
   can_edit_all: boolean;
+}
+
+export function normalizeUserRole(rawRole?: string | null): UserRole {
+  const lower = (rawRole ?? '').trim().toLowerCase();
+  if (lower === 'admin') return 'admin';
+  if (lower === 'supervisor') return 'supervisor';
+  return 'pengawas';
 }
 
 export function clearLegacyDemoStorage(): void {
@@ -208,7 +215,7 @@ export async function fetchUserProfileFromSupabase(
   const fallbackName =
     (user.user_metadata?.full_name as string | undefined) ||
     user.email?.split('@')[0] ||
-    'Operator';
+    'Pengawas';
 
   const { data, error } = await client
     .from('profiles')
@@ -221,7 +228,7 @@ export async function fetchUserProfileFromSupabase(
       id: user.id,
       email: user.email ?? '',
       fullName: fallbackName,
-      role: 'operator',
+      role: normalizeUserRole(user.user_metadata?.role as string | undefined),
       canEditAll: false,
     };
   }
@@ -231,7 +238,7 @@ export async function fetchUserProfileFromSupabase(
     id: row.id,
     email: row.email || user.email || '',
     fullName: row.full_name || fallbackName,
-    role: row.role || 'operator',
+    role: normalizeUserRole(row.role),
     canEditAll: Boolean(row.can_edit_all),
   };
 }
@@ -309,35 +316,6 @@ export async function signOutSupabase(): Promise<void> {
   if (client) {
     await client.auth.signOut();
   }
-}
-
-export async function loadProfilesSupabase(): Promise<{
-  profiles: UserProfile[];
-  error?: string;
-}> {
-  const client = getSupabaseClient();
-  if (!client) {
-    return { profiles: [], error: 'Konfigurasi Supabase belum terpasang di build.' };
-  }
-
-  const { data, error } = await client
-    .from('profiles')
-    .select('id, email, full_name, role, can_edit_all')
-    .order('full_name', { ascending: true });
-
-  if (error) {
-    return { profiles: [], error: mapAuthErrorMessage(error.message) };
-  }
-
-  return {
-    profiles: ((data ?? []) as DbProfileRow[]).map((row) => ({
-      id: row.id,
-      email: row.email ?? '',
-      fullName: row.full_name || 'Operator',
-      role: row.role || 'operator',
-      canEditAll: Boolean(row.can_edit_all),
-    })),
-  };
 }
 
 const REPORT_SELECT_WITH_PALLET =

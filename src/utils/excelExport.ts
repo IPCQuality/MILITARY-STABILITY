@@ -1,6 +1,11 @@
 import XLSX, { type CellStyle, type WorkBook, type WorkSheet } from 'xlsx-js-style';
 import type { CategoryType, HandoverReport, ShiftType } from '../types/handover';
-import { formatDateTimeId, getTodayDateString } from './handoverLogic';
+import {
+  computeCaseDurations,
+  formatDateTimeId,
+  getTodayDateString,
+  type CaseDurationItem,
+} from './handoverLogic';
 
 const THIN_BORDER = {
   top: { style: 'thin' as const, color: { rgb: 'CBD5E1' } },
@@ -28,21 +33,6 @@ const CATEGORY_COLORS: Record<CategoryType, { bg: string; fg: string }> = {
   'CASE PERBAIKAN PART': { bg: 'FFE4E6', fg: '9F1239' },
   'COMMISSIONING / TRIAL / CHANGE OVER': { bg: 'EDE9FE', fg: '5B21B6' },
 };
-
-function sortForHandoverSheet(reports: HandoverReport[]): HandoverReport[] {
-  return [...reports].sort((a, b) => {
-    if (a.reportDate !== b.reportDate) {
-      return b.reportDate.localeCompare(a.reportDate);
-    }
-    if (a.shift !== b.shift) {
-      return a.shift.localeCompare(b.shift);
-    }
-    if (a.category !== b.category) {
-      return a.category.localeCompare(b.category);
-    }
-    return (a.machine ?? '').localeCompare(b.machine ?? '');
-  });
-}
 
 function computeColumnWidths(
   dataRows: (string | number)[][],
@@ -90,48 +80,98 @@ function ensureStyledCell(ws: WorkSheet, r: number, c: number, style: CellStyle)
   ws[addr].s = style;
 }
 
-interface StyledSheetConfig {
-  title: string;
-  subtitle: string;
-  headers: string[];
-  dataRows: (string | number)[][];
-  reportsOrder: HandoverReport[];
-  colLimits: { min: number; max: number }[];
-  colIndices: {
-    date: number;
-    shift: number;
-    category: number;
-    machine: number;
-    status: number;
-    id?: number;
-  };
+export function buildHandoverFilename(dateStr: string = getTodayDateString()): string {
+  return `HANDOVER_${dateStr}.xlsx`;
 }
 
-function buildStyledSheet(cfg: StyledSheetConfig): WorkSheet {
-  const colCount = cfg.headers.length;
-  const titleRow: (string | number)[] = [cfg.title, ...Array(colCount - 1).fill('')];
-  const subtitleRow: (string | number)[] = [cfg.subtitle, ...Array(colCount - 1).fill('')];
-  const spacerRow: (string | number)[] = Array(colCount).fill('');
+export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
+  const wb = XLSX.utils.book_new();
+  const durations = computeCaseDurations(reports);
+  const durationByReportId = new Map<string, CaseDurationItem>();
+  for (const item of durations) {
+    for (const repId of item.reportIds) {
+      durationByReportId.set(repId, item);
+    }
+  }
 
+  const completedCount = reports.filter((r) => r.isCompleted).length;
+  const openCount = reports.length - completedCount;
+  const exportedAt = formatDateTimeId(new Date().toISOString());
+
+  const title = 'DETAIL DATA SHIFT HANDOVER — MILITARY & STABILITY';
+  const subtitle = `Ringkasan: ${reports.length} Laporan • ${durations.length} Case (${completedCount} OK / ${openCount} Berlanjut)  |  Diekspor: ${exportedAt}`;
+
+  const headers = [
+    'ID',
+    'Tanggal',
+    'Shift',
+    'Kategori',
+    'Mesin',
+    'Update Shift / Informasi / Keterangan',
+    'Masalah',
+    'Tindak Lanjut',
+    'Lokasi Palet',
+    'Status',
+    'Total Durasi',
+    'Pembuat',
+    'Waktu Dibuat',
+    'Waktu Diperbarui',
+  ];
+
+  const dataRows: (string | number)[][] = reports.map((r) => {
+    const dur = durationByReportId.get(r.id);
+    const durLabel = dur ? `${dur.durationShifts} Shift` : '1 Shift';
+    return [
+      r.id,
+      r.reportDate,
+      r.shift,
+      r.category,
+      r.machine ?? '-',
+      r.information,
+      r.issue || '-',
+      r.followUp || '-',
+      r.palletLocation || '-',
+      r.isCompleted ? 'OK (Selesai)' : 'Berlanjut',
+      durLabel,
+      r.createdByName,
+      formatDateTimeId(r.createdAt),
+      formatDateTimeId(r.updatedAt),
+    ];
+  });
+
+  const colCount = headers.length;
   const allRows: (string | number)[][] = [
-    titleRow,
-    subtitleRow,
-    spacerRow,
-    cfg.headers,
-    ...cfg.dataRows,
+    [title, ...Array(colCount - 1).fill('')],
+    [subtitle, ...Array(colCount - 1).fill('')],
+    Array(colCount).fill(''),
+    headers,
+    ...dataRows,
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(allRows);
-  const colWidths = computeColumnWidths([cfg.headers, ...cfg.dataRows], cfg.colLimits);
+  const colWidths = computeColumnWidths([headers, ...dataRows], [
+    { min: 14, max: 24 }, // ID
+    { min: 13, max: 15 }, // Tanggal
+    { min: 10, max: 12 }, // Shift
+    { min: 24, max: 34 }, // Kategori
+    { min: 14, max: 20 }, // Mesin
+    { min: 32, max: 46 }, // Update Shift / Informasi / Keterangan
+    { min: 22, max: 38 }, // Masalah
+    { min: 22, max: 38 }, // Tindak Lanjut
+    { min: 18, max: 28 }, // Lokasi Palet
+    { min: 14, max: 16 }, // Status
+    { min: 14, max: 16 }, // Total Durasi
+    { min: 16, max: 24 }, // Pembuat
+    { min: 18, max: 22 }, // Waktu Dibuat
+    { min: 18, max: 22 }, // Waktu Diperbarui
+  ]);
   ws['!cols'] = colWidths;
 
-  // Merges untuk Title Banner (row 0) & Subtitle Bar (row 1)
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } },
   ];
 
-  // Style Title Banner (row 0) & Subtitle (row 1)
   const titleStyle: CellStyle = {
     font: { name: 'Calibri', sz: 13, bold: true, color: { rgb: 'FFFFFF' } },
     fill: { patternType: 'solid', fgColor: { rgb: '0F294A' } },
@@ -151,37 +191,34 @@ function buildStyledSheet(cfg: StyledSheetConfig): WorkSheet {
     ensureStyledCell(ws, 1, c, subtitleStyle);
   }
 
-  // Style Header Row (row index 3 / Excel row 4)
+  const centeredCols = new Set([1, 2, 9, 10]);
   for (let c = 0; c < colCount; c += 1) {
-    const isCentered =
-      c === cfg.colIndices.date ||
-      c === cfg.colIndices.shift ||
-      c === cfg.colIndices.status;
     ensureStyledCell(ws, 3, c, {
       font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
       fill: { patternType: 'solid', fgColor: { rgb: '1E3A5F' } },
       alignment: {
         vertical: 'center',
-        horizontal: isCentered ? 'center' : 'left',
+        horizontal: centeredCols.has(c) ? 'center' : 'left',
         wrapText: true,
       },
       border: HEADER_BORDER,
     });
   }
 
-  // Style Data Rows (starting at row index 4 / Excel row 5)
   const rowHeights: { hpt: number }[] = [
-    { hpt: 30 }, // Row 1: Title
-    { hpt: 20 }, // Row 2: Subtitle
-    { hpt: 8 },  // Row 3: Spacer
-    { hpt: 28 }, // Row 4: Table Header
+    { hpt: 30 },
+    { hpt: 20 },
+    { hpt: 8 },
+    { hpt: 28 },
   ];
 
-  for (let i = 0; i < cfg.dataRows.length; i += 1) {
+  for (let i = 0; i < reports.length; i += 1) {
     const r = 4 + i;
-    const report = cfg.reportsOrder[i];
-    const rowData = cfg.dataRows[i];
-    const isCompleted = Boolean(report?.isCompleted);
+    const report = reports[i];
+    const rowData = dataRows[i];
+    const durItem = durationByReportId.get(report.id);
+    const isCompleted = Boolean(report.isCompleted);
+    const caseCompleted = durItem ? durItem.isCompleted : isCompleted;
     const baseBg = isCompleted ? 'F0FDF4' : i % 2 === 0 ? 'FFFFFF' : 'F8FAFC';
 
     for (let c = 0; c < colCount; c += 1) {
@@ -193,23 +230,25 @@ function buildStyledSheet(cfg: StyledSheetConfig): WorkSheet {
       let bold = false;
       let horizontal: 'left' | 'center' | 'right' = 'left';
 
-      if (c === cfg.colIndices.date) {
+      if (c === 0) {
+        fontColor = '475569';
+      } else if (c === 1) {
         horizontal = 'center';
         bold = true;
-      } else if (c === cfg.colIndices.shift && report) {
+      } else if (c === 2) {
         const sc = SHIFT_COLORS[report.shift];
         fillRgb = sc.bg;
         fontColor = sc.fg;
         bold = true;
         horizontal = 'center';
-      } else if (c === cfg.colIndices.category && report) {
+      } else if (c === 3) {
         const cc = CATEGORY_COLORS[report.category];
         fillRgb = cc.bg;
         fontColor = cc.fg;
         bold = true;
-      } else if (c === cfg.colIndices.machine) {
+      } else if (c === 4) {
         bold = true;
-      } else if (c === cfg.colIndices.status) {
+      } else if (c === 9) {
         horizontal = 'center';
         bold = true;
         if (isCompleted) {
@@ -219,8 +258,11 @@ function buildStyledSheet(cfg: StyledSheetConfig): WorkSheet {
           fillRgb = 'FEF3C7';
           fontColor = '92400E';
         }
-      } else if (cfg.colIndices.id !== undefined && c === cfg.colIndices.id) {
-        fontColor = '475569';
+      } else if (c === 10) {
+        horizontal = 'center';
+        bold = true;
+        fillRgb = caseCompleted ? 'DCFCE7' : 'DBEAFE';
+        fontColor = caseCompleted ? '14532D' : '0F294A';
       }
 
       ensureStyledCell(ws, r, c, {
@@ -254,138 +296,7 @@ function buildStyledSheet(cfg: StyledSheetConfig): WorkSheet {
     { state: 'frozen', ySplit: 4, topLeftCell: 'A5', activePane: 'bottomLeft' },
   ];
 
-  return ws;
-}
-
-export function buildHandoverFilename(dateStr: string = getTodayDateString()): string {
-  return `HANDOVER_${dateStr}.xlsx`;
-}
-
-export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
-  const wb = XLSX.utils.book_new();
-  const sortedHandover = sortForHandoverSheet(reports);
-  const completedCount = reports.filter((r) => r.isCompleted).length;
-  const openCount = reports.length - completedCount;
-  const exportedAt = formatDateTimeId(new Date().toISOString());
-  const summarySubtitle = `Ringkasan: ${reports.length} Laporan • ${completedCount} OK (Selesai) • ${openCount} Berlanjut  |  Diekspor: ${exportedAt}`;
-
-  // Sheet 1: HANDOVER (ringkas, berwarna, & terkelompok rapi)
-  const handoverHeaders = [
-    'Tanggal',
-    'Shift',
-    'Kategori',
-    'Mesin',
-    'Update Shift / Informasi / Keterangan',
-    'Masalah',
-    'Tindak Lanjut',
-    'Lokasi Palet',
-    'Status',
-  ];
-
-  const handoverDataRows: (string | number)[][] = sortedHandover.map((r) => [
-    r.reportDate,
-    r.shift,
-    r.category,
-    r.machine ?? '-',
-    r.information,
-    r.issue || '-',
-    r.followUp || '-',
-    r.palletLocation || '-',
-    r.isCompleted ? 'OK (Selesai)' : 'Berlanjut',
-  ]);
-
-  const wsHandover = buildStyledSheet({
-    title: 'LAPORAN SHIFT HANDOVER — MILITARY & STABILITY',
-    subtitle: summarySubtitle,
-    headers: handoverHeaders,
-    dataRows: handoverDataRows,
-    reportsOrder: sortedHandover,
-    colLimits: [
-      { min: 13, max: 15 }, // Tanggal
-      { min: 10, max: 12 }, // Shift
-      { min: 24, max: 34 }, // Kategori
-      { min: 14, max: 20 }, // Mesin
-      { min: 32, max: 46 }, // Update Shift / Informasi / Keterangan
-      { min: 22, max: 38 }, // Masalah
-      { min: 22, max: 38 }, // Tindak Lanjut
-      { min: 18, max: 28 }, // Lokasi Palet
-      { min: 14, max: 16 }, // Status
-    ],
-    colIndices: {
-      date: 0,
-      shift: 1,
-      category: 2,
-      machine: 3,
-      status: 8,
-    },
-  });
-  XLSX.utils.book_append_sheet(wb, wsHandover, 'HANDOVER');
-
-  // Sheet 2: DETAIL DATA (data mentah lengkap + audit trail)
-  const detailHeaders = [
-    'ID',
-    'Tanggal',
-    'Shift',
-    'Kategori',
-    'Mesin',
-    'Update Shift / Informasi / Keterangan',
-    'Masalah',
-    'Tindak Lanjut',
-    'Lokasi Palet',
-    'Status',
-    'Pembuat',
-    'Waktu Dibuat',
-    'Waktu Diperbarui',
-  ];
-
-  const detailDataRows: (string | number)[][] = reports.map((r) => [
-    r.id,
-    r.reportDate,
-    r.shift,
-    r.category,
-    r.machine ?? '-',
-    r.information,
-    r.issue || '-',
-    r.followUp || '-',
-    r.palletLocation || '-',
-    r.isCompleted ? 'OK (Selesai)' : 'Berlanjut',
-    r.createdByName,
-    formatDateTimeId(r.createdAt),
-    formatDateTimeId(r.updatedAt),
-  ]);
-
-  const wsDetail = buildStyledSheet({
-    title: 'DETAIL DATA HANDOVER & AUDIT TRAIL — MILITARY & STABILITY',
-    subtitle: summarySubtitle,
-    headers: detailHeaders,
-    dataRows: detailDataRows,
-    reportsOrder: reports,
-    colLimits: [
-      { min: 14, max: 24 }, // ID
-      { min: 13, max: 15 }, // Tanggal
-      { min: 10, max: 12 }, // Shift
-      { min: 24, max: 34 }, // Kategori
-      { min: 14, max: 20 }, // Mesin
-      { min: 32, max: 46 }, // Update Shift / Informasi / Keterangan
-      { min: 22, max: 38 }, // Masalah
-      { min: 22, max: 38 }, // Tindak Lanjut
-      { min: 18, max: 28 }, // Lokasi Palet
-      { min: 14, max: 16 }, // Status
-      { min: 16, max: 24 }, // Pembuat
-      { min: 18, max: 22 }, // Waktu Dibuat
-      { min: 18, max: 22 }, // Waktu Diperbarui
-    ],
-    colIndices: {
-      id: 0,
-      date: 1,
-      shift: 2,
-      category: 3,
-      machine: 4,
-      status: 9,
-    },
-  });
-  XLSX.utils.book_append_sheet(wb, wsDetail, 'DETAIL DATA');
-
+  XLSX.utils.book_append_sheet(wb, ws, 'DETAIL DATA');
   return wb;
 }
 

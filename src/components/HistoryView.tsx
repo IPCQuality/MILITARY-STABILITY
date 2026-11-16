@@ -11,6 +11,7 @@ import {
 } from '../types/handover';
 import {
   canEditReport,
+  computeCaseDurations,
   filterAndSortReports,
   formatDateTimeId,
 } from '../utils/handoverLogic';
@@ -39,6 +40,17 @@ export function HistoryView({
     () => filterAndSortReports(reports, filters),
     [reports, filters]
   );
+
+  const durationByReportId = useMemo(() => {
+    const map = new Map<string, number>();
+    const allDurations = computeCaseDurations(reports);
+    for (const item of allDurations) {
+      for (const reportId of item.reportIds) {
+        map.set(reportId, item.durationShifts);
+      }
+    }
+    return map;
+  }, [reports]);
 
   function resetFilters() {
     onChangeFilters({
@@ -188,6 +200,7 @@ export function HistoryView({
                 <tbody className="divide-y divide-slate-100">
                   {filteredReports.map((rep) => {
                     const editable = canEditReport(rep, currentUser);
+                    const durationShifts = durationByReportId.get(rep.id);
                     return (
                       <tr key={rep.id} className="hover:bg-slate-50/80 align-top">
                         <td className="py-3 pr-3 font-mono text-xs tabular-nums text-slate-700 whitespace-nowrap">
@@ -200,7 +213,15 @@ export function HistoryView({
                           <CategoryTag category={rep.category} />
                         </td>
                         <td className="py-3 px-3 font-mono text-xs text-slate-900 whitespace-nowrap">
-                          {rep.machine || '-'}
+                          <span className="font-semibold text-[#0F294A]">
+                            {rep.machine || '-'}
+                          </span>
+                          {durationShifts !== undefined && (
+                            <span className="text-slate-500 font-medium">
+                              {' '}
+                              | {durationShifts} Shift
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-3 max-w-sm space-y-1">
                           <p className="text-xs text-slate-800 line-clamp-2 leading-relaxed">
@@ -261,6 +282,7 @@ export function HistoryView({
             <div className="md:hidden space-y-3">
               {filteredReports.map((rep) => {
                 const editable = canEditReport(rep, currentUser);
+                const durationShifts = durationByReportId.get(rep.id);
                 return (
                   <article
                     key={rep.id}
@@ -276,9 +298,15 @@ export function HistoryView({
                       </span>
                     </div>
 
-                    {rep.machine && (
+                    {(rep.machine || durationShifts !== undefined) && (
                       <p className="font-mono text-xs font-semibold text-[#0F294A]">
-                        Mesin: {rep.machine}
+                        Mesin: {rep.machine || '-'}
+                        {durationShifts !== undefined && (
+                          <span className="text-slate-600 font-medium">
+                            {' '}
+                            | {durationShifts} Shift
+                          </span>
+                        )}
                       </p>
                     )}
 
