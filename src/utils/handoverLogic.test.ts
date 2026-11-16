@@ -3,13 +3,17 @@ import assert from 'node:assert/strict';
 import * as XLSX from 'xlsx';
 import {
   canEditReport,
+  canSubmitReport,
   categoryRequiresMachine,
   computeDashboardSummary,
   computeOverhaulMatrix,
   filterAndSortReports,
   getCurrentShiftStatus,
+  getOpenOperatorShiftSlots,
   getOperationalDateString,
   groupActiveDashboardCases,
+  hasFullShiftAccess,
+  isOperatorShiftInputAllowed,
   isReportResultOk,
   isShiftResultOk,
   validateHandoverInput,
@@ -341,6 +345,202 @@ test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s
   const wb = buildHandoverWorkbook([shift3CheckedOk]);
   const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['HANDOVER'], { header: 1 });
   assert.equal(rows.length, 2);
+});
+
+test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, edit bebas)', () => {
+  const admin: UserProfile = {
+    id: 'admin-1',
+    email: 'suryadi.k94@gmail.com',
+    fullName: 'Suryadi (Admin)',
+    role: 'admin',
+    canEditAll: true,
+  };
+  const supervisor: UserProfile = {
+    id: 'sup-1',
+    email: 'sup@plant.id',
+    fullName: 'Hendra',
+    role: 'supervisor',
+    canEditAll: true,
+  };
+
+  assert.equal(hasFullShiftAccess(admin), true);
+  assert.equal(hasFullShiftAccess(supervisor), true);
+
+  // Admin & Supervisor bisa input shift dan tanggal mana pun tanpa batas +4 jam
+  const lateTime = new Date(2026, 10, 13, 23, 30);
+  assert.equal(
+    canSubmitReport({
+      user: admin,
+      input: { reportDate: '2026-11-01', shift: 'Shift 1' },
+      now: lateTime,
+    }).allowed,
+    true
+  );
+  assert.equal(
+    canSubmitReport({
+      user: supervisor,
+      input: { reportDate: '2026-11-13', shift: 'Shift 1' },
+      now: lateTime,
+    }).allowed,
+    true
+  );
+
+  // Admin & Supervisor bisa edit laporan milik siapa pun kapan pun termasuk mengubah tanggal/shift
+  assert.equal(
+    canSubmitReport({
+      user: supervisor,
+      input: { reportDate: '2026-11-10', shift: 'Shift 2' },
+      editingReport: sampleReports[0],
+      now: lateTime,
+    }).allowed,
+    true
+  );
+});
+
+test('Operator dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu), namun bisa edit laporan sendiri kapan pun', () => {
+  const op1: UserProfile = {
+    id: 'user-shift-1',
+    email: 'op1@plant.id',
+    fullName: 'Budi Santoso',
+    role: 'operator',
+    canEditAll: false,
+  };
+  const op2: UserProfile = {
+    id: 'user-shift-2',
+    email: 'op2@plant.id',
+    fullName: 'Rina Wijaya',
+    role: 'operator',
+    canEditAll: false,
+  };
+
+  // Jumat 13 Nov 2026:
+  // Shift 1 (06:00-14:00) + 4 jam -> maksimal 18:00
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-13', 'Shift 1', new Date(2026, 10, 13, 18, 0, 0)),
+    true
+  );
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-13', 'Shift 1', new Date(2026, 10, 13, 18, 1, 0)),
+    false
+  );
+
+  // Shift 2 (14:00-22:00) + 4 jam -> maksimal 02:00 tanggal 14 Nov
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-13', 'Shift 2', new Date(2026, 10, 14, 2, 0, 0)),
+    true
+  );
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-13', 'Shift 2', new Date(2026, 10, 14, 2, 1, 0)),
+    false
+  );
+
+  // Shift 3 (22:00-06:00) + 4 jam -> maksimal 10:00 tanggal 14 Nov
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-13', 'Shift 3', new Date(2026, 10, 14, 10, 0, 0)),
+    true
+  );
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-13', 'Shift 3', new Date(2026, 10, 14, 10, 1, 0)),
+    false
+  );
+
+  // Sabtu 14 Nov 2026: Shift 1 (06:00-11:00) + 4 jam -> 15:00; Shift 3 (16:00-21:00) + 4 jam -> Minggu 01:00
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-14', 'Shift 1', new Date(2026, 10, 14, 15, 0, 0)),
+    true
+  );
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-14', 'Shift 1', new Date(2026, 10, 14, 15, 1, 0)),
+    false
+  );
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-14', 'Shift 3', new Date(2026, 10, 15, 1, 0, 0)),
+    true
+  );
+  assert.equal(
+    isOperatorShiftInputAllowed('2026-11-14', 'Shift 3', new Date(2026, 10, 15, 1, 1, 0)),
+    false
+  );
+
+  // Cek getOpenOperatorShiftSlots pukul 08:30 tanggal 14 Nov (Shift 3 tgl 13 masih +4j s/d 10:00, Shift 1 tgl 14 aktif)
+  const morningSlots = getOpenOperatorShiftSlots(new Date(2026, 10, 14, 8, 30, 0));
+  assert.deepEqual(
+    morningSlots.map((s) => `${s.reportDate}:${s.shift}:${s.isGracePeriod}`),
+    ['2026-11-13:Shift 3:true', '2026-11-14:Shift 1:false']
+  );
+
+  // Operator ditolak membuat laporan baru lewat +4 jam
+  const lateNew = canSubmitReport({
+    user: op1,
+    input: { reportDate: '2026-11-13', shift: 'Shift 1' },
+    now: new Date(2026, 10, 13, 18, 5, 0),
+  });
+  assert.equal(lateNew.allowed, false);
+
+  // Operator pembuat asli tetap bisa mengedit laporannya kapan pun (misal 10 hari kemudian)
+  const lateOwnEdit = canSubmitReport({
+    user: op1,
+    input: { reportDate: sampleReports[0].reportDate, shift: sampleReports[0].shift },
+    editingReport: sampleReports[0],
+    now: new Date(2026, 10, 22, 12, 0, 0),
+  });
+  assert.equal(lateOwnEdit.allowed, true);
+
+  // Operator lain TIDAK bisa mengedit laporan milik op1
+  const otherEdit = canSubmitReport({
+    user: op2,
+    input: { reportDate: sampleReports[0].reportDate, shift: sampleReports[0].shift },
+    editingReport: sampleReports[0],
+    now: new Date(2026, 10, 22, 12, 0, 0),
+  });
+  assert.equal(otherEdit.allowed, false);
+});
+
+test('case yang belum ditandai selesai tetap tampil di Dashboard walaupun sudah berganti banyak hari hingga ditandai selesai', () => {
+  const oldUnfinishedCase: HandoverReport = {
+    ...sampleReports[0],
+    id: 'multi-day-open',
+    reportDate: '2026-11-08',
+    shift: 'Shift 2',
+    category: 'CASE PERBAIKAN PART',
+    machine: 'AST 14-12L',
+    information: 'menunggu part valve pengganti',
+    followUp: 'pasang part bila sudah datang',
+    isCompleted: false,
+  };
+
+  // 5 hari kemudian (13 Nov 2026 Shift 1) tanpa laporan di hari-hari antara -> tetap tampil di Dashboard!
+  const fiveDaysLater = groupActiveDashboardCases(
+    [oldUnfinishedCase],
+    new Date(2026, 10, 13, 9, 0)
+  );
+  assert.equal(fiveDaysLater['CASE PERBAIKAN PART'].length, 1);
+  assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].machineName, 'AST 14-12L');
+  assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].rows[0].isCarryOver, true);
+  assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].rows[0].carryOverLabel, '2026-11-08');
+
+  // Setelah ditandai selesai pada tanggal 13 Nov, tetap hijau di 13 Nov dan hilang keesokan harinya (14 Nov 06:00)
+  const completedToday: HandoverReport = {
+    ...oldUnfinishedCase,
+    id: 'multi-day-closed',
+    reportDate: '2026-11-13',
+    shift: 'Shift 1',
+    information: 'valve baru terpasang & normal',
+    isCompleted: true,
+  };
+
+  const day13 = groupActiveDashboardCases(
+    [oldUnfinishedCase, completedToday],
+    new Date(2026, 10, 13, 10, 0)
+  );
+  assert.equal(day13['CASE PERBAIKAN PART'].length, 1);
+  assert.equal(day13['CASE PERBAIKAN PART'][0].isCompleted, true);
+
+  const day14 = groupActiveDashboardCases(
+    [oldUnfinishedCase, completedToday],
+    new Date(2026, 10, 14, 6, 0)
+  );
+  assert.equal(day14['CASE PERBAIKAN PART'].length, 0);
 });
 
 

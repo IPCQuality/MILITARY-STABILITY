@@ -64,11 +64,11 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
             </span>
           </div>
           <div>
-            <span className="text-xs text-slate-500 block">Izin Edit Laporan</span>
+            <span className="text-xs text-slate-500 block">Hak Akses &amp; Input</span>
             <span className="font-medium text-slate-900">
               {currentUser.canEditAll || currentUser.role !== 'operator'
-                ? 'Semua Laporan Shift (Supervisor/Admin)'
-                : 'Laporan Milik Sendiri'}
+                ? 'Akses Penuh (Pilih Shift Input Bebas & Edit Semua Laporan)'
+                : 'Input Shift (+4 Jam) & Edit Laporan Sendiri Kapanpun'}
             </span>
           </div>
         </div>

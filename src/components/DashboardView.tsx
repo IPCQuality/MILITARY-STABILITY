@@ -5,6 +5,7 @@ import {
   type CategoryType,
   type HandoverFormInput,
   type HandoverReport,
+  type UserProfile,
 } from '../types/handover';
 import {
   getCurrentShiftStatus,
@@ -15,6 +16,7 @@ import {
 interface DashboardViewProps {
   reports: HandoverReport[];
   loading: boolean;
+  currentUser: UserProfile;
   onSelectReport: (report: HandoverReport) => void;
   onCreatePreset: (preset: Partial<HandoverFormInput>) => void;
 }
@@ -26,6 +28,7 @@ const OTHER_CATEGORIES: CategoryType[] = CATEGORIES.filter(
 export function DashboardView({
   reports,
   loading,
+  currentUser,
   onSelectReport,
   onCreatePreset,
 }: DashboardViewProps) {
@@ -39,8 +42,8 @@ export function DashboardView({
   const today = getOperationalDateString(now);
   const liveShiftStatus = useMemo(() => getCurrentShiftStatus(now), [now]);
   const grouped = useMemo(
-    () => groupActiveDashboardCases(reports, now),
-    [reports, now]
+    () => groupActiveDashboardCases(reports, now, currentUser),
+    [reports, now, currentUser]
   );
 
   function renderCategoryCard(category: CategoryType) {

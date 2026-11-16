@@ -10,11 +10,26 @@ import {
   type UserProfile,
 } from '../types/handover';
 
+export const SHIFT_INPUT_GRACE_HOURS = 4;
+
 export function getTodayDateString(now: Date = new Date()): string {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function formatTimeHHMM(date: Date): string {
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+function parseLocalDateParts(dateStr: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day, 0, 0, 0, 0);
 }
 
 // Hari operasional pabrik dimulai pukul 06:00 (Shift 1) sampai pukul 05:59 besok (akhir Shift 3)
@@ -182,7 +197,8 @@ export interface MachineShiftGroup {
 
 export function groupActiveDashboardCases(
   reports: HandoverReport[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  user: UserProfile | null = null
 ): Record<CategoryType, MachineShiftGroup[]> {
   const calendarToday = getTodayDateString(now);
   const today = getOperationalDateString(now);
@@ -194,8 +210,8 @@ export function groupActiveDashboardCases(
   const activeShift = liveStatus.primaryShift;
   const activeShiftIdx = SHIFTS.indexOf(activeShift);
   const hasActiveWindow = liveStatus.activeShifts.length > 0;
-  const yesterdaySchedule = getShiftScheduleForDate(yesterdayDate);
   const isPreDawnShift3 = now.getHours() < 6;
+  const fullAccess = hasFullShiftAccess(user);
 
   const result = {} as Record<CategoryType, MachineShiftGroup[]>;
   for (const category of CATEGORIES) {
@@ -247,19 +263,20 @@ export function groupActiveDashboardCases(
         });
 
       const latestPrev = prevItems[0] ?? null;
-      // Case dianggap tuntas untuk hari sebelumnya hanya jika sudah dicentang selesai (isCompleted)
+      // Case dianggap tuntas hanya jika laporan pada shift terakhir sebelumnya sudah dicentang selesai (isCompleted)
       const finishedPrev =
         latestPrev !== null &&
-        (Boolean(latestPrev.isCompleted) ||
-          prevItems.some((r) => r.reportDate === yesterday && Boolean(r.isCompleted)));
+        prevItems.some(
+          (r) =>
+            r.reportDate === latestPrev.reportDate &&
+            r.shift === latestPrev.shift &&
+            Boolean(r.isCompleted)
+        );
 
-      // Case berkelanjutan hanya jika catatan kemarin belum dicentang selesai
-      const hasCarryOver =
-        latestPrev !== null &&
-        !finishedPrev &&
-        latestPrev.reportDate === yesterday;
+      // Selama belum ditandai selesai, case tetap dibawa ke Dashboard walaupun sudah berganti hari (>1 hari)
+      const hasCarryOver = latestPrev !== null && !finishedPrev;
 
-      // Jika tidak ada laporan hari ini DAN tidak ada case berkelanjutan dari kemarin, hilangkan dari Dashboard hari ini
+      // Jika tidak ada laporan hari ini DAN tidak ada case yang belum selesai dari hari sebelumnya, hilangkan dari Dashboard
       if (todayItems.length === 0 && !hasCarryOver) {
         continue;
       }
@@ -267,15 +284,18 @@ export function groupActiveDashboardCases(
       const todayCompleted = todayItems.some((r) => r.isCompleted);
       const rows: DashboardShiftRow[] = [];
 
-      // 1. Jika berkelanjutan dari kemarin, tampilkan catatan shift terakhir kemarin (biasanya Shift 3)
+      // 1. Jika masih ada case belum selesai dari hari sebelumnya, tampilkan catatan shift terakhirnya
       if (hasCarryOver && latestPrev) {
+        const prevDateObj = parseLocalDateParts(latestPrev.reportDate) ?? yesterdayDate;
+        const prevSchedule = getShiftScheduleForDate(prevDateObj);
         rows.push({
           key: `carryover-${latestPrev.id}`,
           shift: latestPrev.shift,
           reportDate: latestPrev.reportDate,
           isCarryOver: true,
-          carryOverLabel: 'Kemarin',
-          hours: yesterdaySchedule[latestPrev.shift],
+          carryOverLabel:
+            latestPrev.reportDate === yesterday ? 'Kemarin' : latestPrev.reportDate,
+          hours: prevSchedule[latestPrev.shift],
           reports: [latestPrev],
           isRunningShift: false,
           canFill: false,
@@ -313,6 +333,10 @@ export function groupActiveDashboardCases(
           continue;
         }
 
+        const canFillRow =
+          !todayCompleted &&
+          (fullAccess || isRunning || isOperatorShiftInputAllowed(today, s, now));
+
         rows.push({
           key: `today-${s}`,
           shift: s,
@@ -321,7 +345,7 @@ export function groupActiveDashboardCases(
           hours: liveStatus.schedule[s],
           reports: sReports,
           isRunningShift: isRunning,
-          canFill: isRunning && !todayCompleted,
+          canFill: canFillRow,
           isOk: isShiftResultOk(sReports),
         });
       }
@@ -389,15 +413,195 @@ export function filterAndSortReports(
     });
 }
 
+export function hasFullShiftAccess(user: UserProfile | null | undefined): boolean {
+  if (!user) return false;
+  return user.role === 'admin' || user.role === 'supervisor' || Boolean(user.canEditAll);
+}
+
 export function canEditReport(
   report: HandoverReport,
   user: UserProfile | null
 ): boolean {
   if (!user) return false;
-  if (user.role === 'admin' || user.role === 'supervisor' || user.canEditAll) {
+  if (hasFullShiftAccess(user)) {
     return true;
   }
   return report.createdBy === user.id;
+}
+
+export interface ShiftWindow {
+  start: Date;
+  end: Date;
+  graceEnd: Date;
+}
+
+export function getShiftWindowForDate(
+  reportDate: string,
+  shift: ShiftType
+): ShiftWindow | null {
+  const baseDate = parseLocalDateParts(reportDate);
+  if (!baseDate) return null;
+
+  const day = baseDate.getDay();
+  // Minggu tidak memiliki jadwal shift reguler baru
+  if (day === 0) return null;
+
+  const y = baseDate.getFullYear();
+  const m = baseDate.getMonth();
+  const d = baseDate.getDate();
+
+  let startHour = 6;
+  let endHour = 14;
+  let endDayOffset = 0;
+
+  if (day === 6) {
+    // Sabtu: Shift 1 06:00-11:00, Shift 2 11:00-16:00, Shift 3 16:00-21:00
+    if (shift === 'Shift 1') {
+      startHour = 6;
+      endHour = 11;
+    } else if (shift === 'Shift 2') {
+      startHour = 11;
+      endHour = 16;
+    } else {
+      startHour = 16;
+      endHour = 21;
+    }
+  } else {
+    // Senin - Jumat: Shift 1 06:00-14:00, Shift 2 14:00-22:00, Shift 3 22:00-06:00
+    if (shift === 'Shift 1') {
+      startHour = 6;
+      endHour = 14;
+    } else if (shift === 'Shift 2') {
+      startHour = 14;
+      endHour = 22;
+    } else {
+      startHour = 22;
+      endHour = 6;
+      endDayOffset = 1;
+    }
+  }
+
+  const start = new Date(y, m, d, startHour, 0, 0, 0);
+  const end = new Date(y, m, d + endDayOffset, endHour, 0, 0, 0);
+  const graceEnd = new Date(end.getTime() + SHIFT_INPUT_GRACE_HOURS * 60 * 60 * 1000);
+
+  return { start, end, graceEnd };
+}
+
+export interface OpenShiftSlot {
+  reportDate: string;
+  shift: ShiftType;
+  start: Date;
+  end: Date;
+  graceEnd: Date;
+  isGracePeriod: boolean;
+  graceDeadlineLabel: string;
+}
+
+export function isOperatorShiftInputAllowed(
+  reportDate: string,
+  shift: ShiftType,
+  now: Date = new Date()
+): boolean {
+  const window = getShiftWindowForDate(reportDate, shift);
+  if (!window) return false;
+  const nowMs = now.getTime();
+  return nowMs >= window.start.getTime() && nowMs <= window.graceEnd.getTime();
+}
+
+export function getOpenOperatorShiftSlots(now: Date = new Date()): OpenShiftSlot[] {
+  const todayCal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterdayCal = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const candidateDates = [
+    getTodayDateString(yesterdayCal),
+    getTodayDateString(todayCal),
+  ];
+
+  const slots: OpenShiftSlot[] = [];
+  const nowMs = now.getTime();
+
+  for (const dateStr of candidateDates) {
+    for (const shift of SHIFTS) {
+      const window = getShiftWindowForDate(dateStr, shift);
+      if (!window) continue;
+      if (nowMs >= window.start.getTime() && nowMs <= window.graceEnd.getTime()) {
+        slots.push({
+          reportDate: dateStr,
+          shift,
+          start: window.start,
+          end: window.end,
+          graceEnd: window.graceEnd,
+          isGracePeriod: nowMs > window.end.getTime(),
+          graceDeadlineLabel: formatTimeHHMM(window.graceEnd),
+        });
+      }
+    }
+  }
+
+  return slots;
+}
+
+export interface SubmissionPermissionResult {
+  allowed: boolean;
+  reason?: string;
+}
+
+export function canSubmitReport(params: {
+  user: UserProfile | null;
+  input: Pick<HandoverFormInput, 'reportDate' | 'shift'>;
+  editingReport?: HandoverReport | null;
+  now?: Date;
+}): SubmissionPermissionResult {
+  const { user, input, editingReport = null, now = new Date() } = params;
+
+  if (!user) {
+    return { allowed: false, reason: 'Sesi pengguna tidak ditemukan.' };
+  }
+
+  // Admin dan Supervisor punya akses penuh: bebas pilih shift/tanggal input & edit bebas
+  if (hasFullShiftAccess(user)) {
+    return { allowed: true };
+  }
+
+  // Pengeditan: bisa kapanpun selama dilakukan oleh pembuat laporan yang sama (atau Admin/Supervisor)
+  if (editingReport) {
+    if (!canEditReport(editingReport, user)) {
+      return {
+        allowed: false,
+        reason: 'Hanya pembuat laporan atau Admin/Supervisor yang dapat mengedit laporan ini.',
+      };
+    }
+
+    const unchangedTarget =
+      input.reportDate === editingReport.reportDate && input.shift === editingReport.shift;
+    if (!unchangedTarget && !isOperatorShiftInputAllowed(input.reportDate, input.shift, now)) {
+      return {
+        allowed: false,
+        reason:
+          'Operator hanya dapat mempertahankan tanggal & shift laporan asli saat mengedit, kecuali target shift masih dalam batas input +4 jam.',
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  // Penginputan baru oleh Operator: hanya selama shift berjalan hingga +4 jam setelah shift selesai
+  if (isOperatorShiftInputAllowed(input.reportDate, input.shift, now)) {
+    return { allowed: true };
+  }
+
+  const targetWindow = getShiftWindowForDate(input.reportDate, input.shift);
+  if (targetWindow && now.getTime() > targetWindow.graceEnd.getTime()) {
+    return {
+      allowed: false,
+      reason: `Batas input ${input.shift} tanggal ${input.reportDate} maksimal +4 jam setelah shift selesai (s/d pukul ${formatTimeHHMM(targetWindow.graceEnd)}). Hubungi Admin atau Supervisor.`,
+    };
+  }
+
+  return {
+    allowed: false,
+    reason: `${input.shift} pada tanggal ${input.reportDate} belum dimulai atau di luar jadwal shift reguler (+4 jam).`,
+  };
 }
 
 export function formatDateTimeId(iso: string): string {

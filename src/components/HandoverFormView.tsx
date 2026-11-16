@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Pencil, Save, XCircle } from 'lucide-react';
+import { Pencil, Save, ShieldCheck, XCircle } from 'lucide-react';
 import {
   APK_MACHINES,
   AST_MACHINES,
@@ -14,10 +14,14 @@ import {
   type UserProfile,
 } from '../types/handover';
 import {
+  canSubmitReport,
   categoryRequiresMachine,
   getCurrentShiftStatus,
+  getOpenOperatorShiftSlots,
   getOperationalDateString,
   getShiftScheduleForDate,
+  hasFullShiftAccess,
+  isOperatorShiftInputAllowed,
   validateHandoverInput,
 } from '../utils/handoverLogic';
 
@@ -45,11 +49,34 @@ export function HandoverFormView({
   onSubmitReport,
   onCancel,
 }: HandoverFormViewProps) {
-  const liveStatus = useMemo(() => getCurrentShiftStatus(), []);
-  const todayStr = getOperationalDateString();
+  const [now, setNow] = useState(() => new Date());
 
-  const [reportDate, setReportDate] = useState(todayStr);
-  const [shift, setShift] = useState<ShiftType>(liveStatus.primaryShift);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const liveStatus = useMemo(() => getCurrentShiftStatus(now), [now]);
+  const todayStr = useMemo(() => getOperationalDateString(now), [now]);
+  const fullAccess = hasFullShiftAccess(currentUser);
+  const openOperatorSlots = useMemo(
+    () => (fullAccess ? [] : getOpenOperatorShiftSlots(now)),
+    [fullAccess, now]
+  );
+
+  const defaultOperatorSlot = useMemo(() => {
+    if (openOperatorSlots.length === 0) return null;
+    return (
+      openOperatorSlots.find((s) => !s.isGracePeriod) ?? openOperatorSlots[0]
+    );
+  }, [openOperatorSlots]);
+
+  const [reportDate, setReportDate] = useState(
+    () => defaultOperatorSlot?.reportDate ?? todayStr
+  );
+  const [shift, setShift] = useState<ShiftType>(
+    () => defaultOperatorSlot?.shift ?? liveStatus.primaryShift
+  );
   const [category, setCategory] = useState<CategoryType>('OVERHAUL');
   const [machine, setMachine] = useState('');
   const [information, setInformation] = useState('');
@@ -67,16 +94,28 @@ export function HandoverFormView({
     [reportDate]
   );
 
-  // Untuk pengisian update baru di hari ini, kunci ke shift berjalan bila sedang dalam jam shift aktif
-  const lockToRunningShift =
-    !editingReport &&
-    reportDate === todayStr &&
-    liveStatus.activeShifts.length > 0;
+  // Operator hanya bisa input pada shift yang masih dalam jendela aktif/+4 jam;
+  // saat mengedit laporan lama miliknya, tanggal & shift dikunci sesuai laporan asli.
+  const operatorClosedNow =
+    !fullAccess && !editingReport && openOperatorSlots.length === 0;
+  const lockDateAndShiftOnEdit = Boolean(editingReport && !fullAccess);
+
+  const openDates = useMemo(() => {
+    const unique = Array.from(new Set(openOperatorSlots.map((s) => s.reportDate)));
+    return unique.sort();
+  }, [openOperatorSlots]);
 
   useEffect(() => {
+    const freshNow = new Date();
+    const freshToday = getOperationalDateString(freshNow);
+    const freshStatus = getCurrentShiftStatus(freshNow);
+    const freshSlots = fullAccess ? [] : getOpenOperatorShiftSlots(freshNow);
+    const freshDefaultSlot =
+      freshSlots.find((s) => !s.isGracePeriod) ?? freshSlots[0] ?? null;
+
     if (editingReport) {
-      setReportDate(editingReport.reportDate || todayStr);
-      setShift(editingReport.shift || liveStatus.primaryShift);
+      setReportDate(editingReport.reportDate || freshToday);
+      setShift(editingReport.shift || freshStatus.primaryShift);
       setCategory(editingReport.category || 'OVERHAUL');
       setMachine(editingReport.machine ?? '');
       setInformation(editingReport.information ?? '');
@@ -89,12 +128,17 @@ export function HandoverFormView({
     }
 
     if (presetValues) {
-      const targetDate = presetValues.reportDate || todayStr;
-      setReportDate(targetDate);
-      if (targetDate === todayStr && liveStatus.activeShifts.length > 0) {
-        setShift(liveStatus.primaryShift);
+      const targetDate = presetValues.reportDate || freshToday;
+      const targetShift = presetValues.shift || freshStatus.primaryShift;
+      if (fullAccess || isOperatorShiftInputAllowed(targetDate, targetShift, freshNow)) {
+        setReportDate(targetDate);
+        setShift(targetShift);
+      } else if (freshDefaultSlot) {
+        setReportDate(freshDefaultSlot.reportDate);
+        setShift(freshDefaultSlot.shift);
       } else {
-        setShift(presetValues.shift || liveStatus.primaryShift);
+        setReportDate(targetDate);
+        setShift(targetShift);
       }
       setCategory(presetValues.category || 'OVERHAUL');
       setMachine(presetValues.machine ?? '');
@@ -105,12 +149,22 @@ export function HandoverFormView({
       setFieldErrors({});
       setSubmitError(null);
     } else {
-      setReportDate(todayStr);
-      setShift(liveStatus.primaryShift);
+      if (fullAccess) {
+        setReportDate(freshToday);
+        setShift(freshStatus.primaryShift);
+      } else if (freshDefaultSlot) {
+        setReportDate(freshDefaultSlot.reportDate);
+        setShift(freshDefaultSlot.shift);
+      } else {
+        setReportDate(freshToday);
+        setShift(freshStatus.primaryShift);
+      }
       setMachine('');
       setIsCompleted(false);
+      setFieldErrors({});
+      setSubmitError(null);
     }
-  }, [editingReport, presetValues, todayStr, liveStatus.activeShifts.length, liveStatus.primaryShift]);
+  }, [editingReport, presetValues, fullAccess]);
 
   const machineRequired = categoryRequiresMachine(category);
   const isCustomLegacyMachine =
@@ -131,6 +185,17 @@ export function HandoverFormView({
       followUp,
       isCompleted,
     };
+
+    const permission = canSubmitReport({
+      user: currentUser,
+      input: payload,
+      editingReport,
+      now: new Date(),
+    });
+    if (!permission.allowed) {
+      setSubmitError(permission.reason || 'Anda tidak memiliki izin untuk menyimpan laporan ini.');
+      return;
+    }
 
     const validation = validateHandoverInput(payload);
     if (!validation.valid) {
@@ -161,9 +226,17 @@ export function HandoverFormView({
     <div className="max-w-2xl mx-auto">
       <div className="bg-white rounded-xl border border-slate-300 p-5 sm:p-7">
         <div className="border-b border-slate-200 pb-4 mb-5">
-          <h2 className="text-lg font-bold text-slate-900">
-            {editingReport ? 'Edit Laporan Handover' : 'Input Laporan Handover'}
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-slate-900">
+              {editingReport ? 'Edit Laporan Handover' : 'Input Laporan Handover'}
+            </h2>
+            {fullAccess && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-[11px] font-semibold text-[#0F294A]">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Akses Penuh ({currentUser.role === 'admin' ? 'Admin' : 'Supervisor'})
+              </span>
+            )}
+          </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Pembuat:{' '}
             <span className="font-medium text-slate-800">
@@ -171,6 +244,15 @@ export function HandoverFormView({
             </span>
           </p>
         </div>
+
+        {operatorClosedNow && (
+          <div
+            role="alert"
+            className="mb-5 p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm leading-relaxed"
+          >
+            Saat ini di luar jendela input shift reguler (batas maksimal <strong>+4 jam</strong> setelah shift selesai). Hubungi <strong>Admin</strong> atau <strong>Supervisor</strong> untuk penginputan di luar jadwal. Pengeditan laporan milik Anda tetap bisa dilakukan kapan pun melalui menu History atau Dashboard.
+          </div>
+        )}
 
         {submitError && (
           <div
@@ -194,44 +276,94 @@ export function HandoverFormView({
               id="input-report-date"
               type="date"
               value={reportDate}
+              disabled={lockDateAndShiftOnEdit}
+              min={!fullAccess && !editingReport && openDates.length > 0 ? openDates[0] : undefined}
+              max={
+                !fullAccess && !editingReport && openDates.length > 0
+                  ? openDates[openDates.length - 1]
+                  : undefined
+              }
               onChange={(e) => {
                 const nextDate = e.target.value;
                 setReportDate(nextDate);
-                if (nextDate === todayStr && liveStatus.activeShifts.length > 0 && !editingReport) {
-                  setShift(liveStatus.primaryShift);
+                if (!fullAccess && !editingReport) {
+                  const slotForCurrentShift = openOperatorSlots.find(
+                    (s) => s.reportDate === nextDate && s.shift === shift
+                  );
+                  if (!slotForCurrentShift) {
+                    const firstOpenOnDate = openOperatorSlots.find(
+                      (s) => s.reportDate === nextDate
+                    );
+                    if (firstOpenOnDate) {
+                      setShift(firstOpenOnDate.shift);
+                    }
+                  }
                 }
               }}
-              className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              className={`w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A] ${
+                lockDateAndShiftOnEdit ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'
+              }`}
             />
+            {lockDateAndShiftOnEdit && (
+              <p className="mt-1 text-[11px] text-slate-500">
+                Pengeditan tersedia kapan pun; tanggal &amp; shift terkunci sesuai laporan asli (Admin/Supervisor dapat mengubahnya bebas).
+              </p>
+            )}
             {fieldErrors.reportDate && (
               <p className="mt-1 text-xs text-rose-600">{fieldErrors.reportDate}</p>
             )}
           </div>
 
-          {/* Shift (Untuk laporan baru hari ini, hanya shift berjalan yang aktif) */}
+          {/* Shift (Admin/Supervisor bebas; Operator mengikuti jadwal +4 jam saat input baru) */}
           <div>
-            <div className="flex items-center justify-between gap-2 mb-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
               <span className="block text-sm font-medium text-slate-700">
                 Shift ({parseLocalDate(reportDate).getDay() === 6 ? 'Jadwal Sabtu' : 'Jadwal Senin - Jumat'})
               </span>
-              {lockToRunningShift && (
+              {fullAccess ? (
                 <span className="text-[11px] font-medium text-[#0F294A]">
-                  Hanya shift berjalan ({liveStatus.primaryShift})
+                  Bebas pilih shift
+                </span>
+              ) : editingReport ? (
+                <span className="text-[11px] font-medium text-slate-500">
+                  Mengikuti shift laporan asli
+                </span>
+              ) : (
+                <span className="text-[11px] font-medium text-[#0F294A]">
+                  Input aktif hingga +4 jam setelah selesai
                 </span>
               )}
             </div>
             <div role="group" aria-label="Pilih Shift" className="grid grid-cols-3 gap-2">
               {SHIFTS.map((s) => {
-                const active = shift === s;
-                const disabled = lockToRunningShift && !liveStatus.activeShifts.includes(s);
+                const active =
+                  shift === s &&
+                  (fullAccess ||
+                    Boolean(editingReport) ||
+                    isOperatorShiftInputAllowed(reportDate, s, now));
+                const slotForDate = openOperatorSlots.find(
+                  (slot) => slot.shift === s && slot.reportDate === reportDate
+                );
+                const fallbackSlot = openOperatorSlots.find((slot) => slot.shift === s);
+                const openSlot = slotForDate ?? fallbackSlot ?? null;
+
+                const disabled = lockDateAndShiftOnEdit
+                  ? true
+                  : !fullAccess && !editingReport && !openSlot;
+
                 return (
                   <button
                     key={s}
                     type="button"
                     disabled={disabled}
-                    onClick={() => setShift(s)}
+                    onClick={() => {
+                      setShift(s);
+                      if (!fullAccess && !editingReport && openSlot) {
+                        setReportDate(openSlot.reportDate);
+                      }
+                    }}
                     aria-pressed={active}
-                    className={`min-h-[52px] px-2.5 py-2 rounded-lg border transition-colors text-center ${
+                    className={`min-h-[54px] px-2 py-2 rounded-lg border transition-colors text-center ${
                       active
                         ? 'bg-[#0F294A] text-white border-[#0F294A]'
                         : disabled
@@ -245,7 +377,11 @@ export function HandoverFormView({
                         active ? 'text-slate-200' : 'text-slate-400'
                       }`}
                     >
-                      {shiftSchedule[s]}
+                      {!fullAccess && !editingReport && openSlot
+                        ? openSlot.isGracePeriod
+                          ? `+4j s/d ${openSlot.graceDeadlineLabel}`
+                          : `s/d +4j (${openSlot.graceDeadlineLabel})`
+                        : shiftSchedule[s]}
                     </span>
                   </button>
                 );
@@ -398,7 +534,7 @@ export function HandoverFormView({
               <strong className="text-slate-900 block">
                 Tandai case / pekerjaan selesai (OK)
               </strong>
-              Jika dicentang, shift ini berwarna hijau muda (OK) dan mesin otomatis hilang dari Dashboard keesokan harinya (tetap tersimpan di History &amp; Report).
+              Jika dicentang, shift ini berwarna hijau muda (OK) dan mesin otomatis hilang dari Dashboard keesokan harinya (tetap tersimpan di History &amp; Report). Jika belum dicentang, case tetap tampil di Dashboard walaupun sudah berganti hari.
             </span>
           </label>
 
@@ -414,8 +550,8 @@ export function HandoverFormView({
             </button>
             <button
               type="submit"
-              disabled={submitting}
-              className="min-h-[44px] px-6 py-2.5 rounded-lg bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 text-white text-sm font-semibold inline-flex items-center justify-center gap-2"
+              disabled={submitting || operatorClosedNow}
+              className="min-h-[44px] px-6 py-2.5 rounded-lg bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold inline-flex items-center justify-center gap-2"
             >
               {editingReport ? (
                 <Pencil className="w-4 h-4" />

@@ -7,7 +7,7 @@ import type {
   UserProfile,
   UserRole,
 } from '../types/handover';
-import { validateHandoverInput } from '../utils/handoverLogic';
+import { canSubmitReport, validateHandoverInput } from '../utils/handoverLogic';
 
 export const DEFAULT_SUPABASE_URL = 'https://dkyjfoxruqoqlhxrmcac.supabase.co';
 const LEGACY_LOCAL_KEYS = [
@@ -320,6 +320,15 @@ export async function createReportSupabase(
   input: HandoverFormInput,
   user: UserProfile
 ): Promise<{ report?: HandoverReport; error?: string }> {
+  const permission = canSubmitReport({
+    user,
+    input,
+    editingReport: null,
+  });
+  if (!permission.allowed) {
+    return { error: permission.reason || 'Anda tidak memiliki izin membuat laporan ini.' };
+  }
+
   const validation = validateHandoverInput(input);
   if (!validation.valid) {
     const firstErr = Object.values(validation.errors)[0] || 'Data laporan tidak valid.';
@@ -364,8 +373,20 @@ export async function createReportSupabase(
 export async function updateReportSupabase(
   reportId: string,
   input: HandoverFormInput,
-  user: UserProfile
+  user: UserProfile,
+  existingReport?: HandoverReport
 ): Promise<{ report?: HandoverReport; error?: string }> {
+  if (existingReport) {
+    const permission = canSubmitReport({
+      user,
+      input,
+      editingReport: existingReport,
+    });
+    if (!permission.allowed) {
+      return { error: permission.reason || 'Anda tidak memiliki izin mengedit laporan ini.' };
+    }
+  }
+
   const validation = validateHandoverInput(input);
   if (!validation.valid) {
     const firstErr = Object.values(validation.errors)[0] || 'Data laporan tidak valid.';

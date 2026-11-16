@@ -170,7 +170,12 @@ export default function App() {
     }
 
     if (editingId) {
-      const res = await updateReportSupabase(editingId, input, currentUser);
+      const res = await updateReportSupabase(
+        editingId,
+        input,
+        currentUser,
+        editingReport ?? undefined
+      );
       if (res.error || !res.report) {
         showToast(false, res.error || 'Gagal memperbarui laporan.');
         return { ok: false, error: res.error };
@@ -365,6 +370,7 @@ export default function App() {
             <DashboardView
               reports={reports}
               loading={loadingReports}
+              currentUser={currentUser}
               onSelectReport={setSelectedReport}
               onCreatePreset={handleCreatePreset}
             />
