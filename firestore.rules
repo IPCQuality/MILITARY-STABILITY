@@ -1,0 +1,216 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable Primitives
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser()
+        && request.auth.token.email == 'suryadi.k94@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin()
+        || (
+          isVerifiedUser()
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        );
+    }
+
+    function isSupervisorOrAdmin() {
+      return isAdmin()
+        || (
+          isVerifiedUser()
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['supervisor', 'admin']
+        );
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['id', 'email', 'fullName', 'role', 'canEditAll', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'email', 'fullName', 'role', 'canEditAll', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id == userId && isValidId(data.id)
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && data.role is string && data.role in ['pengawas', 'supervisor', 'admin']
+        && data.canEditAll is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCategory(cat) {
+      return cat is string && cat in [
+        'OVERHAUL',
+        'STABILITY TINGGI',
+        'CASE PERBAIKAN PART',
+        'COMMISSIONING / TRIAL / CHANGE OVER'
+      ];
+    }
+
+    function isValidShift(shift) {
+      return shift is string && shift in ['Shift 1', 'Shift 2', 'Shift 3'];
+    }
+
+    function isValidHandoverReport(data, reportId) {
+      return data.keys().hasAll([
+          'id',
+          'workspaceId',
+          'reportDate',
+          'shift',
+          'category',
+          'machine',
+          'information',
+          'issue',
+          'followUp',
+          'palletLocation',
+          'isCompleted',
+          'createdBy',
+          'createdByName',
+          'updatedBy',
+          'updatedByName',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id',
+          'workspaceId',
+          'reportDate',
+          'shift',
+          'category',
+          'machine',
+          'information',
+          'issue',
+          'followUp',
+          'palletLocation',
+          'isCompleted',
+          'createdBy',
+          'createdByName',
+          'updatedBy',
+          'updatedByName',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.id is string && data.id == reportId && isValidId(data.id)
+        && data.workspaceId is string && data.workspaceId == 'military-stability'
+        && data.reportDate is string && data.reportDate.size() == 10 && data.reportDate.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && isValidShift(data.shift)
+        && isValidCategory(data.category)
+        && data.machine is string && data.machine.size() >= 1 && data.machine.size() <= 64
+        && data.information is string && data.information.size() >= 1 && data.information.size() <= 2000
+        && data.issue is string && data.issue.size() <= 2000
+        && data.followUp is string && data.followUp.size() <= 2000
+        && data.palletLocation is string && data.palletLocation.size() <= 200
+        && data.isCompleted is bool
+        && data.createdBy is string && isValidId(data.createdBy)
+        && data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 120
+        && data.updatedBy is string && isValidId(data.updatedBy)
+        && data.updatedByName is string && data.updatedByName.size() >= 1 && data.updatedByName.size() <= 120
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isVerifiedUser() && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().email == request.auth.token.email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (incoming().role == 'pengawas' && incoming().canEditAll == false)
+          || (isBootstrappedAdmin() && incoming().role == 'admin' && incoming().canEditAll == true)
+        );
+
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().id == existing().id
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'role', 'canEditAll', 'updatedAt']))
+          || (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'updatedAt']))
+        );
+
+      allow delete: if false;
+    }
+
+    match /handover_reports/{reportId} {
+      allow get: if isValidId(reportId)
+        && isVerifiedUser()
+        && existing().workspaceId == 'military-stability';
+
+      allow list: if isVerifiedUser()
+        && resource.data.workspaceId == 'military-stability';
+
+      allow create: if isVerifiedUser()
+        && isValidId(reportId)
+        && isValidHandoverReport(incoming(), reportId)
+        && incoming().createdBy == request.auth.uid
+        && incoming().updatedBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(reportId)
+        && isValidHandoverReport(incoming(), reportId)
+        && incoming().id == existing().id
+        && incoming().workspaceId == existing().workspaceId
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdByName == existing().createdByName
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedBy == request.auth.uid
+        && incoming().updatedAt == request.time
+        && (existing().createdBy == request.auth.uid || isSupervisorOrAdmin())
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'reportDate',
+          'shift',
+          'category',
+          'machine',
+          'information',
+          'issue',
+          'followUp',
+          'palletLocation',
+          'isCompleted',
+          'updatedBy',
+          'updatedByName',
+          'updatedAt'
+        ]);
+
+      allow delete: if false;
+    }
+  }
+}

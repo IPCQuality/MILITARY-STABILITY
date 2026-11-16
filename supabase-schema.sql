@@ -116,25 +116,25 @@ AS $$
 DECLARE
   v_name TEXT;
   v_role TEXT;
-  v_raw_role TEXT;
   v_can_edit_all BOOLEAN;
   v_is_primary_admin BOOLEAN;
 BEGIN
   v_is_primary_admin := lower(COALESCE(NEW.email, '')) = 'suryadi.k94@gmail.com';
-  v_raw_role := lower(COALESCE(NEW.raw_user_meta_data ->> 'role', ''));
 
   v_name := COALESCE(
     NULLIF(trim(NEW.raw_user_meta_data ->> 'full_name'), ''),
+    NULLIF(trim(NEW.raw_user_meta_data ->> 'name'), ''),
     CASE WHEN v_is_primary_admin THEN 'Suryadi (Admin)' ELSE split_part(COALESCE(NEW.email, 'Pengawas'), '@', 1) END
   );
 
+  -- Setiap akun baru (email maupun Google) default-nya adalah Pengawas,
+  -- kecuali akun admin utama. Kenaikan role ke Supervisor/Admin diatur oleh Admin di Supabase.
   v_role := CASE
     WHEN v_is_primary_admin THEN 'admin'
-    WHEN v_raw_role IN ('pengawas', 'supervisor', 'admin') THEN v_raw_role
     ELSE 'pengawas'
   END;
 
-  v_can_edit_all := v_is_primary_admin OR v_role IN ('admin', 'supervisor');
+  v_can_edit_all := v_is_primary_admin;
 
   INSERT INTO public.profiles (id, email, full_name, role, can_edit_all)
   VALUES (
@@ -147,8 +147,8 @@ BEGIN
   ON CONFLICT (id) DO UPDATE
   SET email = EXCLUDED.email,
       full_name = COALESCE(NULLIF(trim(public.profiles.full_name), ''), EXCLUDED.full_name),
-      role = CASE WHEN v_is_primary_admin THEN 'admin' ELSE EXCLUDED.role END,
-      can_edit_all = CASE WHEN v_is_primary_admin THEN TRUE ELSE EXCLUDED.can_edit_all END;
+      role = CASE WHEN v_is_primary_admin THEN 'admin' ELSE public.profiles.role END,
+      can_edit_all = CASE WHEN v_is_primary_admin THEN TRUE ELSE public.profiles.can_edit_all END;
 
   RETURN NEW;
 END;

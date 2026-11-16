@@ -976,3 +976,87 @@ export function computeCaseDurations(
     return b.durationShifts - a.durationShifts;
   });
 }
+
+export function mapAuthErrorMessage(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes('auth/invalid-credential') ||
+    lower.includes('auth/wrong-password') ||
+    lower.includes('auth/user-not-found') ||
+    lower.includes('invalid login credentials')
+  ) {
+    return 'Email atau kata sandi tidak sesuai. Periksa kembali kredensial Anda.';
+  }
+  if (lower.includes('auth/email-already-in-use') || lower.includes('user already registered')) {
+    return 'Email ini sudah terdaftar. Silakan login atau masuk dengan Google.';
+  }
+  if (lower.includes('auth/weak-password')) {
+    return 'Kata sandi terlalu lemah. Gunakan minimal 6 karakter.';
+  }
+  if (lower.includes('auth/invalid-email')) {
+    return 'Format email tidak valid.';
+  }
+  if (
+    lower.includes('auth/popup-closed-by-user') ||
+    lower.includes('auth/cancelled-popup-request') ||
+    lower.includes('access_denied')
+  ) {
+    return 'Login dengan Google dibatalkan.';
+  }
+  if (lower.includes('auth/popup-blocked')) {
+    return 'Popup login Google diblokir oleh browser. Izinkan popup untuk situs ini lalu coba lagi.';
+  }
+  if (lower.includes('auth/operation-not-allowed')) {
+    return 'Metode login Email/Password belum diaktifkan di Firebase Console (Authentication → Sign-in method). Gunakan tombol Google atau aktifkan Email/Password terlebih dahulu.';
+  }
+  if (lower.includes('auth/too-many-requests')) {
+    return 'Terlalu banyak percobaan login. Tunggu beberapa saat sebelum mencoba lagi.';
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Email akun belum diverifikasi. Cek inbox email Anda untuk mengaktifkan akun.';
+  }
+  if (
+    lower.includes('provider is not enabled') ||
+    lower.includes('unsupported provider')
+  ) {
+    return 'Login Google belum diaktifkan. Aktifkan Google Sign-In pada Firebase Console → Authentication → Sign-in method.';
+  }
+  if (lower.includes('quota exceeded')) {
+    return 'Kuota harian Firestore tercapai (free tier). Kuota akan direset keesokan harinya.';
+  }
+  if (lower.includes('missing or insufficient permissions') || lower.includes('permission-denied')) {
+    return 'Akses ditolak oleh Firestore Security Rules. Pastikan email akun terverifikasi dan Anda memiliki izin untuk aksi ini.';
+  }
+  if (lower.includes('jwt') || lower.includes('expired') || lower.includes('refresh_token')) {
+    return 'Sesi login Anda telah berakhir. Silakan login ulang.';
+  }
+  if (
+    lower.includes('auth/network-request-failed') ||
+    lower.includes('failed to fetch') ||
+    lower.includes('network') ||
+    lower.includes('the client is offline')
+  ) {
+    return 'Gagal terhubung ke server Firebase. Periksa koneksi internet Anda.';
+  }
+  return message;
+}
+
+export function extractOAuthErrorFromUrl(search: string, hash: string): string | null {
+  const searchParams = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
+
+  const errCode = searchParams.get('error') || hashParams.get('error');
+  const errDesc =
+    searchParams.get('error_description') || hashParams.get('error_description');
+
+  if (!errCode && !errDesc) {
+    return null;
+  }
+
+  const combined = `${errCode ?? ''} ${errDesc ?? ''}`.trim();
+  if (combined.toLowerCase().includes('access_denied')) {
+    return 'Login dengan Google dibatalkan.';
+  }
+  return mapAuthErrorMessage(errDesc || errCode || 'Gagal autentikasi Google.');
+}
+

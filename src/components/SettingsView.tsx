@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Cloud, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { UserProfile } from '../types/handover';
 import {
-  getSupabaseEnvConfig,
-  testSupabaseConnection,
+  firebaseProjectConfig,
+  testFirestoreConnection,
 } from '../services/handoverService';
 
 interface SettingsViewProps {
@@ -12,7 +12,6 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
-  const envCfg = getSupabaseEnvConfig();
   const [connMsg, setConnMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
 
@@ -20,7 +19,7 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
     setConnMsg(null);
     setTesting(true);
     try {
-      const res = await testSupabaseConnection();
+      const res = await testFirestoreConnection();
       setConnMsg({ ok: res.ok, text: res.message });
     } finally {
       setTesting(false);
@@ -32,7 +31,7 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
       <div>
         <h2 className="text-lg sm:text-xl font-bold text-slate-900">Pengaturan &amp; Akun</h2>
         <p className="text-sm text-slate-500">
-          Informasi profil sesi aktif dan status koneksi Supabase Cloud.
+          Informasi profil sesi aktif dan status koneksi Firebase Cloud Firestore.
         </p>
       </div>
 
@@ -41,7 +40,7 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Profil Sesi Aktif</h3>
-            <p className="text-xs text-slate-500">Autentikasi Supabase Cloud</p>
+            <p className="text-xs text-slate-500">Autentikasi Firebase Cloud</p>
           </div>
           <span className="px-2.5 py-1 rounded border border-slate-200 bg-slate-50 text-xs font-mono uppercase text-slate-700">
             {currentUser.role}
@@ -85,17 +84,19 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
         </div>
       </section>
 
-      {/* Status Koneksi Supabase Cloud (otomatis terpasang dari build, tanpa perlu setup tiap device) */}
+      {/* Status Koneksi Firebase Cloud */}
       <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4">
         <div className="flex items-center gap-2">
           <Cloud className="w-4 h-4 text-[#0F294A]" />
           <h3 className="text-sm font-semibold text-slate-900">
-            Status Supabase Cloud
+            Status Firebase Cloud
           </h3>
         </div>
         <p className="text-xs text-slate-500 leading-relaxed">
-          Koneksi proyek <span className="font-mono text-slate-700">{envCfg.url}</span> sudah
-          tertanam otomatis pada aplikasi sehingga tidak perlu konfigurasi ulang saat dibuka di perangkat baru.
+          Koneksi proyek Firebase{' '}
+          <span className="font-mono text-slate-700">{firebaseProjectConfig.projectId}</span>{' '}
+          (region <span className="font-mono text-slate-700">asia-southeast1</span>) sudah
+          tertanam otomatis pada aplikasi sehingga langsung terhubung di perangkat mana pun.
         </p>
 
         {connMsg && (
@@ -122,7 +123,7 @@ export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
           ) : (
             <ShieldCheck className="w-4 h-4" />
           )}
-          <span>Uji Koneksi Supabase</span>
+          <span>Uji Koneksi Firebase</span>
         </button>
       </section>
     </div>

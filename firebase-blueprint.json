@@ -1,0 +1,203 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profil akun Pengawas, Supervisor, dan Admin tanpa shift tetap karena rolling mingguan.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Firebase Auth UID pengguna.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email pengguna terdaftar.",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Nama lengkap pengawas, supervisor, atau admin.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "role": {
+          "type": "string",
+          "description": "Peran akses pengguna.",
+          "enum": ["pengawas", "supervisor", "admin"]
+        },
+        "canEditAll": {
+          "type": "boolean",
+          "description": "Flag izin edit semua laporan lintas shift (khusus supervisor/admin)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembuatan profil dari server.",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembaruan profil dari server.",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "fullName",
+        "role",
+        "canEditAll",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "HandoverReport": {
+      "title": "HandoverReport",
+      "description": "Laporan serah terima pekerjaan antar-shift MILITARY & STABILITY.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ID unik dokumen laporan handover.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "description": "Lingkup plant handover.",
+          "enum": ["military-stability"]
+        },
+        "reportDate": {
+          "type": "string",
+          "description": "Tanggal operasional laporan (YYYY-MM-DD).",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+        },
+        "shift": {
+          "type": "string",
+          "description": "Shift kerja laporan.",
+          "enum": ["Shift 1", "Shift 2", "Shift 3"]
+        },
+        "category": {
+          "type": "string",
+          "description": "Kategori pekerjaan handover.",
+          "enum": [
+            "OVERHAUL",
+            "STABILITY TINGGI",
+            "CASE PERBAIKAN PART",
+            "COMMISSIONING / TRIAL / CHANGE OVER"
+          ]
+        },
+        "machine": {
+          "type": "string",
+          "description": "Kode/nama mesin yang dilaporkan.",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "information": {
+          "type": "string",
+          "description": "Update shift/informasi/keterangan pekerjaan.",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "issue": {
+          "type": "string",
+          "description": "Kendala atau masalah mesin yang ditemukan.",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "followUp": {
+          "type": "string",
+          "description": "Rencana tindak lanjut untuk shift berikutnya.",
+          "minLength": 0,
+          "maxLength": 2000
+        },
+        "palletLocation": {
+          "type": "string",
+          "description": "Lokasi palet atau komponen terkait.",
+          "minLength": 0,
+          "maxLength": 200
+        },
+        "isCompleted": {
+          "type": "boolean",
+          "description": "Status selesai (OK) untuk menutup case di dashboard."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "UID pembuat laporan asli.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByName": {
+          "type": "string",
+          "description": "Nama pembuat laporan asli.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "updatedBy": {
+          "type": "string",
+          "description": "UID pengguna terakhir yang memperbarui laporan.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedByName": {
+          "type": "string",
+          "description": "Nama pengguna terakhir yang memperbarui laporan.",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembuatan dokumen dari server.",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Waktu pembaruan dokumen dari server.",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "id",
+        "workspaceId",
+        "reportDate",
+        "shift",
+        "category",
+        "machine",
+        "information",
+        "issue",
+        "followUp",
+        "palletLocation",
+        "isCompleted",
+        "createdBy",
+        "createdByName",
+        "updatedBy",
+        "updatedByName",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Koleksi privat profil pengguna beserta role (pengawas/supervisor/admin)."
+    },
+    "/handover_reports/{reportId}": {
+      "schema": { "$ref": "#/entities/HandoverReport" },
+      "description": "Koleksi laporan handover lintas shift untuk dashboard, history, dan export Excel."
+    }
+  }
+}

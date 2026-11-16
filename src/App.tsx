@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   FileSpreadsheet,
   History,
@@ -15,15 +16,15 @@ import type {
   NavSection,
   UserProfile,
 } from './types/handover';
+import { auth } from './lib/firebase';
 import {
   clearLegacyDemoStorage,
-  createReportSupabase,
-  fetchUserProfileFromSupabase,
-  getSupabaseClient,
-  isSupabaseConfigured,
-  loadReportsSupabase,
-  signOutSupabase,
-  updateReportSupabase,
+  createReportFirebase,
+  ensureFirebaseUserProfile,
+  loadReportsFirebase,
+  signOutFirebase,
+  subscribeReportsFirebase,
+  updateReportFirebase,
 } from './services/handoverService';
 import { AuthView } from './components/AuthView';
 import { DashboardView } from './components/DashboardView';
@@ -32,7 +33,7 @@ import { HistoryView } from './components/HistoryView';
 import { ExportView } from './components/ExportView';
 import { SettingsView } from './components/SettingsView';
 import { ReportDetailModal } from './components/ReportDetailModal';
-import { getCurrentShiftStatus } from './utils/handoverLogic';
+import { getCurrentShiftStatus, mapAuthErrorMessage } from './utils/handoverLogic';
 
 const PRIMARY_TABS: {
   id: Exclude<NavSection, 'input'>;
@@ -47,6 +48,7 @@ const PRIMARY_TABS: {
 
 export default function App() {
   const [initializing, setInitializing] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
 
@@ -85,7 +87,7 @@ export default function App() {
   const fetchReports = useCallback(async () => {
     setLoadingReports(true);
     try {
-      const res = await loadReportsSupabase();
+      const res = await loadReportsFirebase();
       if (res.error) {
         showToast(false, res.error);
       }
@@ -97,63 +99,89 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    let subscription: { unsubscribe: () => void } | null = null;
-
     clearLegacyDemoStorage();
 
-    async function initAuth() {
-      if (isSupabaseConfigured()) {
-        const client = getSupabaseClient();
-        if (client) {
-          const { data: listener } = client.auth.onAuthStateChange(async (event, session) => {
-            if (!active) return;
-            if (event === 'SIGNED_OUT') {
-              setCurrentUser(null);
-              setReports([]);
-              setSessionNotice('Anda telah keluar atau sesi login berakhir.');
-            } else if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) {
-              const profile = await fetchUserProfileFromSupabase(client, session);
-              if (!active) return;
-              setCurrentUser(profile);
-              setSessionNotice(null);
-            }
-          });
-          subscription = listener.subscription;
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!active) return;
 
-          const { data, error } = await client.auth.getSession();
-          if (!active) return;
-
-          if (error) {
-            setSessionNotice('Sesi Anda telah berakhir. Silakan login kembali.');
-          } else if (data.session) {
-            const profile = await fetchUserProfileFromSupabase(client, data.session);
-            if (!active) return;
-            setCurrentUser(profile);
-            await fetchReports();
-          }
-        }
+      if (!firebaseUser) {
+        setCurrentUser(null);
+        setReports([]);
+        setAuthReady(true);
+        setInitializing(false);
+        return;
       }
 
-      if (active) setInitializing(false);
-    }
+      if (!firebaseUser.emailVerified) {
+        setCurrentUser(null);
+        setReports([]);
+        setSessionNotice(
+          'Email akun Anda belum diverifikasi. Cek inbox email Anda untuk mengaktifkan akun.'
+        );
+        setAuthReady(true);
+        setInitializing(false);
+        return;
+      }
 
-    initAuth();
+      try {
+        const profile = await ensureFirebaseUserProfile(firebaseUser);
+        if (!active) return;
+        setCurrentUser(profile);
+        setSessionNotice(null);
+      } catch (err) {
+        if (!active) return;
+        const msg =
+          err instanceof Error
+            ? mapAuthErrorMessage(err.message)
+            : 'Gagal memuat profil pengguna dari Firestore.';
+        setSessionNotice(msg);
+        setCurrentUser(null);
+      } finally {
+        if (active) {
+          setAuthReady(true);
+          setInitializing(false);
+        }
+      }
+    });
 
     return () => {
       active = false;
-      subscription?.unsubscribe();
+      unsubscribe();
     };
-  }, [fetchReports]);
+  }, []);
 
-  async function handleAuthenticated(user: UserProfile) {
+  // Pasang real-time listener Firestore hanya setelah auth siap & user terautentikasi
+  useEffect(() => {
+    if (!authReady || !currentUser) {
+      return;
+    }
+
+    setLoadingReports(true);
+    const unsubscribe = subscribeReportsFirebase(
+      (nextReports) => {
+        setReports(nextReports);
+        setLoadingReports(false);
+      },
+      (errMessage) => {
+        setLoadingReports(false);
+        showToast(false, errMessage);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [authReady, currentUser?.id, showToast]);
+
+  function handleAuthenticated(user: UserProfile) {
     setSessionNotice(null);
     setCurrentUser(user);
+    setAuthReady(true);
     setActiveNav('dashboard');
-    await fetchReports();
   }
 
   async function handleLogout() {
-    await signOutSupabase();
+    await signOutFirebase();
     setCurrentUser(null);
     setReports([]);
     setEditingReport(null);
@@ -170,7 +198,7 @@ export default function App() {
     }
 
     if (editingId) {
-      const res = await updateReportSupabase(
+      const res = await updateReportFirebase(
         editingId,
         input,
         currentUser,
@@ -180,7 +208,6 @@ export default function App() {
         showToast(false, res.error || 'Gagal memperbarui laporan.');
         return { ok: false, error: res.error };
       }
-      await fetchReports();
       setEditingReport(null);
       setFormPreset(null);
       setActiveNav('dashboard');
@@ -188,13 +215,12 @@ export default function App() {
       return { ok: true };
     }
 
-    const res = await createReportSupabase(input, currentUser);
+    const res = await createReportFirebase(input, currentUser);
     if (res.error || !res.report) {
       showToast(false, res.error || 'Gagal menyimpan laporan.');
       return { ok: false, error: res.error };
     }
 
-    await fetchReports();
     setFormPreset(null);
     setActiveNav('dashboard');
     showToast(true, 'Laporan handover berhasil disimpan.');

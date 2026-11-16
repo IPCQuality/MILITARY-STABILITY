@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, FileSpreadsheet, RefreshCw } from 'lucide-react';
 import { SHIFTS, type HandoverReport, type ShiftType } from '../types/handover';
-import { loadReportsSupabase } from '../services/handoverService';
+import { loadReportsFirebase } from '../services/handoverService';
 import {
   buildHandoverFilename,
   downloadHandoverExcel,
@@ -36,7 +36,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
     setStatusMsg(null);
     setExporting(true);
     try {
-      const fresh = await loadReportsSupabase();
+      const fresh = await loadReportsFirebase();
       if (fresh.error) {
         setStatusMsg({
           ok: false,
@@ -79,7 +79,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
           Report &amp; Export Excel (.xlsx)
         </h2>
         <p className="text-sm text-slate-500">
-          Ekspor seluruh data laporan langsung dari Supabase Cloud ke file Excel satu worksheet detail.
+          Ekspor seluruh data laporan langsung dari Firebase Cloud Firestore ke file Excel satu worksheet detail.
         </p>
       </div>
 

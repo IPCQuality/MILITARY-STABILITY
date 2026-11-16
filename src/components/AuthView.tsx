@@ -1,11 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
-import type { UserProfile, UserRole } from '../types/handover';
+import type { UserProfile } from '../types/handover';
 import {
-  getSupabaseConfigIssue,
-  isSupabaseConfigured,
-  signInSupabase,
-  signUpSupabase,
+  signInFirebase,
+  signInWithGoogleFirebase,
+  signUpFirebase,
 } from '../services/handoverService';
 
 interface AuthViewProps {
@@ -13,19 +12,55 @@ interface AuthViewProps {
   sessionNotice?: string | null;
 }
 
+function GoogleIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+      />
+      <path
+        fill="#34A853"
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.11-6.72-4.96H1.29v3.14C3.26 21.3 7.31 24 12 24Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M5.28 14.24c-.24-.72-.38-1.49-.38-2.24s.14-1.52.38-2.24V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.99-3.14Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.99 3.14c.95-2.85 3.6-4.96 6.72-4.96Z"
+      />
+    </svg>
+  );
+}
+
 export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState<UserRole>('pengawas');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
 
-  const supabaseReady = isSupabaseConfigured();
-  const configIssue = getSupabaseConfigIssue();
+  async function handleGoogleAuth() {
+    setErrorMsg(null);
+    setInfoMsg(null);
+    setGoogleLoading(true);
+    try {
+      const res = await signInWithGoogleFirebase();
+      if (res.error || !res.user) {
+        if (res.error) setErrorMsg(res.error);
+        return;
+      }
+      onAuthenticated(res.user);
+    } finally {
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -40,7 +75,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
     setLoading(true);
     try {
       if (tab === 'login') {
-        const res = await signInSupabase(email, password);
+        const res = await signInFirebase(email, password);
         if (res.error || !res.user) {
           setErrorMsg(res.error || 'Gagal login.');
           return;
@@ -55,11 +90,10 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
           setErrorMsg('Kata sandi minimal 6 karakter.');
           return;
         }
-        const res = await signUpSupabase({
+        const res = await signUpFirebase({
           email,
           password,
           fullName,
-          role,
         });
         if (res.error) {
           setErrorMsg(res.error);
@@ -67,7 +101,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
         }
         if (res.needsEmailConfirm) {
           setInfoMsg(
-            'Akun berhasil dibuat. Periksa inbox email Anda untuk konfirmasi sebelum login.'
+            'Akun berhasil dibuat dengan role Pengawas. Periksa inbox email Anda untuk verifikasi sebelum login.'
           );
           setTab('login');
           return;
@@ -108,34 +142,13 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             </div>
           )}
 
-          {!supabaseReady && (
-            <div
-              role="alert"
-              className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs leading-relaxed"
-            >
-              {configIssue === 'secret_key' ? (
-                <>
-                  Key yang terpasang pada build adalah <strong>secret / service_role key</strong> yang dilarang dipakai di browser. Ganti nilai{' '}
-                  <code className="font-mono font-semibold">VITE_SUPABASE_PUBLISHABLE_KEY</code> di GitHub → Settings → Secrets and variables → Actions dengan{' '}
-                  <strong>Publishable key</strong> (<code className="font-mono">sb_publishable_...</code>) atau <strong>anon public</strong> key, lalu jalankan ulang workflow deploy.
-                </>
-              ) : (
-                <>
-                  Variabel build <code className="font-mono font-semibold">VITE_SUPABASE_PUBLISHABLE_KEY</code> belum terpasang pada hasil build ini. Pastikan sudah ditambahkan sebagai <strong>Repository variable</strong> atau <strong>Repository secret</strong> di GitHub → Settings → Secrets and variables → Actions (bukan di Environments/Codespaces), lalu commit workflow <code className="font-mono">.github/workflows/deploy.yml</code> terbaru dan jalankan ulang <strong>Run workflow</strong>.
-                </>
-              )}
-            </div>
-          )}
-
           <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-4">
             <div>
               <h2 className="text-base sm:text-lg font-semibold text-slate-900">
                 {tab === 'login' ? 'Masuk Akun' : 'Registrasi Akun'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                {supabaseReady
-                  ? 'Autentikasi Supabase Cloud aktif'
-                  : 'Menunggu konfigurasi environment build'}
+                Autentikasi Firebase Cloud aktif
               </p>
             </div>
             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg shrink-0">
@@ -190,45 +203,51 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             </div>
           )}
 
+          {/* Google OAuth Login & Registration */}
+          <div className="space-y-3">
+            <button
+              type="button"
+              onClick={handleGoogleAuth}
+              disabled={googleLoading || loading}
+              className="w-full min-h-[44px] px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-sm font-semibold flex items-center justify-center gap-2.5 transition-colors shadow-2xs"
+            >
+              <GoogleIcon />
+              <span>
+                {googleLoading
+                  ? 'Menghubungkan ke Google...'
+                  : tab === 'login'
+                    ? 'Masuk dengan Google'
+                    : 'Daftar dengan Google'}
+              </span>
+            </button>
+
+            <div className="relative flex items-center py-1">
+              <div className="flex-grow border-t border-slate-200" />
+              <span className="shrink mx-3 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                atau dengan email
+              </span>
+              <div className="flex-grow border-t border-slate-200" />
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {tab === 'register' && (
-              <>
-                <div>
-                  <label
-                    htmlFor="auth-fullname"
-                    className="block text-sm font-medium text-slate-700 mb-1.5"
-                  >
-                    Nama Lengkap
-                  </label>
-                  <input
-                    id="auth-fullname"
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Contoh: Suryadi"
-                    className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="auth-role"
-                    className="block text-sm font-medium text-slate-700 mb-1.5"
-                  >
-                    Role Akun
-                  </label>
-                  <select
-                    id="auth-role"
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as UserRole)}
-                    className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-                  >
-                    <option value="pengawas">Pengawas</option>
-                    <option value="supervisor">Supervisor</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-              </>
+              <div>
+                <label
+                  htmlFor="auth-fullname"
+                  className="block text-sm font-medium text-slate-700 mb-1.5"
+                >
+                  Nama Lengkap
+                </label>
+                <input
+                  id="auth-fullname"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Contoh: Suryadi"
+                  className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                />
+              </div>
             )}
 
             <div>
@@ -277,9 +296,16 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
               </div>
             </div>
 
+            {tab === 'register' && (
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Akun baru (email maupun Google) otomatis terdaftar dengan role default{' '}
+                <strong className="text-slate-700">Pengawas</strong>.
+              </p>
+            )}
+
             <button
               type="submit"
-              disabled={loading || !supabaseReady}
+              disabled={loading || googleLoading}
               className="w-full min-h-[44px] px-4 py-2.5 rounded-lg bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
             >
               {tab === 'login' ? (

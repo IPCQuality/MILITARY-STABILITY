@@ -9,6 +9,7 @@ import {
   computeCaseDurations,
   computeDashboardSummary,
   computeOverhaulMatrix,
+  extractOAuthErrorFromUrl,
   filterAndSortReports,
   getCurrentShiftStatus,
   getOpenOperatorShiftSlots,
@@ -18,6 +19,7 @@ import {
   isOperatorShiftInputAllowed,
   isReportResultOk,
   isShiftResultOk,
+  mapAuthErrorMessage,
   validateHandoverInput,
 } from './handoverLogic';
 import { buildHandoverFilename, buildHandoverWorkbook } from './excelExport';
@@ -726,4 +728,37 @@ test('hari Minggu tidak dihitung jika tidak ada shift yang update, namun dihitun
   );
   assert.equal(monWithSundayShift1[0].durationShifts, 8);
 });
+
+test('extractOAuthErrorFromUrl, mapAuthErrorMessage, dan default role pengawas bekerja dengan benar', () => {
+  assert.equal(extractOAuthErrorFromUrl('', ''), null);
+  assert.equal(extractOAuthErrorFromUrl('?code=abc123', ''), null);
+  assert.equal(
+    extractOAuthErrorFromUrl('?error=access_denied&error_description=User%20cancelled', ''),
+    'Login dengan Google dibatalkan.'
+  );
+  assert.equal(
+    extractOAuthErrorFromUrl('', '#error=server_error&error_description=Unsupported+provider%3A+provider+is+not+enabled'),
+    'Login Google belum diaktifkan. Aktifkan Google Sign-In pada Firebase Console → Authentication → Sign-in method.'
+  );
+
+  assert.equal(
+    mapAuthErrorMessage('Firebase: Error (auth/popup-closed-by-user).'),
+    'Login dengan Google dibatalkan.'
+  );
+  assert.equal(
+    mapAuthErrorMessage('Firebase: Error (auth/operation-not-allowed).'),
+    'Metode login Email/Password belum diaktifkan di Firebase Console (Authentication → Sign-in method). Gunakan tombol Google atau aktifkan Email/Password terlebih dahulu.'
+  );
+  assert.equal(
+    mapAuthErrorMessage('Missing or insufficient permissions.'),
+    'Akses ditolak oleh Firestore Security Rules. Pastikan email akun terverifikasi dan Anda memiliki izin untuk aksi ini.'
+  );
+
+  assert.equal(normalizeUserRole(undefined), 'pengawas');
+  assert.equal(normalizeUserRole(''), 'pengawas');
+  assert.equal(normalizeUserRole('operator'), 'pengawas');
+  assert.equal(normalizeUserRole('supervisor'), 'supervisor');
+  assert.equal(normalizeUserRole('admin'), 'admin');
+});
+
 
