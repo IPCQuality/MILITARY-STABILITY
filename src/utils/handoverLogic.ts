@@ -837,6 +837,126 @@ export function calculateShiftSpan(
   return Math.max(1, count);
 }
 
+export function isOhOnlyInformation(info: string): boolean {
+  const normalized = info.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!normalized) return false;
+  return /^(status|update|masih|posisi)?\s*oh[\s.,:;\-()]*$/.test(normalized);
+}
+
+export function countMilitaryInReport(
+  report: Pick<HandoverReport, 'information' | 'issue'>
+): number {
+  const infoLines = String(report.information ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const infoMatches = infoLines.filter((line) => /\bmilitary\b/i.test(line)).length;
+  if (infoMatches > 0) {
+    return infoMatches;
+  }
+
+  const issueLines = String(report.issue ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return issueLines.filter((line) => /\bmilitary\b/i.test(line)).length;
+}
+
+export function countStabilityInReport(
+  report: Pick<HandoverReport, 'category' | 'information' | 'issue'>
+): number {
+  const infoLines = String(report.information ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const infoMatches = infoLines.filter((line) => /\bstability\b/i.test(line)).length;
+  if (infoMatches > 0) {
+    return infoMatches;
+  }
+
+  const issueLines = String(report.issue ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const issueMatches = issueLines.filter((line) => /\bstability\b/i.test(line)).length;
+  if (issueMatches > 0) {
+    return issueMatches;
+  }
+
+  if (report.category === 'STABILITY TINGGI') {
+    return 1;
+  }
+
+  return 0;
+}
+
+function findEpisodeRepairStartIndex(ep: HandoverReport[]): number {
+  const explicitStartIdx = ep.findIndex((r) => r.isRepairStart === true);
+  if (explicitStartIdx >= 0) {
+    return explicitStartIdx;
+  }
+
+  // Jika semua laporan pada episode secara eksplisit menandai isRepairStart === false ("Tidak"),
+  // maka perhitungan durasi belum dimulai (sesuai opsi "jika tidak maka tidak").
+  const allExplicitFalse = ep.every((r) => r.isRepairStart === false);
+  if (allExplicitFalse) {
+    return -1;
+  }
+
+  // Untuk data tanpa flag eksplisit (isRepairStart === undefined),
+  // lewati update awal berketerangan "OH"; update non-OH setelahnya menjadi Shift ke-1.
+  const firstNonOhIdx = ep.findIndex(
+    (r) => r.isRepairStart !== false && !isOhOnlyInformation(r.information)
+  );
+  return firstNonOhIdx;
+}
+
+export function hasOpenEpisodeStartedRepair(
+  reports: HandoverReport[],
+  category: CategoryType,
+  machine: string | null
+): boolean {
+  const normalizedMachine = (machine ?? '').trim().toUpperCase();
+  if (!normalizedMachine) return false;
+
+  const matching = reports
+    .filter(
+      (r) =>
+        r.category === category &&
+        (r.machine ?? '').trim().toUpperCase() === normalizedMachine
+    )
+    .sort((a, b) => {
+      if (a.reportDate !== b.reportDate) {
+        return a.reportDate.localeCompare(b.reportDate);
+      }
+      const shiftDiff = SHIFTS.indexOf(a.shift) - SHIFTS.indexOf(b.shift);
+      if (shiftDiff !== 0) return shiftDiff;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+  if (matching.length === 0) return false;
+
+  let currentEp: HandoverReport[] = [];
+  let completedRank: number | null = null;
+  for (const rep of matching) {
+    const repRank = getShiftSlotRank(rep.reportDate, rep.shift);
+    if (completedRank !== null && repRank > completedRank) {
+      currentEp = [];
+      completedRank = null;
+    }
+    currentEp.push(rep);
+    if (rep.isCompleted) {
+      completedRank = completedRank === null ? repRank : Math.max(completedRank, repRank);
+    }
+  }
+
+  if (currentEp.length === 0 || currentEp.some((r) => Boolean(r.isCompleted))) {
+    return false;
+  }
+
+  return findEpisodeRepairStartIndex(currentEp) >= 0;
+}
+
 export interface CaseDurationItem {
   id: string;
   category: CategoryType;
@@ -846,9 +966,13 @@ export interface CaseDurationItem {
   endDate: string;
   endShift: ShiftType;
   isCompleted: boolean;
+  hasStartedRepair: boolean;
   durationShifts: number;
+  totalMilitary: number;
+  totalStability: number;
   reportCount: number;
   reportIds: string[];
+  countedReportIds: string[];
 }
 
 export function computeCaseDurations(
@@ -923,27 +1047,53 @@ export function computeCaseDurations(
     }
 
     episodes.forEach((ep, epIdx) => {
-      const startRep = ep[0];
+      const firstRep = ep[0];
       const lastRep = ep[ep.length - 1];
       const isCompleted = ep.some((r) => Boolean(r.isCompleted));
       const closingRep =
         [...ep].reverse().find((r) => Boolean(r.isCompleted)) ?? lastRep;
 
+      const repairStartIdx = findEpisodeRepairStartIndex(ep);
+      const hasStartedRepair = repairStartIdx >= 0;
+      const startRep = hasStartedRepair ? ep[repairStartIdx] : firstRep;
+
       const endDate = isCompleted ? closingRep.reportDate : lastRep.reportDate;
       const endShift = isCompleted ? closingRep.shift : lastRep.shift;
 
-      let effectiveEndDate = endDate;
-      let effectiveEndShift = endShift;
-      if (!isCompleted) {
-        const lastRank = getShiftSlotRank(lastRep.reportDate, lastRep.shift);
-        if (nowRank > lastRank) {
-          effectiveEndDate = nowDateStr;
-          effectiveEndShift = nowShift;
+      let durationShifts = 0;
+      if (hasStartedRepair) {
+        let effectiveEndDate = endDate;
+        let effectiveEndShift = endShift;
+        if (!isCompleted) {
+          const lastRank = getShiftSlotRank(lastRep.reportDate, lastRep.shift);
+          if (nowRank > lastRank) {
+            effectiveEndDate = nowDateStr;
+            effectiveEndShift = nowShift;
+          }
         }
+        durationShifts = calculateShiftSpan(
+          startRep.reportDate,
+          startRep.shift,
+          effectiveEndDate,
+          effectiveEndShift,
+          activeSundayShifts
+        );
       }
 
+      const countedReportIds = hasStartedRepair
+        ? ep.slice(repairStartIdx).map((r) => r.id)
+        : [];
+      const totalMilitary = ep.reduce(
+        (sum, rep) => sum + countMilitaryInReport(rep),
+        0
+      );
+      const totalStability = ep.reduce(
+        (sum, rep) => sum + countStabilityInReport(rep),
+        0
+      );
+
       durations.push({
-        id: `${bucket.category}::${bucket.machineName}::${startRep.id}::${epIdx}`,
+        id: `${bucket.category}::${bucket.machineName}::${firstRep.id}::${epIdx}`,
         category: bucket.category,
         machineName: bucket.machineName,
         startDate: startRep.reportDate,
@@ -951,15 +1101,13 @@ export function computeCaseDurations(
         endDate,
         endShift,
         isCompleted,
-        durationShifts: calculateShiftSpan(
-          startRep.reportDate,
-          startRep.shift,
-          effectiveEndDate,
-          effectiveEndShift,
-          activeSundayShifts
-        ),
+        hasStartedRepair,
+        durationShifts,
+        totalMilitary,
+        totalStability,
         reportCount: ep.length,
         reportIds: ep.map((r) => r.id),
+        countedReportIds,
       });
     });
   }

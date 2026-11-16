@@ -1,10 +1,5 @@
-import { useState } from 'react';
-import { Cloud, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import type { UserProfile } from '../types/handover';
-import {
-  firebaseProjectConfig,
-  testFirestoreConnection,
-} from '../services/handoverService';
 
 interface SettingsViewProps {
   currentUser: UserProfile;
@@ -12,119 +7,64 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({ currentUser, onLogout }: SettingsViewProps) {
-  const [connMsg, setConnMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [testing, setTesting] = useState(false);
-
-  async function handleTestConnection() {
-    setConnMsg(null);
-    setTesting(true);
-    try {
-      const res = await testFirestoreConnection();
-      setConnMsg({ ok: res.ok, text: res.message });
-    } finally {
-      setTesting(false);
-    }
-  }
+  const hasFullAccess = currentUser.canEditAll || currentUser.role !== 'pengawas';
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-5">
       <div>
         <h2 className="text-lg sm:text-xl font-bold text-slate-900">Pengaturan &amp; Akun</h2>
         <p className="text-sm text-slate-500">
-          Informasi profil sesi aktif dan status koneksi Firebase Cloud Firestore.
+          Informasi profil dan hak akses akun yang sedang aktif.
         </p>
       </div>
 
       {/* Profil Pengguna (tanpa shift tetap, mengikuti rolling mingguan) */}
-      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4">
-        <div className="flex items-start justify-between gap-4">
+      <section className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-4 sm:px-6 bg-slate-50/70 border-b border-slate-200 flex items-center justify-between gap-4">
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Profil Sesi Aktif</h3>
-            <p className="text-xs text-slate-500">Autentikasi Firebase Cloud</p>
+            <p className="text-xs text-slate-500 mt-0.5">Identitas akun terdaftar</p>
           </div>
-          <span className="px-2.5 py-1 rounded border border-slate-200 bg-slate-50 text-xs font-mono uppercase text-slate-700">
+          <span className="px-2.5 py-1 rounded-md border border-slate-200 bg-white text-xs font-mono font-semibold uppercase text-[#0F294A]">
             {currentUser.role}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm pt-2 border-t border-slate-100">
+        <dl className="p-5 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
           <div>
-            <span className="text-xs text-slate-500 block">Nama Pengguna</span>
-            <span className="font-medium text-slate-900">{currentUser.fullName}</span>
+            <dt className="text-xs text-slate-500">Nama Pengguna</dt>
+            <dd className="mt-0.5 font-medium text-slate-900">{currentUser.fullName}</dd>
           </div>
           <div>
-            <span className="text-xs text-slate-500 block">Email</span>
-            <span className="font-mono text-xs text-slate-800">{currentUser.email}</span>
+            <dt className="text-xs text-slate-500">Email</dt>
+            <dd className="mt-0.5 font-mono text-xs text-slate-800 break-all">
+              {currentUser.email}
+            </dd>
           </div>
           <div>
-            <span className="text-xs text-slate-500 block">Peran Akun</span>
-            <span className="font-medium text-slate-900 uppercase font-mono text-xs">
+            <dt className="text-xs text-slate-500">Peran Akun</dt>
+            <dd className="mt-0.5 font-mono text-xs font-semibold uppercase text-slate-900">
               {currentUser.role}
-            </span>
+            </dd>
           </div>
           <div>
-            <span className="text-xs text-slate-500 block">Hak Akses &amp; Input</span>
-            <span className="font-medium text-slate-900">
-              {currentUser.canEditAll || currentUser.role !== 'pengawas'
-                ? 'Akses Penuh (Pilih Shift Input Bebas & Edit Semua Laporan)'
-                : 'Input Shift (+4 Jam) & Edit Laporan Sendiri Kapanpun'}
-            </span>
+            <dt className="text-xs text-slate-500">Hak Akses</dt>
+            <dd className="mt-0.5 font-medium text-slate-900">
+              {hasFullAccess ? 'Akses Penuh' : 'Akses Terbatas'}
+            </dd>
           </div>
-        </div>
+        </dl>
 
-        <div className="pt-2 flex flex-wrap items-center gap-3">
+        <div className="px-5 py-4 sm:px-6 bg-slate-50/50 border-t border-slate-200 flex items-center justify-end">
           <button
             type="button"
             onClick={onLogout}
-            className="min-h-[44px] px-4 py-2 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-800 text-sm font-semibold inline-flex items-center gap-2"
+            className="min-h-[44px] px-4 py-2 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-800 text-sm font-semibold inline-flex items-center gap-2 transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Keluar (Logout)
           </button>
         </div>
-      </section>
-
-      {/* Status Koneksi Firebase Cloud */}
-      <section className="bg-white rounded-xl border border-slate-200 p-5 sm:p-6 space-y-4">
-        <div className="flex items-center gap-2">
-          <Cloud className="w-4 h-4 text-[#0F294A]" />
-          <h3 className="text-sm font-semibold text-slate-900">
-            Status Firebase Cloud
-          </h3>
-        </div>
-        <p className="text-xs text-slate-500 leading-relaxed">
-          Koneksi proyek Firebase{' '}
-          <span className="font-mono text-slate-700">{firebaseProjectConfig.projectId}</span>{' '}
-          (region <span className="font-mono text-slate-700">asia-southeast1</span>) sudah
-          tertanam otomatis pada aplikasi sehingga langsung terhubung di perangkat mana pun.
-        </p>
-
-        {connMsg && (
-          <div
-            role="status"
-            className={`p-3 rounded-lg border text-xs ${
-              connMsg.ok
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-rose-50 border-rose-200 text-rose-800'
-            }`}
-          >
-            {connMsg.text}
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={handleTestConnection}
-          disabled={testing}
-          className="min-h-[44px] px-4 py-2 rounded-lg bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 text-white text-sm font-semibold inline-flex items-center gap-2"
-        >
-          {testing ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
-          ) : (
-            <ShieldCheck className="w-4 h-4" />
-          )}
-          <span>Uji Koneksi Firebase</span>
-        </button>
       </section>
     </div>
   );

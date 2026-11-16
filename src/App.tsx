@@ -405,6 +405,7 @@ export default function App() {
           {activeNav === 'input' && (
             <HandoverFormView
               currentUser={currentUser}
+              reports={reports}
               editingReport={editingReport}
               presetValues={formPreset}
               onSubmitReport={handleSubmitReport}

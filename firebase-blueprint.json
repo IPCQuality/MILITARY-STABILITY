@@ -130,6 +130,10 @@
           "type": "boolean",
           "description": "Status selesai (OK) untuk menutup case di dashboard."
         },
+        "isRepairStart": {
+          "type": "boolean",
+          "description": "Penanda apakah shift ini merupakan hari pertama perbaikan (awal perhitungan Total Durasi)."
+        },
         "createdBy": {
           "type": "string",
           "description": "UID pembuat laporan asli.",

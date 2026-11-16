@@ -111,6 +111,7 @@ service cloud.firestore {
           'followUp',
           'palletLocation',
           'isCompleted',
+          'isRepairStart',
           'createdBy',
           'createdByName',
           'updatedBy',
@@ -129,6 +130,7 @@ service cloud.firestore {
         && data.followUp is string && data.followUp.size() <= 2000
         && data.palletLocation is string && data.palletLocation.size() <= 200
         && data.isCompleted is bool
+        && (!('isRepairStart' in data) || data.isRepairStart is bool)
         && data.createdBy is string && isValidId(data.createdBy)
         && data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 120
         && data.updatedBy is string && isValidId(data.updatedBy)
@@ -205,6 +207,7 @@ service cloud.firestore {
           'followUp',
           'palletLocation',
           'isCompleted',
+          'isRepairStart',
           'updatedBy',
           'updatedByName',
           'updatedAt'

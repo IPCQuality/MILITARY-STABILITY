@@ -2,6 +2,8 @@ import XLSX, { type CellStyle, type WorkBook, type WorkSheet } from 'xlsx-js-sty
 import type { CategoryType, HandoverReport, ShiftType } from '../types/handover';
 import {
   computeCaseDurations,
+  countMilitaryInReport,
+  countStabilityInReport,
   formatDateTimeId,
   getTodayDateString,
   type CaseDurationItem,
@@ -19,6 +21,13 @@ const HEADER_BORDER = {
   bottom: { style: 'medium' as const, color: { rgb: '0F294A' } },
   left: { style: 'thin' as const, color: { rgb: '334155' } },
   right: { style: 'thin' as const, color: { rgb: '334155' } },
+};
+
+const TOTAL_BORDER = {
+  top: { style: 'medium' as const, color: { rgb: '0F294A' } },
+  bottom: { style: 'medium' as const, color: { rgb: '0F294A' } },
+  left: { style: 'thin' as const, color: { rgb: 'CBD5E1' } },
+  right: { style: 'thin' as const, color: { rgb: 'CBD5E1' } },
 };
 
 const SHIFT_COLORS: Record<ShiftType, { bg: string; fg: string }> = {
@@ -87,11 +96,18 @@ export function buildHandoverFilename(dateStr: string = getTodayDateString()): s
 export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
   const wb = XLSX.utils.book_new();
   const durations = computeCaseDurations(reports);
-  const durationByReportId = new Map<string, CaseDurationItem>();
+  const durationByCountedReportId = new Map<string, CaseDurationItem>();
   for (const item of durations) {
-    for (const repId of item.reportIds) {
-      durationByReportId.set(repId, item);
+    for (const repId of item.countedReportIds) {
+      durationByCountedReportId.set(repId, item);
     }
+  }
+
+  let grandTotalMilitary = 0;
+  let grandTotalStability = 0;
+  for (const r of reports) {
+    grandTotalMilitary += countMilitaryInReport(r);
+    grandTotalStability += countStabilityInReport(r);
   }
 
   const completedCount = reports.filter((r) => r.isCompleted).length;
@@ -99,7 +115,7 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
   const exportedAt = formatDateTimeId(new Date().toISOString());
 
   const title = 'DETAIL DATA SHIFT HANDOVER — MILITARY & STABILITY';
-  const subtitle = `Ringkasan: ${reports.length} Laporan • ${durations.length} Case (${completedCount} OK / ${openCount} Berlanjut)  |  Diekspor: ${exportedAt}`;
+  const subtitle = `Ringkasan: ${reports.length} Laporan • ${durations.length} Case (${completedCount} OK / ${openCount} Berlanjut) • Total Military: ${grandTotalMilitary} • Total Stability: ${grandTotalStability}  |  Diekspor: ${exportedAt}`;
 
   const headers = [
     'ID',
@@ -113,14 +129,20 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
     'Lokasi Palet',
     'Status',
     'Total Durasi',
+    'Total Military',
+    'Total Stability',
     'Pembuat',
     'Waktu Dibuat',
     'Waktu Diperbarui',
   ];
 
   const dataRows: (string | number)[][] = reports.map((r) => {
-    const dur = durationByReportId.get(r.id);
-    const durLabel = dur ? `${dur.durationShifts} Shift` : '1 Shift';
+    const dur = durationByCountedReportId.get(r.id);
+    const durLabel =
+      dur && dur.durationShifts > 0 ? `${dur.durationShifts} Shift` : '0 Shift';
+    const militaryCount = countMilitaryInReport(r);
+    const stabilityCount = countStabilityInReport(r);
+
     return [
       r.id,
       r.reportDate,
@@ -133,6 +155,8 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
       r.palletLocation || '-',
       r.isCompleted ? 'OK (Selesai)' : 'Berlanjut',
       durLabel,
+      militaryCount,
+      stabilityCount,
       r.createdByName,
       formatDateTimeId(r.createdAt),
       formatDateTimeId(r.updatedAt),
@@ -140,30 +164,52 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
   });
 
   const colCount = headers.length;
+  const totalRow: (string | number)[] = [
+    '',
+    '',
+    '',
+    '',
+    'TOTAL KESELURUHAN',
+    '',
+    '',
+    '',
+    '',
+    `${reports.length} Laporan`,
+    '',
+    grandTotalMilitary,
+    grandTotalStability,
+    '',
+    '',
+    '',
+  ];
+
   const allRows: (string | number)[][] = [
     [title, ...Array(colCount - 1).fill('')],
     [subtitle, ...Array(colCount - 1).fill('')],
     Array(colCount).fill(''),
     headers,
     ...dataRows,
+    totalRow,
   ];
 
   const ws = XLSX.utils.aoa_to_sheet(allRows);
-  const colWidths = computeColumnWidths([headers, ...dataRows], [
-    { min: 14, max: 24 }, // ID
-    { min: 13, max: 15 }, // Tanggal
-    { min: 10, max: 12 }, // Shift
-    { min: 24, max: 34 }, // Kategori
-    { min: 14, max: 20 }, // Mesin
-    { min: 32, max: 46 }, // Update Shift / Informasi / Keterangan
-    { min: 22, max: 38 }, // Masalah
-    { min: 22, max: 38 }, // Tindak Lanjut
-    { min: 18, max: 28 }, // Lokasi Palet
-    { min: 14, max: 16 }, // Status
-    { min: 14, max: 16 }, // Total Durasi
-    { min: 16, max: 24 }, // Pembuat
-    { min: 18, max: 22 }, // Waktu Dibuat
-    { min: 18, max: 22 }, // Waktu Diperbarui
+  const colWidths = computeColumnWidths([headers, ...dataRows, totalRow], [
+    { min: 14, max: 24 }, // 0: ID
+    { min: 13, max: 15 }, // 1: Tanggal
+    { min: 10, max: 12 }, // 2: Shift
+    { min: 24, max: 34 }, // 3: Kategori
+    { min: 14, max: 20 }, // 4: Mesin
+    { min: 32, max: 46 }, // 5: Update Shift / Informasi / Keterangan
+    { min: 22, max: 38 }, // 6: Masalah
+    { min: 22, max: 38 }, // 7: Tindak Lanjut
+    { min: 18, max: 28 }, // 8: Lokasi Palet
+    { min: 14, max: 16 }, // 9: Status
+    { min: 14, max: 16 }, // 10: Total Durasi
+    { min: 14, max: 16 }, // 11: Total Military
+    { min: 14, max: 16 }, // 12: Total Stability
+    { min: 16, max: 24 }, // 13: Pembuat
+    { min: 18, max: 22 }, // 14: Waktu Dibuat
+    { min: 18, max: 22 }, // 15: Waktu Diperbarui
   ]);
   ws['!cols'] = colWidths;
 
@@ -191,7 +237,7 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
     ensureStyledCell(ws, 1, c, subtitleStyle);
   }
 
-  const centeredCols = new Set([1, 2, 9, 10]);
+  const centeredCols = new Set([1, 2, 9, 10, 11, 12]);
   for (let c = 0; c < colCount; c += 1) {
     ensureStyledCell(ws, 3, c, {
       font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
@@ -216,13 +262,15 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
     const r = 4 + i;
     const report = reports[i];
     const rowData = dataRows[i];
-    const durItem = durationByReportId.get(report.id);
+    const durItem = durationByCountedReportId.get(report.id);
     const isCompleted = Boolean(report.isCompleted);
     const caseCompleted = durItem ? durItem.isCompleted : isCompleted;
+    const hasStartedDur = Boolean(durItem && durItem.durationShifts > 0);
     const baseBg = isCompleted ? 'F0FDF4' : i % 2 === 0 ? 'FFFFFF' : 'F8FAFC';
 
     for (let c = 0; c < colCount; c += 1) {
       const rawVal = String(rowData[c] ?? '');
+      const numVal = typeof rowData[c] === 'number' ? (rowData[c] as number) : 0;
       const isMutedDash = rawVal === '-';
 
       let fillRgb = baseBg;
@@ -260,9 +308,24 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
         }
       } else if (c === 10) {
         horizontal = 'center';
-        bold = true;
-        fillRgb = caseCompleted ? 'DCFCE7' : 'DBEAFE';
-        fontColor = caseCompleted ? '14532D' : '0F294A';
+        bold = hasStartedDur;
+        if (!hasStartedDur) {
+          fillRgb = baseBg;
+          fontColor = '64748B';
+        } else {
+          fillRgb = caseCompleted ? 'DCFCE7' : 'DBEAFE';
+          fontColor = caseCompleted ? '14532D' : '0F294A';
+        }
+      } else if (c === 11) {
+        horizontal = 'center';
+        bold = numVal > 0;
+        fillRgb = numVal > 0 ? 'E0E7FF' : baseBg;
+        fontColor = numVal > 0 ? '3730A3' : '94A3B8';
+      } else if (c === 12) {
+        horizontal = 'center';
+        bold = numVal > 0;
+        fillRgb = numVal > 0 ? 'CCFBF1' : baseBg;
+        fontColor = numVal > 0 ? '115E59' : '94A3B8';
       }
 
       ensureStyledCell(ws, r, c, {
@@ -288,9 +351,33 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
     rowHeights.push({ hpt: estimateRowHeight(rowData, colWidths) });
   }
 
+  // Baris TOTAL KESELURUHAN di bawah tabel
+  const totalRowIdx = 4 + reports.length;
+  for (let c = 0; c < colCount; c += 1) {
+    const isCentered = c === 9 || c === 11 || c === 12;
+    ensureStyledCell(ws, totalRowIdx, c, {
+      font: {
+        name: 'Calibri',
+        sz: 10,
+        bold: true,
+        color: { rgb: c === 11 ? '3730A3' : c === 12 ? '115E59' : '0F294A' },
+      },
+      fill: {
+        patternType: 'solid',
+        fgColor: { rgb: c === 11 ? 'E0E7FF' : c === 12 ? 'CCFBF1' : 'F1F5F9' },
+      },
+      alignment: {
+        vertical: 'center',
+        horizontal: isCentered ? 'center' : 'left',
+      },
+      border: TOTAL_BORDER,
+    });
+  }
+  rowHeights.push({ hpt: 26 });
+
   const lastCol = XLSX.utils.encode_col(Math.max(0, colCount - 1));
-  const lastRowExcel = Math.max(4, allRows.length);
-  ws['!autofilter'] = { ref: `A4:${lastCol}${lastRowExcel}` };
+  const lastDataRowExcel = Math.max(4, 4 + reports.length);
+  ws['!autofilter'] = { ref: `A4:${lastCol}${lastDataRowExcel}` };
   ws['!rows'] = rowHeights;
   (ws as Record<string, unknown>)['!views'] = [
     { state: 'frozen', ySplit: 4, topLeftCell: 'A5', activePane: 'bottomLeft' },

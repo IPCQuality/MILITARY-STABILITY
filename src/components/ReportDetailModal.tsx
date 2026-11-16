@@ -47,6 +47,11 @@ export function ReportDetailModal({
               >
                 {report.isCompleted ? 'Case Selesai' : 'Berlanjut'}
               </span>
+              {report.isRepairStart && (
+                <span className="text-xs font-medium px-2 py-0.5 rounded border bg-blue-50 text-[#0F294A] border-blue-200">
+                  Hari Pertama Perbaikan
+                </span>
+              )}
             </div>
             <h2
               id="detail-modal-title"

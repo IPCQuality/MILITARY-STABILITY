@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Download, FileSpreadsheet, RefreshCw } from 'lucide-react';
+import { Download, RefreshCw } from 'lucide-react';
 import { SHIFTS, type HandoverReport, type ShiftType } from '../types/handover';
 import { loadReportsFirebase } from '../services/handoverService';
 import {
@@ -115,22 +115,6 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 </option>
               ))}
             </select>
-          </div>
-        </div>
-
-        {/* Worksheet Specification Summary */}
-        <div className="pt-2">
-          <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-              <FileSpreadsheet className="w-4 h-4 text-[#0F294A]" />
-              <span>Sheet Tunggal: DETAIL DATA</span>
-            </div>
-            <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
-              Seluruh detail laporan dalam 1 worksheet berwarna modern: ID, Tanggal, Shift,
-              Kategori, Mesin, Update Shift/Informasi/Keterangan, Masalah, Tindak Lanjut, Lokasi
-              Palet, Status, Total Durasi (Shift), Pembuat, Waktu Dibuat, dan Waktu Diperbarui,
-              lengkap dengan banner judul, AutoFilter, border rapi, dan Freeze Header.
-            </p>
           </div>
         </div>
 

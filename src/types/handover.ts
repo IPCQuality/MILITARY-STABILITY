@@ -154,6 +154,7 @@ export interface HandoverReport {
   followUp: string;
   palletLocation: string;
   isCompleted: boolean;
+  isRepairStart?: boolean;
   createdBy: string;
   createdByName: string;
   updatedBy: string | null;
@@ -172,6 +173,7 @@ export interface HandoverFormInput {
   followUp: string;
   palletLocation: string;
   isCompleted?: boolean;
+  isRepairStart?: boolean;
 }
 
 export interface HistoryFilters {

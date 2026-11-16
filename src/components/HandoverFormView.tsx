@@ -21,12 +21,15 @@ import {
   getOperationalDateString,
   getShiftScheduleForDate,
   hasFullShiftAccess,
+  hasOpenEpisodeStartedRepair,
+  isOhOnlyInformation,
   isOperatorShiftInputAllowed,
   validateHandoverInput,
 } from '../utils/handoverLogic';
 
 interface HandoverFormViewProps {
   currentUser: UserProfile;
+  reports?: HandoverReport[];
   editingReport: HandoverReport | null;
   presetValues?: Partial<HandoverFormInput> | null;
   onSubmitReport: (
@@ -44,6 +47,7 @@ function parseLocalDate(dateStr: string): Date {
 
 export function HandoverFormView({
   currentUser,
+  reports = [],
   editingReport,
   presetValues,
   onSubmitReport,
@@ -84,6 +88,8 @@ export function HandoverFormView({
   const [followUp, setFollowUp] = useState('');
   const [palletLocation, setPalletLocation] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isRepairStart, setIsRepairStart] = useState(false);
+  const [repairStartTouched, setRepairStartTouched] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof HandoverFormInput, string>>
   >({});
@@ -124,6 +130,8 @@ export function HandoverFormView({
       setFollowUp(editingReport.followUp ?? '');
       setPalletLocation(editingReport.palletLocation ?? '');
       setIsCompleted(Boolean(editingReport.isCompleted));
+      setIsRepairStart(Boolean(editingReport.isRepairStart));
+      setRepairStartTouched(true);
       setFieldErrors({});
       setSubmitError(null);
       return;
@@ -149,6 +157,8 @@ export function HandoverFormView({
       setFollowUp(presetValues.followUp ?? '');
       setPalletLocation(presetValues.palletLocation ?? '');
       setIsCompleted(Boolean(presetValues.isCompleted));
+      setIsRepairStart(Boolean(presetValues.isRepairStart));
+      setRepairStartTouched(presetValues.isRepairStart !== undefined);
       setFieldErrors({});
       setSubmitError(null);
     } else {
@@ -165,10 +175,24 @@ export function HandoverFormView({
       setMachine('');
       setPalletLocation('');
       setIsCompleted(false);
+      setIsRepairStart(false);
+      setRepairStartTouched(false);
       setFieldErrors({});
       setSubmitError(null);
     }
   }, [editingReport, presetValues, fullAccess]);
+
+  // Otomatis tentukan default "Hari pertama perbaikan?" selama pengguna belum memilih manual
+  useEffect(() => {
+    if (editingReport || repairStartTouched) return;
+    const trimmedInfo = information.trim();
+    if (!trimmedInfo || isOhOnlyInformation(trimmedInfo)) {
+      setIsRepairStart(false);
+      return;
+    }
+    const alreadyStarted = hasOpenEpisodeStartedRepair(reports, category, machine);
+    setIsRepairStart(!alreadyStarted);
+  }, [editingReport, repairStartTouched, information, category, machine, reports]);
 
   const machineRequired = categoryRequiresMachine(category);
   const isCustomLegacyMachine =
@@ -189,6 +213,7 @@ export function HandoverFormView({
       followUp,
       palletLocation,
       isCompleted,
+      isRepairStart,
     };
 
     const permission = canSubmitReport({
@@ -222,6 +247,8 @@ export function HandoverFormView({
         setFollowUp('');
         setPalletLocation('');
         setIsCompleted(false);
+        setIsRepairStart(false);
+        setRepairStartTouched(false);
       }
     } finally {
       setSubmitting(false);
@@ -506,7 +533,7 @@ export function HandoverFormView({
                 rows={2}
                 value={issue}
                 onChange={(e) => setIssue(e.target.value)}
-                placeholder="Catat kendala teknis bila ada..."
+                placeholder="Contoh: Bocor PH L2N4."
                 className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               />
             </div>
@@ -542,9 +569,61 @@ export function HandoverFormView({
                 type="text"
                 value={palletLocation}
                 onChange={(e) => setPalletLocation(e.target.value)}
-                placeholder="Contoh: Rak B2 / Area Karantina / Line 1"
+                placeholder="Contoh: Staging Line A / Area HOLD / Line 1B"
                 className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               />
+            </div>
+          </div>
+
+          {/* Hari Pertama Perbaikan (Mulai Perhitungan Total Durasi) */}
+          <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div>
+                <span className="block text-xs sm:text-sm font-semibold text-slate-900">
+                  Hari pertama perbaikan?
+                </span>
+                <span className="block text-xs text-slate-600 mt-0.5">
+                  Pilih <strong>Ya</strong> untuk mulai menghitung Total Durasi (Shift ke-1). Pilih <strong>Tidak</strong> jika status masih <strong>OH</strong> / belum mulai perbaikan.
+                </span>
+              </div>
+              <div
+                role="radiogroup"
+                aria-label="Hari pertama perbaikan?"
+                className="inline-grid grid-cols-2 gap-1.5 shrink-0"
+              >
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isRepairStart === true}
+                  onClick={() => {
+                    setRepairStartTouched(true);
+                    setIsRepairStart(true);
+                  }}
+                  className={`min-h-[40px] px-4 py-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${
+                    isRepairStart
+                      ? 'bg-[#0F294A] text-white border-[#0F294A]'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  Ya
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={isRepairStart === false}
+                  onClick={() => {
+                    setRepairStartTouched(true);
+                    setIsRepairStart(false);
+                  }}
+                  className={`min-h-[40px] px-4 py-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${
+                    !isRepairStart
+                      ? 'bg-slate-800 text-white border-slate-800'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  Tidak
+                </button>
+              </div>
             </div>
           </div>
 
@@ -560,7 +639,6 @@ export function HandoverFormView({
               <strong className="text-slate-900 block">
                 Tandai case / pekerjaan selesai (OK)
               </strong>
-              Jika dicentang, shift ini berwarna hijau muda (OK) dan mesin otomatis hilang dari Dashboard keesokan harinya (tetap tersimpan di History &amp; Report). Jika belum dicentang, case tetap tampil di Dashboard walaupun sudah berganti hari.
             </span>
           </label>
 

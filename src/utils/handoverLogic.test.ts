@@ -9,6 +9,8 @@ import {
   computeCaseDurations,
   computeDashboardSummary,
   computeOverhaulMatrix,
+  countMilitaryInReport,
+  countStabilityInReport,
   extractOAuthErrorFromUrl,
   filterAndSortReports,
   getCurrentShiftStatus,
@@ -16,6 +18,8 @@ import {
   getOperationalDateString,
   groupActiveDashboardCases,
   hasFullShiftAccess,
+  hasOpenEpisodeStartedRepair,
+  isOhOnlyInformation,
   isOperatorShiftInputAllowed,
   isReportResultOk,
   isShiftResultOk,
@@ -278,7 +282,7 @@ test('buildHandoverWorkbook menghasilkan 1 worksheet DETAIL DATA modern berwarna
   assert.deepEqual(wb.SheetNames, ['DETAIL DATA']);
 
   const detailSheet = wb.Sheets['DETAIL DATA'];
-  const detailJson = XLSX.utils.sheet_to_json<string[]>(detailSheet, { header: 1 });
+  const detailJson = XLSX.utils.sheet_to_json<(string | number)[]>(detailSheet, { header: 1 });
   assert.equal(detailJson[0][0], 'DETAIL DATA SHIFT HANDOVER — MILITARY & STABILITY');
   assert.deepEqual(detailJson[3], [
     'ID',
@@ -292,17 +296,19 @@ test('buildHandoverWorkbook menghasilkan 1 worksheet DETAIL DATA modern berwarna
     'Lokasi Palet',
     'Status',
     'Total Durasi',
+    'Total Military',
+    'Total Stability',
     'Pembuat',
     'Waktu Dibuat',
     'Waktu Diperbarui',
   ]);
-  // 4 baris banner/spacer/header + 4 data = 8 baris total
-  assert.equal(detailJson.length, 8);
-  assert.equal(detailSheet['!autofilter']?.ref, 'A4:N8');
+  // 4 baris banner/spacer/header + 4 data + 1 baris TOTAL KESELURUHAN = 9 baris total
+  assert.equal(detailJson.length, 9);
+  assert.equal(detailSheet['!autofilter']?.ref, 'A4:P8');
   assert.ok(Array.isArray(detailSheet['!merges']) && detailSheet['!merges'].length === 2);
-  assert.ok(Array.isArray(detailSheet['!cols']) && detailSheet['!cols'].length === 14);
+  assert.ok(Array.isArray(detailSheet['!cols']) && detailSheet['!cols'].length === 16);
 
-  // Verifikasi cell styling (banner navy A1, header A4, status badge & total durasi baris 8)
+  // Verifikasi cell styling & nilai (banner navy A1, header A4, status badge, total durasi, total military & stability)
   assert.equal(detailSheet['A1'].s?.fill?.fgColor?.rgb, '0F294A');
   assert.equal(detailSheet['A4'].s?.fill?.fgColor?.rgb, '1E3A5F');
   assert.equal(detailSheet['A4'].s?.font?.bold, true);
@@ -310,6 +316,10 @@ test('buildHandoverWorkbook menghasilkan 1 worksheet DETAIL DATA modern berwarna
   assert.equal(detailSheet['J8'].s?.fill?.fgColor?.rgb, 'BBF7D0');
   assert.equal(detailSheet['K8'].v, '1 Shift');
   assert.equal(detailSheet['K8'].s?.fill?.fgColor?.rgb, 'DCFCE7');
+  assert.equal(detailSheet['M6'].v, 1); // rep-2 kategori STABILITY TINGGI
+  assert.equal(detailJson[8][4], 'TOTAL KESELURUHAN');
+  assert.equal(detailJson[8][11], 0);
+  assert.equal(detailJson[8][12], 1);
 
   assert.equal(buildHandoverFilename('2026-11-13'), 'HANDOVER_2026-11-13.xlsx');
 
@@ -402,8 +412,8 @@ test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s
 
   const wb = buildHandoverWorkbook([shift3CheckedOk]);
   const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['DETAIL DATA'], { header: 1 });
-  // 4 baris header/banner + 1 baris data
-  assert.equal(rows.length, 5);
+  // 4 baris header/banner + 1 baris data + 1 baris TOTAL KESELURUHAN
+  assert.equal(rows.length, 6);
 });
 
 test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, edit bebas)', () => {
@@ -760,5 +770,168 @@ test('extractOAuthErrorFromUrl, mapAuthErrorMessage, dan default role pengawas b
   assert.equal(normalizeUserRole('supervisor'), 'supervisor');
   assert.equal(normalizeUserRole('admin'), 'admin');
 });
+
+test('perhitungan Total Durasi dimulai setelah update OH atau saat Hari pertama perbaikan = Ya', () => {
+  assert.equal(isOhOnlyInformation('OH'), true);
+  assert.equal(isOhOnlyInformation('Status OH'), true);
+  assert.equal(isOhOnlyInformation('Setting PMA sudah press 10T masih bocor L2N3'), false);
+
+  // Contoh kasus user:
+  // 1) Shift 2 16-11-2026 AST 47-16L berisi update "OH" -> belum terhitung Total Durasi (0 Shift)
+  const ohInitial: HandoverReport = {
+    ...sampleReports[0],
+    id: 'oh-1',
+    reportDate: '2026-11-16',
+    shift: 'Shift 2',
+    category: 'OVERHAUL',
+    machine: 'AST 47-16L',
+    information: 'OH',
+    followUp: 'Lanjut perbaikan',
+    isCompleted: false,
+  };
+
+  const onlyOhResult = computeCaseDurations(
+    [ohInitial],
+    new Date(2026, 10, 16, 18, 0)
+  );
+  assert.equal(onlyOhResult.length, 1);
+  assert.equal(onlyOhResult[0].hasStartedRepair, false);
+  assert.equal(onlyOhResult[0].durationShifts, 0);
+  assert.deepEqual(onlyOhResult[0].countedReportIds, []);
+  assert.equal(hasOpenEpisodeStartedRepair([ohInitial], 'OVERHAUL', 'AST 47-16L'), false);
+
+  // 2) Shift 1 17-11-2026 AST 47-16L berisi update "Setting PMA..." -> mulai Shift ke-1
+  const firstRepair: HandoverReport = {
+    ...sampleReports[0],
+    id: 'oh-2',
+    reportDate: '2026-11-17',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 47-16L',
+    information: 'Setting PMA sudah press 10T masih bocor L2N3',
+    isCompleted: false,
+  };
+
+  const atFirstRepair = computeCaseDurations(
+    [ohInitial, firstRepair],
+    new Date(2026, 10, 17, 10, 0)
+  );
+  assert.equal(atFirstRepair.length, 1);
+  assert.equal(atFirstRepair[0].hasStartedRepair, true);
+  assert.equal(atFirstRepair[0].startDate, '2026-11-17');
+  assert.equal(atFirstRepair[0].startShift, 'Shift 1');
+  assert.equal(atFirstRepair[0].durationShifts, 1);
+  assert.deepEqual(atFirstRepair[0].countedReportIds, ['oh-2']);
+  assert.equal(
+    hasOpenEpisodeStartedRepair([ohInitial, firstRepair], 'OVERHAUL', 'AST 47-16L'),
+    true
+  );
+
+  // 3) Selesai pada Shift 2 17-11-2026 -> Total Durasi = 2 Shift
+  const closingRepair: HandoverReport = {
+    ...sampleReports[0],
+    id: 'oh-3',
+    reportDate: '2026-11-17',
+    shift: 'Shift 2',
+    category: 'OVERHAUL',
+    machine: 'AST 47-16L',
+    information: 'Military OK',
+    isCompleted: true,
+  };
+  const completedAfterOh = computeCaseDurations(
+    [ohInitial, firstRepair, closingRepair],
+    new Date(2026, 10, 18, 8, 0)
+  );
+  assert.equal(completedAfterOh[0].durationShifts, 2);
+  assert.deepEqual(completedAfterOh[0].countedReportIds, ['oh-2', 'oh-3']);
+
+  // 4) Uji flag eksplisit isRepairStart ("Hari pertama perbaikan?"):
+  // Jika Tidak (false) semua -> tidak dihitung (0 Shift)
+  const notStartedExplicit: HandoverReport = {
+    ...ohInitial,
+    id: 'exp-1',
+    machine: 'AST 9-16L',
+    information: 'Tunggu sparepart PMA',
+    isRepairStart: false,
+  };
+  const explicitFalseRes = computeCaseDurations(
+    [notStartedExplicit],
+    new Date(2026, 10, 17, 10, 0)
+  );
+  assert.equal(explicitFalseRes[0].hasStartedRepair, false);
+  assert.equal(explicitFalseRes[0].durationShifts, 0);
+
+  // Jika Shift berikutnya Ya (true) -> mulai hitung dari shift tersebut
+  const startedExplicit: HandoverReport = {
+    ...firstRepair,
+    id: 'exp-2',
+    machine: 'AST 9-16L',
+    isRepairStart: true,
+    isCompleted: true,
+  };
+  const explicitTrueRes = computeCaseDurations(
+    [notStartedExplicit, startedExplicit],
+    new Date(2026, 10, 17, 10, 0)
+  );
+  assert.equal(explicitTrueRes[0].hasStartedRepair, true);
+  assert.equal(explicitTrueRes[0].durationShifts, 1);
+  assert.deepEqual(explicitTrueRes[0].countedReportIds, ['exp-2']);
+});
+
+test('countMilitaryInReport, countStabilityInReport, dan ekspor kolom Total Military / Stability di Excel', () => {
+  const repMultiMilitary: HandoverReport = {
+    ...sampleReports[0],
+    id: 'mil-1',
+    category: 'OVERHAUL',
+    information: [
+      '-military gagal (bocor 4 box line 3,6 ph)',
+      '-perbaikan press 20T ok',
+      '-military gagal (bocor 2 box line 7,10 ph)',
+      '-press 10T bocor line 8',
+    ].join('\n'),
+    followUp: 'lanjut military shift 2', // rencana tindak lanjut tidak ikut dihitung ganda
+    isRepairStart: true,
+  };
+  const repStabilityText: HandoverReport = {
+    ...sampleReports[0],
+    id: 'stab-1',
+    shift: 'Shift 2',
+    category: 'OVERHAUL',
+    information: 'hasil military OK\nhasil stability OK',
+    isCompleted: true,
+  };
+  const repStabilityCat: HandoverReport = {
+    ...sampleReports[1],
+    id: 'stab-2',
+    category: 'STABILITY TINGGI',
+    information: 'Uji chamber suhu 40C berjalan lancar.',
+    isCompleted: false,
+  };
+
+  assert.equal(countMilitaryInReport(repMultiMilitary), 2);
+  assert.equal(countStabilityInReport(repMultiMilitary), 0);
+  assert.equal(countMilitaryInReport(repStabilityText), 1);
+  assert.equal(countStabilityInReport(repStabilityText), 1);
+  assert.equal(countStabilityInReport(repStabilityCat), 1);
+
+  const wb = buildHandoverWorkbook([repMultiMilitary, repStabilityText, repStabilityCat]);
+  const ws = wb.Sheets['DETAIL DATA'];
+  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
+  // Baris 5 (idx 4) -> repMultiMilitary: Military = 2, Stability = 0
+  assert.equal(rows[4][11], 2);
+  assert.equal(rows[4][12], 0);
+  // Baris 6 (idx 5) -> repStabilityText: Military = 1, Stability = 1
+  assert.equal(rows[5][11], 1);
+  assert.equal(rows[5][12], 1);
+  // Baris 7 (idx 6) -> repStabilityCat: Military = 0, Stability = 1
+  assert.equal(rows[6][11], 0);
+  assert.equal(rows[6][12], 1);
+  // Baris TOTAL KESELURUHAN (idx 7): Total Military = 3, Total Stability = 2
+  assert.equal(rows[7][4], 'TOTAL KESELURUHAN');
+  assert.equal(rows[7][11], 3);
+  assert.equal(rows[7][12], 2);
+});
+
+
 
 

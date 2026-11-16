@@ -46,7 +46,10 @@ export function HistoryView({
     const allDurations = computeCaseDurations(reports);
     for (const item of allDurations) {
       for (const reportId of item.reportIds) {
-        map.set(reportId, item.durationShifts);
+        map.set(
+          reportId,
+          item.countedReportIds.includes(reportId) ? item.durationShifts : 0
+        );
       }
     }
     return map;
