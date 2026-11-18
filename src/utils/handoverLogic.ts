@@ -2,11 +2,15 @@ import {
   CATEGORIES,
   OVERHAUL_MACHINES,
   SHIFTS,
+  type ActivityStage,
   type CategoryType,
   type HandoverFormInput,
   type HandoverReport,
   type HistoryFilters,
+  type MilitaryStatus,
   type ShiftType,
+  type StabilityPhase,
+  type StabilityStatus,
   type UserProfile,
 } from '../types/handover';
 
@@ -388,7 +392,6 @@ export function filterAndSortReports(
           item.category,
           item.shift,
           item.information,
-          item.issue,
           item.followUp,
           item.palletLocation,
           item.createdByName,
@@ -803,7 +806,8 @@ export function calculateShiftSpan(
   startShift: ShiftType,
   endDate: string,
   endShift: ShiftType,
-  activeSundayShifts?: Set<string>
+  activeSundayShifts?: Set<string>,
+  activeDates?: Set<string>
 ): number {
   const startRank = getShiftSlotRank(startDate, startShift);
   const endRank = getShiftSlotRank(endDate, endShift);
@@ -829,6 +833,9 @@ export function calculateShiftSpan(
       if (activeSundayShifts?.has(buildSundayShiftKey(dateStr, shift))) {
         count += 1;
       }
+    } else if (activeDates && !activeDates.has(dateStr)) {
+      // Hari libur / tanggal merah: 3 shift pada tanggal tersebut tidak ada yang mengisi -> jangan dihitung
+      continue;
     } else {
       count += 1;
     }
@@ -843,28 +850,77 @@ export function isOhOnlyInformation(info: string): boolean {
   return /^(status|update|masih|posisi)?\s*oh[\s.,:;\-()]*$/.test(normalized);
 }
 
+export function requiresPalletLocation(
+  category: CategoryType,
+  information: string,
+  activityStage?: ActivityStage
+): boolean {
+  if (activityStage === 'MILITARY' || activityStage === 'STABILITY') return true;
+  if (activityStage === 'OH' || activityStage === 'REPAIR') return false;
+  if (category === 'STABILITY TINGGI') return true;
+  return /\b(military|stability)\b/i.test(information);
+}
+
+export function shouldShowRepairStartField(
+  reports: HandoverReport[],
+  category: CategoryType,
+  machine: string | null,
+  editingReport?: HandoverReport | null
+): boolean {
+  if (editingReport) {
+    if (editingReport.isRepairStart === true) {
+      return true;
+    }
+    const otherReports = reports.filter((r) => r.id !== editingReport.id);
+    return !hasOpenEpisodeStartedRepair(otherReports, category, machine);
+  }
+
+  const trimmedMachine = (machine ?? '').trim();
+  if (!trimmedMachine) {
+    return false;
+  }
+
+  return !hasOpenEpisodeStartedRepair(reports, category, trimmedMachine);
+}
+
 export function countMilitaryInReport(
-  report: Pick<HandoverReport, 'information' | 'issue'>
+  report: Pick<HandoverReport, 'activityStage' | 'militaryStatus' | 'information'>
 ): number {
+  if (report.activityStage === 'MILITARY') {
+    if (report.militaryStatus === 'PENDING') {
+      return 0;
+    }
+    return 1;
+  }
+  if (report.activityStage === 'OH' || report.activityStage === 'REPAIR') {
+    return 0;
+  }
   const infoLines = String(report.information ?? '')
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
-  const infoMatches = infoLines.filter((line) => /\bmilitary\b/i.test(line)).length;
-  if (infoMatches > 0) {
-    return infoMatches;
-  }
-
-  const issueLines = String(report.issue ?? '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  return issueLines.filter((line) => /\bmilitary\b/i.test(line)).length;
+  return infoLines.filter((line) => /\bmilitary\b/i.test(line)).length;
 }
 
 export function countStabilityInReport(
-  report: Pick<HandoverReport, 'category' | 'information' | 'issue'>
+  report: Pick<
+    HandoverReport,
+    'category' | 'activityStage' | 'stabilityStatus' | 'information'
+  >
 ): number {
+  if (report.activityStage === 'STABILITY') {
+    if (report.stabilityStatus === 'PENDING') {
+      return 0;
+    }
+    return 1;
+  }
+  if (
+    report.activityStage === 'OH' ||
+    report.activityStage === 'REPAIR' ||
+    report.activityStage === 'MILITARY'
+  ) {
+    return 0;
+  }
   const infoLines = String(report.information ?? '')
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -872,15 +928,6 @@ export function countStabilityInReport(
   const infoMatches = infoLines.filter((line) => /\bstability\b/i.test(line)).length;
   if (infoMatches > 0) {
     return infoMatches;
-  }
-
-  const issueLines = String(report.issue ?? '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const issueMatches = issueLines.filter((line) => /\bstability\b/i.test(line)).length;
-  if (issueMatches > 0) {
-    return issueMatches;
   }
 
   if (report.category === 'STABILITY TINGGI') {
@@ -891,20 +938,36 @@ export function countStabilityInReport(
 }
 
 function findEpisodeRepairStartIndex(ep: HandoverReport[]): number {
-  const explicitStartIdx = ep.findIndex((r) => r.isRepairStart === true);
+  // 1. Jika ada penanda eksplisit awal perbaikan (dan bukan tahap OH)
+  const explicitStartIdx = ep.findIndex(
+    (r) => r.isRepairStart === true && r.activityStage !== 'OH'
+  );
   if (explicitStartIdx >= 0) {
     return explicitStartIdx;
   }
 
-  // Jika semua laporan pada episode secara eksplisit menandai isRepairStart === false ("Tidak"),
-  // maka perhitungan durasi belum dimulai (sesuai opsi "jika tidak maka tidak").
+  // 2. Opsi A (Tahap Kerja Terstruktur): tahap 'OH' belum dihitung (0 Shift);
+  // laporan pertama bertahap REPAIR / MILITARY / STABILITY otomatis menjadi Shift ke-1.
+  const hasStructuredStage = ep.some((r) => Boolean(r.activityStage));
+  if (hasStructuredStage) {
+    return ep.findIndex(
+      (r) =>
+        r.activityStage === 'REPAIR' ||
+        r.activityStage === 'MILITARY' ||
+        r.activityStage === 'STABILITY' ||
+        (!r.activityStage && r.isRepairStart !== false && !isOhOnlyInformation(r.information))
+    );
+  }
+
+  // 3. Kompatibilitas data lama tanpa activityStage:
+  // Jika semua laporan secara eksplisit menandai isRepairStart === false, durasi belum dimulai.
   const allExplicitFalse = ep.every((r) => r.isRepairStart === false);
   if (allExplicitFalse) {
     return -1;
   }
 
-  // Untuk data tanpa flag eksplisit (isRepairStart === undefined),
-  // lewati update awal berketerangan "OH"; update non-OH setelahnya menjadi Shift ke-1.
+  // Untuk data tanpa flag eksplisit, lewati update awal berketerangan "OH";
+  // update non-OH setelahnya menjadi Shift ke-1.
   const firstNonOhIdx = ep.findIndex(
     (r) => r.isRepairStart !== false && !isOhOnlyInformation(r.information)
   );
@@ -957,6 +1020,287 @@ export function hasOpenEpisodeStartedRepair(
   return findEpisodeRepairStartIndex(currentEp) >= 0;
 }
 
+export interface CaseWorkflowContext {
+  episodeReports: HandoverReport[];
+  hasStartedRepair: boolean;
+  militaryCount: number;
+  suggestedMilitaryRound: number;
+  lastMilitaryReport: HandoverReport | null;
+  lastMilitaryStatus: MilitaryStatus | null;
+  hasPassedMilitary: boolean;
+  hasPassedStability4h: boolean;
+  suggestedStage: ActivityStage;
+  allowedStabilityPhases: StabilityPhase[];
+  suggestedStabilityPhase: StabilityPhase;
+  lastPalletLocation: string;
+}
+
+export function getCaseWorkflowContext(
+  reports: HandoverReport[],
+  category: CategoryType,
+  machine: string | null
+): CaseWorkflowContext {
+  const normalizedMachine = (machine ?? '').trim().toUpperCase();
+  const isOverhaul = category === 'OVERHAUL';
+  const allowedStabilityPhases: StabilityPhase[] = isOverhaul
+    ? ['4_HOURS', '8_HOURS']
+    : ['8_HOURS'];
+
+  if (!normalizedMachine) {
+    return {
+      episodeReports: [],
+      hasStartedRepair: false,
+      militaryCount: 0,
+      suggestedMilitaryRound: 1,
+      lastMilitaryReport: null,
+      lastMilitaryStatus: null,
+      hasPassedMilitary: false,
+      hasPassedStability4h: false,
+      suggestedStage: 'REPAIR',
+      allowedStabilityPhases,
+      suggestedStabilityPhase: isOverhaul ? '4_HOURS' : '8_HOURS',
+      lastPalletLocation: '',
+    };
+  }
+
+  const matching = reports
+    .filter(
+      (r) =>
+        r.category === category &&
+        (r.machine ?? '').trim().toUpperCase() === normalizedMachine
+    )
+    .sort((a, b) => {
+      if (a.reportDate !== b.reportDate) {
+        return a.reportDate.localeCompare(b.reportDate);
+      }
+      const shiftDiff = SHIFTS.indexOf(a.shift) - SHIFTS.indexOf(b.shift);
+      if (shiftDiff !== 0) return shiftDiff;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+  let currentEp: HandoverReport[] = [];
+  let completedRank: number | null = null;
+  for (const rep of matching) {
+    const repRank = getShiftSlotRank(rep.reportDate, rep.shift);
+    if (completedRank !== null && repRank > completedRank) {
+      currentEp = [];
+      completedRank = null;
+    }
+    currentEp.push(rep);
+    if (rep.isCompleted) {
+      completedRank = completedRank === null ? repRank : Math.max(completedRank, repRank);
+    }
+  }
+
+  if (currentEp.some((r) => Boolean(r.isCompleted))) {
+    currentEp = [];
+  }
+
+  const hasStartedRepair = currentEp.length > 0 && findEpisodeRepairStartIndex(currentEp) >= 0;
+
+  const militaryReports = currentEp.filter((r) => {
+    if (r.activityStage === 'MILITARY') return true;
+    if (!r.activityStage) return /\bmilitary\b/i.test(r.information);
+    return false;
+  });
+
+  const testedMilitaryReports = militaryReports.filter(
+    (r) => r.militaryStatus !== 'PENDING'
+  );
+  const militaryCount = testedMilitaryReports.length;
+  const lastMilitaryReport = militaryReports[militaryReports.length - 1] ?? null;
+
+  let lastMilitaryStatus: MilitaryStatus | null = null;
+  if (lastMilitaryReport) {
+    if (lastMilitaryReport.militaryStatus) {
+      lastMilitaryStatus = lastMilitaryReport.militaryStatus;
+    } else {
+      const lower = lastMilitaryReport.information.toLowerCase();
+      lastMilitaryStatus = lower.includes('bocor') || lower.includes('gagal') ? 'LEAK' : 'OK';
+    }
+  }
+
+  // Jika military terakhir masih PENDING (belum diuji di shift sebelumnya),
+  // shift berikutnya melanjutkan uji pada nomor round yang sama.
+  const suggestedMilitaryRound =
+    lastMilitaryStatus === 'PENDING'
+      ? (lastMilitaryReport?.militaryRound ?? militaryCount + 1)
+      : militaryCount + 1;
+
+  const hasPassedMilitary = lastMilitaryStatus === 'OK';
+
+  const stabilityReports = currentEp.filter((r) => {
+    if (r.activityStage === 'STABILITY') return true;
+    if (!r.activityStage) {
+      return /\bstability\b/i.test(r.information) || r.category === 'STABILITY TINGGI';
+    }
+    return false;
+  });
+
+  const lastStabilityReport = stabilityReports[stabilityReports.length - 1] ?? null;
+
+  const hasPassedStability4h = stabilityReports.some((r) => {
+    if (r.stabilityPhase === '4_HOURS' && r.stabilityStatus === 'OK') return true;
+    if (!r.stabilityPhase && isOverhaul) {
+      const lower = r.information.toLowerCase();
+      return lower.includes('4 jam') && !lower.includes('bocor');
+    }
+    return false;
+  });
+
+  let lastPalletLocation = '';
+  for (let i = currentEp.length - 1; i >= 0; i -= 1) {
+    const loc = (currentEp[i].palletLocation ?? '').trim();
+    if (loc && loc !== '-') {
+      lastPalletLocation = loc;
+      break;
+    }
+  }
+
+  let suggestedStage: ActivityStage = 'REPAIR';
+  const latestReport = currentEp[currentEp.length - 1] ?? null;
+
+  if (latestReport) {
+    if (
+      lastMilitaryReport &&
+      lastMilitaryReport.id === latestReport.id &&
+      lastMilitaryStatus === 'PENDING'
+    ) {
+      // Shift sebelumnya baru menyiapkan palet military, shift ini menginput hasil ujinya
+      suggestedStage = 'MILITARY';
+    } else if (
+      lastMilitaryReport &&
+      lastMilitaryReport.id === latestReport.id &&
+      lastMilitaryStatus === 'LEAK'
+    ) {
+      suggestedStage = 'REPAIR';
+    } else if (
+      latestReport.activityStage === 'STABILITY' &&
+      latestReport.stabilityStatus === 'PENDING'
+    ) {
+      // Stability sudah dimulai di shift sebelumnya, shift ini menginput hasilnya
+      suggestedStage = 'STABILITY';
+    } else if (
+      latestReport.activityStage === 'STABILITY' &&
+      latestReport.stabilityStatus === 'LEAK'
+    ) {
+      suggestedStage = 'REPAIR';
+    } else if (
+      hasPassedMilitary &&
+      (!stabilityReports.length ||
+        (latestReport.activityStage === 'MILITARY' && latestReport.militaryStatus === 'OK'))
+    ) {
+      suggestedStage = 'STABILITY';
+    } else if (
+      isOverhaul &&
+      hasPassedStability4h &&
+      !stabilityReports.some(
+        (r) => r.stabilityPhase === '8_HOURS' && r.stabilityStatus !== 'PENDING'
+      )
+    ) {
+      suggestedStage = 'STABILITY';
+    } else if (hasStartedRepair && !hasPassedMilitary) {
+      suggestedStage = 'MILITARY';
+    }
+  }
+
+  let suggestedStabilityPhase: StabilityPhase = '8_HOURS';
+  if (isOverhaul) {
+    if (
+      lastStabilityReport &&
+      lastStabilityReport.stabilityStatus === 'PENDING' &&
+      lastStabilityReport.stabilityPhase
+    ) {
+      suggestedStabilityPhase = lastStabilityReport.stabilityPhase;
+    } else {
+      suggestedStabilityPhase = hasPassedStability4h ? '8_HOURS' : '4_HOURS';
+    }
+  } else {
+    suggestedStabilityPhase = '8_HOURS';
+  }
+
+  return {
+    episodeReports: currentEp,
+    hasStartedRepair,
+    militaryCount,
+    suggestedMilitaryRound,
+    lastMilitaryReport,
+    lastMilitaryStatus,
+    hasPassedMilitary,
+    hasPassedStability4h,
+    suggestedStage,
+    allowedStabilityPhases,
+    suggestedStabilityPhase,
+    lastPalletLocation,
+  };
+}
+
+export function formatWorkflowBadge(
+  report: Pick<
+    HandoverReport,
+    | 'activityStage'
+    | 'militaryRound'
+    | 'militaryStatus'
+    | 'militaryLeakBoxes'
+    | 'stabilityPhase'
+    | 'stabilityStatus'
+  >
+): {
+  badgeLabel: string;
+  badgeClass: string;
+} | null {
+  if (report.activityStage === 'MILITARY') {
+    const roundStr = report.militaryRound ? ` #${report.militaryRound}` : '';
+    if (report.militaryStatus === 'PENDING') {
+      return {
+        badgeLabel: `Military${roundStr}: Belum Diuji`,
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+      };
+    }
+    const statusStr =
+      report.militaryStatus === 'OK'
+        ? 'OK 0%'
+        : `Bocor ${report.militaryLeakBoxes ?? 0} Box`;
+    return {
+      badgeLabel: `Military${roundStr}: ${statusStr}`,
+      badgeClass:
+        report.militaryStatus === 'OK'
+          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+          : 'bg-rose-50 text-rose-800 border-rose-200',
+    };
+  }
+  if (report.activityStage === 'STABILITY') {
+    const phaseStr = report.stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam';
+    if (report.stabilityStatus === 'PENDING') {
+      return {
+        badgeLabel: `Stability ${phaseStr}: Belum Diuji`,
+        badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+      };
+    }
+    const statusStr = report.stabilityStatus === 'OK' ? 'OK' : 'Bocor';
+    return {
+      badgeLabel: `Stability ${phaseStr}: ${statusStr}`,
+      badgeClass:
+        report.stabilityStatus === 'OK'
+          ? 'bg-teal-50 text-teal-800 border-teal-200'
+          : 'bg-rose-50 text-rose-800 border-rose-200',
+    };
+  }
+  if (report.activityStage === 'OH') {
+    return {
+      badgeLabel: 'OH (Belum Perbaikan)',
+      badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+    };
+  }
+  if (report.activityStage === 'REPAIR') {
+    return {
+      badgeLabel: 'Perbaikan / Setting',
+      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+    };
+  }
+  return null;
+}
+
 export interface CaseDurationItem {
   id: string;
   category: CategoryType;
@@ -980,6 +1324,7 @@ export function computeCaseDurations(
   now: Date = new Date()
 ): CaseDurationItem[] {
   const activeSundayShifts = new Set<string>();
+  const activeDates = new Set<string>();
   const byCaseGroup = new Map<
     string,
     { category: CategoryType; machineName: string; items: HandoverReport[] }
@@ -987,8 +1332,11 @@ export function computeCaseDurations(
 
   for (const rep of reports) {
     const dayNum = parseUtcDayNumber(rep.reportDate);
-    if (dayNum > 0 && utcDayNumberToDateInfo(dayNum).dayOfWeek === 0) {
-      activeSundayShifts.add(buildSundayShiftKey(rep.reportDate, rep.shift));
+    if (dayNum > 0) {
+      activeDates.add(rep.reportDate);
+      if (utcDayNumberToDateInfo(dayNum).dayOfWeek === 0) {
+        activeSundayShifts.add(buildSundayShiftKey(rep.reportDate, rep.shift));
+      }
     }
 
     const rawMachine = rep.machine?.trim() || null;
@@ -1076,7 +1424,8 @@ export function computeCaseDurations(
           startRep.shift,
           effectiveEndDate,
           effectiveEndShift,
-          activeSundayShifts
+          activeSundayShifts,
+          activeDates
         );
       }
 

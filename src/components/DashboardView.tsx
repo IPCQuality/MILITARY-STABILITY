@@ -8,6 +8,7 @@ import {
   type UserProfile,
 } from '../types/handover';
 import {
+  formatWorkflowBadge,
   getCurrentShiftStatus,
   getOperationalDateString,
   groupActiveDashboardCases,
@@ -54,13 +55,18 @@ export function DashboardView({
         key={category}
         aria-label={category}
         data-testid={`category-card-${category}`}
-        className="bg-white rounded-xl border border-slate-300 overflow-hidden shadow-xs"
+        className="bg-white rounded-xl border border-slate-200 overflow-hidden"
       >
         {/* Category Header Row */}
-        <div className="px-4 py-2 sm:px-5 bg-slate-100 border-b border-slate-200 flex items-center justify-between gap-2">
-          <h2 className="text-xs sm:text-sm font-bold tracking-wide text-slate-900">
-            {category}
-          </h2>
+        <div className="px-4 py-3 sm:px-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="text-xs sm:text-sm font-bold tracking-wide text-slate-900 truncate">
+              {category}
+            </h3>
+            <span className="text-xs text-slate-500 tabular-nums shrink-0">
+              · {machineGroups.length > 0 ? `${machineGroups.length} mesin` : 'Kosong'}
+            </span>
+          </div>
           <button
             type="button"
             onClick={() =>
@@ -71,63 +77,43 @@ export function DashboardView({
               })
             }
             aria-label={`Tambah mesin di ${category}`}
-            className="text-[11px] font-semibold text-[#0F294A] hover:underline inline-flex items-center gap-1 whitespace-nowrap shrink-0"
+            className="min-h-[34px] px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-[#0F294A] shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 whitespace-nowrap shrink-0 transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Mesin Baru</span>
+            <span>Tambah</span>
           </button>
         </div>
 
         {/* Empty Category State */}
         {machineGroups.length === 0 ? (
-          <button
-            type="button"
-            onClick={() =>
-              onCreatePreset({
-                reportDate: today,
-                shift: liveShiftStatus.primaryShift,
-                category,
-              })
-            }
-            className="w-full min-h-[44px] px-4 py-3 sm:px-5 text-left text-xs sm:text-sm text-slate-500 hover:bg-slate-50 transition-colors"
-          >
-            kosong, belum ada jadwal.
-          </button>
+          <div className="px-4 py-4 sm:px-5 text-xs sm:text-sm text-slate-400">
+            Belum ada mesin aktif.
+          </div>
         ) : (
-          <div className="divide-y divide-slate-300">
+          <div className="divide-y divide-slate-200">
             {machineGroups.map((group) => (
               <div key={group.machineName}>
-                {/* Machine Sub-header Row dengan indikator bulat hijau (OK) / orange (dalam proses) */}
-                <div className="px-4 py-2 sm:px-5 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between gap-2">
+                {/* Machine Sub-header Row */}
+                <div className="px-4 py-2.5 sm:px-5 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span
                       aria-label={group.isCompleted ? 'Status OK' : 'Dalam proses'}
-                      title={group.isCompleted ? 'Selesai (OK)' : 'Dalam proses'}
                       data-machine-status={group.isCompleted ? 'ok' : 'in-progress'}
-                      className="relative flex h-2.5 w-2.5 shrink-0"
-                    >
-                      {!group.isCompleted && (
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75" />
-                      )}
-                      <span
-                        className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                          group.isCompleted
-                            ? 'bg-emerald-500 ring-2 ring-emerald-200'
-                            : 'bg-orange-500 ring-2 ring-orange-200'
-                        }`}
-                      />
-                    </span>
+                      className={`inline-block h-2.5 w-2.5 rounded-full shrink-0 ${
+                        group.isCompleted ? 'bg-emerald-600' : 'bg-amber-500'
+                      }`}
+                    />
                     <span
-                      className={`font-mono text-xs sm:text-sm font-bold truncate ${
-                        group.isCompleted ? 'text-emerald-900' : 'text-[#0F294A]'
+                      className={`font-mono text-sm font-bold truncate ${
+                        group.isCompleted ? 'text-emerald-900' : 'text-slate-900'
                       }`}
                     >
                       {group.machineName}
                     </span>
                   </div>
                   <span
-                    className={`text-[11px] font-semibold tabular-nums shrink-0 ${
-                      group.isCompleted ? 'text-emerald-700' : 'text-orange-700'
+                    className={`text-xs font-semibold tabular-nums shrink-0 ${
+                      group.isCompleted ? 'text-emerald-700' : 'text-amber-700'
                     }`}
                   >
                     {group.isCompleted
@@ -136,19 +122,19 @@ export function DashboardView({
                   </span>
                 </div>
 
-                {/* Dynamic Shift Rows (Hanya sampai shift berjalan, maks 4 baris jika carry-over) */}
-                <div className="divide-y divide-slate-200">
+                {/* Shift Rows */}
+                <div className="divide-y divide-slate-100">
                   {group.rows.map((row) => {
                     const rowBgClass = row.isOk
-                      ? 'bg-emerald-100/75'
+                      ? 'bg-emerald-50/70'
                       : row.isRunningShift
-                        ? 'bg-blue-50/30'
+                        ? 'bg-blue-50/25'
                         : row.isCarryOver
                           ? 'bg-amber-50/25'
                           : 'bg-white';
 
                     const reportHoverClass = row.isOk
-                      ? 'hover:bg-emerald-100'
+                      ? 'hover:bg-emerald-50'
                       : 'hover:bg-slate-50';
 
                     return (
@@ -157,105 +143,85 @@ export function DashboardView({
                         data-shift-ok={row.isOk ? 'true' : 'false'}
                         className={`grid grid-cols-12 items-stretch transition-colors ${rowBgClass}`}
                       >
-                        {/* Left Column: Shift Label (tanpa jam jadwal) */}
-                        <div className="col-span-4 px-3 sm:px-4 py-2.5 border-r border-slate-200/80 flex flex-col justify-center">
-                          <div className="flex flex-wrap items-center gap-1.5">
+                        {/* Shift Label Column */}
+                        <div className="col-span-4 sm:col-span-3 px-3.5 sm:px-4 py-3 border-r border-slate-100 flex flex-col justify-center gap-0.5">
+                          <span
+                            className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
+                              row.isOk
+                                ? 'text-emerald-950'
+                                : row.isRunningShift
+                                  ? 'text-[#0F294A]'
+                                  : 'text-slate-800'
+                            }`}
+                          >
+                            {row.shift}
+                          </span>
+                          {(row.isOk || row.isRunningShift || row.isCarryOver) && (
                             <span
-                              className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
+                              className={`text-[11px] font-medium ${
                                 row.isOk
-                                  ? 'text-emerald-950'
+                                  ? 'text-emerald-700'
                                   : row.isRunningShift
                                     ? 'text-[#0F294A]'
-                                    : 'text-slate-800'
+                                    : 'text-amber-700'
                               }`}
                             >
-                              {row.shift}
+                              {row.isOk
+                                ? 'Selesai'
+                                : row.isRunningShift
+                                  ? 'Shift Aktif'
+                                  : row.carryOverLabel}
                             </span>
-                            {row.isOk && (
-                              <span className="text-[10px] font-semibold text-emerald-900 bg-emerald-200/80 px-1.5 py-0.5 rounded">
-                                OK
-                              </span>
-                            )}
-                            {row.isRunningShift && (
-                              <span className="text-[10px] font-semibold text-[#0F294A] bg-blue-100 px-1.5 py-0.5 rounded">
-                                Aktif
-                              </span>
-                            )}
-                            {row.isCarryOver && (
-                              <span className="text-[10px] font-medium text-amber-800 bg-amber-100/80 px-1.5 py-0.5 rounded">
-                                {row.carryOverLabel}
-                              </span>
-                            )}
-                          </div>
+                          )}
                         </div>
 
-                        {/* Right Column: 4 poin rata kiri tanpa teks label heading */}
-                        <div className="col-span-8 flex items-stretch min-w-0">
+                        {/* Shift Report Content Column */}
+                        <div className="col-span-8 sm:col-span-9 flex items-stretch min-w-0">
                           {row.reports.length > 0 ? (
-                            <div className="flex-1 min-w-0 divide-y divide-slate-200/60">
-                              {row.reports.map((rep) => (
-                                <button
-                                  key={rep.id}
-                                  type="button"
-                                  onClick={() => onSelectReport(rep)}
-                                  className={`w-full min-h-[44px] px-3 sm:px-4 py-2.5 text-left transition-colors block ${reportHoverClass}`}
-                                >
-                                  <ul className="space-y-1 text-left">
-                                    <li
-                                      title="Update Shift / Informasi / Keterangan"
-                                      className="flex items-start gap-2 text-xs sm:text-sm text-slate-900 leading-snug"
-                                    >
-                                      <span aria-hidden="true" className="text-slate-400 select-none shrink-0">
-                                        •
-                                      </span>
-                                      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-                                        {rep.information}
-                                      </span>
-                                    </li>
-                                    <li
-                                      title="Masalah"
-                                      className={`flex items-start gap-2 text-xs leading-snug ${
-                                        rep.issue ? 'text-rose-800' : 'text-slate-400'
-                                      }`}
-                                    >
-                                      <span aria-hidden="true" className="text-slate-400 select-none shrink-0">
-                                        •
-                                      </span>
-                                      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-                                        {rep.issue || '-'}
-                                      </span>
-                                    </li>
-                                    <li
-                                      title="Tindak Lanjut"
-                                      className={`flex items-start gap-2 text-xs leading-snug ${
-                                        rep.followUp
-                                          ? 'text-[#0F294A] font-medium'
-                                          : 'text-slate-400'
-                                      }`}
-                                    >
-                                      <span aria-hidden="true" className="text-slate-400 select-none shrink-0">
-                                        •
-                                      </span>
-                                      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-                                        {rep.followUp || '-'}
-                                      </span>
-                                    </li>
-                                    <li
-                                      title="Lokasi Palet"
-                                      className={`flex items-start gap-2 text-xs font-mono leading-snug ${
-                                        rep.palletLocation ? 'text-slate-700' : 'text-slate-400'
-                                      }`}
-                                    >
-                                      <span aria-hidden="true" className="text-slate-400 select-none shrink-0 font-sans">
-                                        •
-                                      </span>
-                                      <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-                                        {rep.palletLocation || '-'}
-                                      </span>
-                                    </li>
-                                  </ul>
-                                </button>
-                              ))}
+                            <div className="flex-1 min-w-0 divide-y divide-slate-100">
+                              {row.reports.map((rep) => {
+                                const badge = formatWorkflowBadge(rep);
+                                return (
+                                  <button
+                                    key={rep.id}
+                                    type="button"
+                                    onClick={() => onSelectReport(rep)}
+                                    className={`w-full min-h-[48px] px-3.5 sm:px-4 py-3 text-left transition-colors block ${reportHoverClass}`}
+                                  >
+                                    {badge && (
+                                      <div className="mb-1.5">
+                                        <span
+                                          className={`inline-block px-2 py-0.5 rounded border text-[11px] font-semibold ${badge.badgeClass}`}
+                                        >
+                                          {badge.badgeLabel}
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    <p className="text-xs sm:text-sm text-slate-900 leading-snug whitespace-pre-wrap break-words">
+                                      {rep.information}
+                                    </p>
+
+                                    {(rep.followUp || rep.palletLocation) && (
+                                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                                        {rep.followUp && (
+                                          <span className="text-[#0F294A] font-medium break-words">
+                                            Lanjut: {rep.followUp}
+                                          </span>
+                                        )}
+                                        {rep.followUp && rep.palletLocation && (
+                                          <span aria-hidden="true">·</span>
+                                        )}
+                                        {rep.palletLocation && (
+                                          <span className="font-mono text-slate-600">
+                                            Palet: {rep.palletLocation}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </button>
+                                );
+                              })}
                             </div>
                           ) : row.canFill ? (
                             <button
@@ -268,13 +234,13 @@ export function DashboardView({
                                   machine: group.rawMachine ?? '',
                                 })
                               }
-                              className="w-full min-h-[44px] px-3 sm:px-4 py-2 text-left text-xs sm:text-sm text-[#0F294A] font-medium hover:bg-blue-50/50 transition-colors flex items-center"
+                              className="w-full min-h-[44px] px-3.5 sm:px-4 py-2.5 text-left text-xs sm:text-sm text-[#0F294A] font-medium hover:bg-blue-50/40 transition-colors flex items-center"
                             >
-                              <span>Ketuk untuk isi update {row.shift}...</span>
+                              <span>+ Isi update {row.shift}</span>
                             </button>
                           ) : (
-                            <div className="w-full min-h-[44px] px-3 sm:px-4 py-2 text-left text-xs text-slate-400 flex items-center">
-                              <span>Belum ada update pada {row.shift}</span>
+                            <div className="w-full min-h-[44px] px-3.5 sm:px-4 py-2.5 text-left text-xs text-slate-400 flex items-center">
+                              <span>Belum ada update</span>
                             </div>
                           )}
                         </div>
@@ -291,20 +257,19 @@ export function DashboardView({
   }
 
   return (
-    <div>
+    <div className="space-y-5">
+      {/* Category Grid */}
       {loading ? (
-        <div className="bg-white rounded-xl border border-slate-300 py-12 text-center text-sm text-slate-500 shadow-xs">
+        <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-sm text-slate-500">
           Memuat catatan handover hari ini...
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5 items-start">
-          {/* Kolom 1: Kategori OVERHAUL */}
-          <div data-testid="dashboard-col-overhaul" className="space-y-4 sm:space-y-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+          <div data-testid="dashboard-col-overhaul" className="space-y-5">
             {renderCategoryCard('OVERHAUL')}
           </div>
 
-          {/* Kolom 2: Setiap Kategori Lainnya Dipisah ke Kolom/Kartu Tersendiri */}
-          <div data-testid="dashboard-col-others" className="space-y-4 sm:space-y-5">
+          <div data-testid="dashboard-col-others" className="space-y-5">
             {OTHER_CATEGORIES.map((category) => renderCategoryCard(category))}
           </div>
         </div>

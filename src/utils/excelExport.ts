@@ -123,8 +123,8 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
     'Shift',
     'Kategori',
     'Mesin',
+    'Tahap & Hasil Uji',
     'Update Shift / Informasi / Keterangan',
-    'Masalah',
     'Tindak Lanjut',
     'Lokasi Palet',
     'Status',
@@ -143,14 +143,41 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
     const militaryCount = countMilitaryInReport(r);
     const stabilityCount = countStabilityInReport(r);
 
+    let stageDetail = 'Perbaikan / Setting';
+    if (r.activityStage === 'OH') {
+      stageDetail = 'OH (Belum Perbaikan)';
+    } else if (r.activityStage === 'MILITARY') {
+      const roundStr = r.militaryRound ? ` #${r.militaryRound}` : '';
+      const statusStr =
+        r.militaryStatus === 'PENDING'
+          ? 'Belum Diuji'
+          : r.militaryStatus === 'OK'
+            ? 'OK (0% Bocor)'
+            : `Bocor ${r.militaryLeakBoxes ?? 0} Box`;
+      stageDetail = `Military${roundStr} [${statusStr}]`;
+    } else if (r.activityStage === 'STABILITY') {
+      const phaseStr = r.stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam';
+      const statusStr =
+        r.stabilityStatus === 'PENDING'
+          ? 'Belum Diuji'
+          : r.stabilityStatus === 'OK'
+            ? 'OK (Stabil)'
+            : 'Bocor / Deviasi';
+      stageDetail = `Stability ${phaseStr} [${statusStr}]`;
+    } else if (militaryCount > 0) {
+      stageDetail = 'Ambil Military';
+    } else if (stabilityCount > 0) {
+      stageDetail = 'Ambil Stability';
+    }
+
     return [
       r.id,
       r.reportDate,
       r.shift,
       r.category,
       r.machine ?? '-',
+      stageDetail,
       r.information,
-      r.issue || '-',
       r.followUp || '-',
       r.palletLocation || '-',
       r.isCompleted ? 'OK (Selesai)' : 'Berlanjut',
@@ -199,8 +226,8 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
     { min: 10, max: 12 }, // 2: Shift
     { min: 24, max: 34 }, // 3: Kategori
     { min: 14, max: 20 }, // 4: Mesin
-    { min: 32, max: 46 }, // 5: Update Shift / Informasi / Keterangan
-    { min: 22, max: 38 }, // 6: Masalah
+    { min: 20, max: 32 }, // 5: Tahap & Hasil Uji
+    { min: 32, max: 48 }, // 6: Update Shift / Informasi / Keterangan
     { min: 22, max: 38 }, // 7: Tindak Lanjut
     { min: 18, max: 28 }, // 8: Lokasi Palet
     { min: 14, max: 16 }, // 9: Status
@@ -237,7 +264,7 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
     ensureStyledCell(ws, 1, c, subtitleStyle);
   }
 
-  const centeredCols = new Set([1, 2, 9, 10, 11, 12]);
+  const centeredCols = new Set([1, 2, 5, 9, 10, 11, 12]);
   for (let c = 0; c < colCount; c += 1) {
     ensureStyledCell(ws, 3, c, {
       font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
@@ -296,6 +323,32 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
         bold = true;
       } else if (c === 4) {
         bold = true;
+      } else if (c === 5) {
+        horizontal = 'center';
+        bold = true;
+        if (report.activityStage === 'OH') {
+          fillRgb = 'F1F5F9';
+          fontColor = '475569';
+        } else if (report.activityStage === 'MILITARY') {
+          if (report.militaryStatus === 'PENDING') {
+            fillRgb = 'F1F5F9';
+            fontColor = '334155';
+          } else {
+            fillRgb = report.militaryStatus === 'OK' ? 'DCFCE7' : 'FFE4E6';
+            fontColor = report.militaryStatus === 'OK' ? '14532D' : '9F1239';
+          }
+        } else if (report.activityStage === 'STABILITY') {
+          if (report.stabilityStatus === 'PENDING') {
+            fillRgb = 'F1F5F9';
+            fontColor = '334155';
+          } else {
+            fillRgb = report.stabilityStatus === 'OK' ? 'CCFBF1' : 'FFE4E6';
+            fontColor = report.stabilityStatus === 'OK' ? '115E59' : '9F1239';
+          }
+        } else {
+          fillRgb = 'FEF3C7';
+          fontColor = '92400E';
+        }
       } else if (c === 9) {
         horizontal = 'center';
         bold = true;

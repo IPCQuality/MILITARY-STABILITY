@@ -34,6 +34,11 @@
           "type": "boolean",
           "description": "Flag izin edit semua laporan lintas shift (khusus supervisor/admin)."
         },
+        "approvalStatus": {
+          "type": "string",
+          "description": "Status persetujuan pendaftaran oleh Admin.",
+          "enum": ["pending", "approved", "rejected"]
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
@@ -108,12 +113,6 @@
           "minLength": 1,
           "maxLength": 2000
         },
-        "issue": {
-          "type": "string",
-          "description": "Kendala atau masalah mesin yang ditemukan.",
-          "minLength": 0,
-          "maxLength": 2000
-        },
         "followUp": {
           "type": "string",
           "description": "Rencana tindak lanjut untuk shift berikutnya.",
@@ -133,6 +132,38 @@
         "isRepairStart": {
           "type": "boolean",
           "description": "Penanda apakah shift ini merupakan hari pertama perbaikan (awal perhitungan Total Durasi)."
+        },
+        "activityStage": {
+          "type": "string",
+          "description": "Tahapan pekerjaan: OH (belum mulai perbaikan / standby), REPAIR (perbaikan setting), MILITARY (ambil military), atau STABILITY (uji kestabilan).",
+          "enum": ["OH", "REPAIR", "MILITARY", "STABILITY"]
+        },
+        "militaryRound": {
+          "type": "integer",
+          "description": "Nomor pengambilan sampel military dalam satu case (1, 2, dst).",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "militaryStatus": {
+          "type": "string",
+          "description": "Hasil uji military: PENDING (belum diuji), OK (0% bocor), atau LEAK (bocor).",
+          "enum": ["PENDING", "OK", "LEAK"]
+        },
+        "militaryLeakBoxes": {
+          "type": "integer",
+          "description": "Jumlah box bocor saat pengambilan military jika gagal.",
+          "minimum": 0,
+          "maximum": 500
+        },
+        "stabilityPhase": {
+          "type": "string",
+          "description": "Fase pengujian stability: 4_HOURS (khusus overhaul) atau 8_HOURS.",
+          "enum": ["4_HOURS", "8_HOURS"]
+        },
+        "stabilityStatus": {
+          "type": "string",
+          "description": "Hasil uji stability: PENDING (belum diuji), OK (lolos stabil), atau LEAK (bocor/deviasi).",
+          "enum": ["PENDING", "OK", "LEAK"]
         },
         "createdBy": {
           "type": "string",
@@ -181,7 +212,6 @@
         "category",
         "machine",
         "information",
-        "issue",
         "followUp",
         "palletLocation",
         "isCompleted",

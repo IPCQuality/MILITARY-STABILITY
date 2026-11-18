@@ -45,23 +45,35 @@ service cloud.firestore {
         );
     }
 
-    function isSupervisorOrAdmin() {
-      return isAdmin()
+    function isApprovedUser() {
+      return isBootstrappedAdmin()
         || (
           isVerifiedUser()
           && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && (
+            !('approvalStatus' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
+            || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approvalStatus == 'approved'
+          )
+        );
+    }
+
+    function isSupervisorOrAdmin() {
+      return isAdmin()
+        || (
+          isApprovedUser()
           && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['supervisor', 'admin']
         );
     }
 
     function isValidUserProfile(data, userId) {
       return data.keys().hasAll(['id', 'email', 'fullName', 'role', 'canEditAll', 'createdAt', 'updatedAt'])
-        && data.keys().hasOnly(['id', 'email', 'fullName', 'role', 'canEditAll', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'email', 'fullName', 'role', 'canEditAll', 'approvalStatus', 'createdAt', 'updatedAt'])
         && data.id is string && data.id == userId && isValidId(data.id)
         && data.email is string && data.email.size() >= 3 && data.email.size() <= 200
         && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
         && data.role is string && data.role in ['pengawas', 'supervisor', 'admin']
         && data.canEditAll is bool
+        && (!('approvalStatus' in data) || (data.approvalStatus is string && data.approvalStatus in ['pending', 'approved', 'rejected']))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
     }
@@ -88,7 +100,6 @@ service cloud.firestore {
           'category',
           'machine',
           'information',
-          'issue',
           'followUp',
           'palletLocation',
           'isCompleted',
@@ -107,11 +118,16 @@ service cloud.firestore {
           'category',
           'machine',
           'information',
-          'issue',
           'followUp',
           'palletLocation',
           'isCompleted',
           'isRepairStart',
+          'activityStage',
+          'militaryRound',
+          'militaryStatus',
+          'militaryLeakBoxes',
+          'stabilityPhase',
+          'stabilityStatus',
           'createdBy',
           'createdByName',
           'updatedBy',
@@ -126,11 +142,16 @@ service cloud.firestore {
         && isValidCategory(data.category)
         && data.machine is string && data.machine.size() >= 1 && data.machine.size() <= 64
         && data.information is string && data.information.size() >= 1 && data.information.size() <= 2000
-        && data.issue is string && data.issue.size() <= 2000
         && data.followUp is string && data.followUp.size() <= 2000
         && data.palletLocation is string && data.palletLocation.size() <= 200
         && data.isCompleted is bool
         && (!('isRepairStart' in data) || data.isRepairStart is bool)
+        && (!('activityStage' in data) || (data.activityStage is string && data.activityStage in ['OH', 'REPAIR', 'MILITARY', 'STABILITY']))
+        && (!('militaryRound' in data) || (data.militaryRound is int && data.militaryRound >= 1 && data.militaryRound <= 50))
+        && (!('militaryStatus' in data) || (data.militaryStatus is string && data.militaryStatus in ['PENDING', 'OK', 'LEAK']))
+        && (!('militaryLeakBoxes' in data) || (data.militaryLeakBoxes is int && data.militaryLeakBoxes >= 0 && data.militaryLeakBoxes <= 500))
+        && (!('stabilityPhase' in data) || (data.stabilityPhase is string && data.stabilityPhase in ['4_HOURS', '8_HOURS']))
+        && (!('stabilityStatus' in data) || (data.stabilityStatus is string && data.stabilityStatus in ['PENDING', 'OK', 'LEAK']))
         && data.createdBy is string && isValidId(data.createdBy)
         && data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 120
         && data.updatedBy is string && isValidId(data.updatedBy)
@@ -151,8 +172,8 @@ service cloud.firestore {
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time
         && (
-          (incoming().role == 'pengawas' && incoming().canEditAll == false)
-          || (isBootstrappedAdmin() && incoming().role == 'admin' && incoming().canEditAll == true)
+          (incoming().role == 'pengawas' && incoming().canEditAll == false && incoming().approvalStatus == 'pending')
+          || (isBootstrappedAdmin() && incoming().role == 'admin' && incoming().canEditAll == true && incoming().approvalStatus == 'approved')
         );
 
       allow update: if isVerifiedUser()
@@ -163,7 +184,7 @@ service cloud.firestore {
         && incoming().createdAt == existing().createdAt
         && incoming().updatedAt == request.time
         && (
-          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'role', 'canEditAll', 'updatedAt']))
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'role', 'canEditAll', 'approvalStatus', 'updatedAt']))
           || (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'updatedAt']))
         );
 
@@ -172,13 +193,13 @@ service cloud.firestore {
 
     match /handover_reports/{reportId} {
       allow get: if isValidId(reportId)
-        && isVerifiedUser()
+        && isApprovedUser()
         && existing().workspaceId == 'military-stability';
 
-      allow list: if isVerifiedUser()
+      allow list: if isApprovedUser()
         && resource.data.workspaceId == 'military-stability';
 
-      allow create: if isVerifiedUser()
+      allow create: if isApprovedUser()
         && isValidId(reportId)
         && isValidHandoverReport(incoming(), reportId)
         && incoming().createdBy == request.auth.uid
@@ -186,7 +207,7 @@ service cloud.firestore {
         && incoming().createdAt == request.time
         && incoming().updatedAt == request.time;
 
-      allow update: if isVerifiedUser()
+      allow update: if isApprovedUser()
         && isValidId(reportId)
         && isValidHandoverReport(incoming(), reportId)
         && incoming().id == existing().id
@@ -208,6 +229,12 @@ service cloud.firestore {
           'palletLocation',
           'isCompleted',
           'isRepairStart',
+          'activityStage',
+          'militaryRound',
+          'militaryStatus',
+          'militaryLeakBoxes',
+          'stabilityPhase',
+          'stabilityStatus',
           'updatedBy',
           'updatedByName',
           'updatedAt'

@@ -14,8 +14,8 @@ import {
   computeCaseDurations,
   filterAndSortReports,
   formatDateTimeId,
+  formatWorkflowBadge,
 } from '../utils/handoverLogic';
-import { CategoryTag, ShiftTag } from './StatusTag';
 
 interface HistoryViewProps {
   reports: HandoverReport[];
@@ -55,6 +55,12 @@ export function HistoryView({
     return map;
   }, [reports]);
 
+  const hasActiveFilters =
+    Boolean(filters.date) ||
+    filters.shift !== 'ALL' ||
+    filters.category !== 'ALL' ||
+    Boolean(filters.keyword.trim());
+
   function resetFilters() {
     onChangeFilters({
       date: '',
@@ -66,43 +72,63 @@ export function HistoryView({
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-            Riwayat Laporan Handover
+          <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+            Riwayat Laporan
           </h2>
-          <p className="text-sm text-slate-500">
-            Menampilkan seluruh catatan lintas shift ({filteredReports.length} laporan sesuai filter).
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5 tabular-nums">
+            Menampilkan {filteredReports.length} dari {reports.length} laporan handover.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={resetFilters}
-          className="min-h-[44px] px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 inline-flex items-center justify-center gap-1.5 self-start sm:self-auto"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          Reset Filter
-        </button>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={resetFilters}
+            className="min-h-[38px] px-3.5 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center justify-center gap-1.5 self-start sm:self-auto whitespace-nowrap transition-all"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset Filter</span>
+          </button>
+        )}
       </div>
 
       {/* Filter Bar */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="sm:col-span-2 lg:col-span-1">
+          <label htmlFor="filter-keyword" className="block text-xs font-semibold text-slate-600 mb-1">
+            Cari Mesin / Kata Kunci
+          </label>
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              id="filter-keyword"
+              type="text"
+              value={filters.keyword}
+              onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
+              placeholder="Cari mesin, palet, pembuat..."
+              className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            />
+          </div>
+        </div>
+
         <div>
-          <label htmlFor="filter-date" className="block text-xs font-medium text-slate-600 mb-1">
-            Filter Tanggal
+          <label htmlFor="filter-date" className="block text-xs font-semibold text-slate-600 mb-1">
+            Tanggal
           </label>
           <input
             id="filter-date"
             type="date"
             value={filters.date}
             onChange={(e) => onChangeFilters({ ...filters, date: e.target.value })}
-            className="w-full min-h-[44px] px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
           />
         </div>
 
         <div>
-          <label htmlFor="filter-shift" className="block text-xs font-medium text-slate-600 mb-1">
-            Filter Shift
+          <label htmlFor="filter-shift" className="block text-xs font-semibold text-slate-600 mb-1">
+            Shift
           </label>
           <select
             id="filter-shift"
@@ -110,7 +136,7 @@ export function HistoryView({
             onChange={(e) =>
               onChangeFilters({ ...filters, shift: e.target.value as ShiftType | 'ALL' })
             }
-            className="w-full min-h-[44px] px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
           >
             <option value="ALL">Semua Shift</option>
             {SHIFTS.map((s) => (
@@ -122,8 +148,8 @@ export function HistoryView({
         </div>
 
         <div>
-          <label htmlFor="filter-category" className="block text-xs font-medium text-slate-600 mb-1">
-            Filter Kategori
+          <label htmlFor="filter-category" className="block text-xs font-semibold text-slate-600 mb-1">
+            Kategori
           </label>
           <select
             id="filter-category"
@@ -134,7 +160,7 @@ export function HistoryView({
                 category: e.target.value as CategoryType | 'ALL',
               })
             }
-            className="w-full min-h-[44px] px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
           >
             <option value="ALL">Semua Kategori</option>
             {CATEGORIES.map((c) => (
@@ -144,132 +170,127 @@ export function HistoryView({
             ))}
           </select>
         </div>
-
-        <div>
-          <label htmlFor="filter-keyword" className="block text-xs font-medium text-slate-600 mb-1">
-            Cari Mesin / Kata Kunci
-          </label>
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              id="filter-keyword"
-              type="text"
-              value={filters.keyword}
-              onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
-              placeholder="..."
-              className="w-full min-h-[44px] pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-            />
-          </div>
-        </div>
       </div>
 
       {/* Results */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         {loading ? (
           <div className="py-12 text-center text-sm text-slate-500">
             Memuat data laporan...
           </div>
         ) : filteredReports.length === 0 ? (
-          <div className="py-12 text-center border border-dashed border-slate-200 rounded-lg">
+          <div className="py-12 px-4 text-center">
             <p className="text-sm text-slate-600">
-              Tidak ada laporan yang cocok dengan kriteria filter saat ini.
+              Tidak ada laporan yang cocok dengan filter saat ini.
             </p>
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="mt-3 min-h-[44px] px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700"
-            >
-              Tampilkan Semua Laporan
-            </button>
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="mt-3 min-h-[40px] px-4 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs hover:shadow-sm active:scale-[0.97] transition-all"
+              >
+                Tampilkan Semua Laporan
+              </button>
+            )}
           </div>
         ) : (
           <>
-            {/* Desktop Table with Horizontal Scroll */}
+            {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
-              <table className="w-full min-w-[820px] text-left border-collapse text-sm">
+              <table className="w-full min-w-[780px] text-left border-collapse text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-xs font-semibold text-slate-500">
-                    <th className="py-2.5 pr-3">Tanggal</th>
-                    <th className="py-2.5 px-3">Shift</th>
-                    <th className="py-2.5 px-3">Kategori</th>
-                    <th className="py-2.5 px-3">Mesin</th>
-                    <th className="py-2.5 px-3">Informasi, Masalah &amp; Tindak Lanjut</th>
-                    <th className="py-2.5 px-3">Lokasi Palet</th>
-                    <th className="py-2.5 px-3">Pembuat</th>
-                    <th className="py-2.5 px-3">Waktu Update</th>
-                    <th className="py-2.5 pl-3 text-right">Aksi</th>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+                    <th className="py-3 px-4">Waktu &amp; Shift</th>
+                    <th className="py-3 px-4">Mesin &amp; Kategori</th>
+                    <th className="py-3 px-4">Tahap &amp; Keterangan</th>
+                    <th className="py-3 px-4">Lokasi Palet</th>
+                    <th className="py-3 px-4">Pembuat</th>
+                    <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredReports.map((rep) => {
                     const editable = canEditReport(rep, currentUser);
                     const durationShifts = durationByReportId.get(rep.id);
+                    const badge = formatWorkflowBadge(rep);
                     return (
-                      <tr key={rep.id} className="hover:bg-slate-50/80 align-top">
-                        <td className="py-3 pr-3 font-mono text-xs tabular-nums text-slate-700 whitespace-nowrap">
-                          {rep.reportDate}
+                      <tr key={rep.id} className="hover:bg-slate-50/70 align-top">
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <p className="font-mono text-xs font-semibold tabular-nums text-slate-900">
+                            {rep.reportDate}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">{rep.shift}</p>
                         </td>
-                        <td className="py-3 px-3">
-                          <ShiftTag shift={rep.shift} />
+
+                        <td className="py-3.5 px-4">
+                          <p className="font-mono text-xs font-semibold text-[#0F294A] whitespace-nowrap">
+                            {rep.machine || '—'}
+                            {durationShifts !== undefined && (
+                              <span className="text-slate-500 font-medium">
+                                {' '}
+                                | {durationShifts} Shift
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{rep.category}</p>
                         </td>
-                        <td className="py-3 px-3">
-                          <CategoryTag category={rep.category} />
-                        </td>
-                        <td className="py-3 px-3 font-mono text-xs text-slate-900 whitespace-nowrap">
-                          <span className="font-semibold text-[#0F294A]">
-                            {rep.machine || '-'}
-                          </span>
-                          {durationShifts !== undefined && (
-                            <span className="text-slate-500 font-medium">
-                              {' '}
-                              | {durationShifts} Shift
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 max-w-sm space-y-1">
-                          <p className="text-xs text-slate-800 line-clamp-2 leading-relaxed">
+
+                        <td className="py-3.5 px-4 max-w-md space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {badge && (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded border text-[11px] font-semibold ${badge.badgeClass}`}
+                              >
+                                {badge.badgeLabel}
+                              </span>
+                            )}
+                            {rep.isCompleted && (
+                              <span className="text-[11px] font-semibold text-emerald-700">
+                                · Selesai (OK)
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug">
                             {rep.information}
                           </p>
-                          {rep.issue && (
-                            <p className="text-[11px] text-rose-700 line-clamp-1">
-                              Masalah: {rep.issue}
-                            </p>
-                          )}
                           {rep.followUp && (
-                            <p className="text-[11px] text-slate-500 line-clamp-1">
-                              Tindak lanjut: {rep.followUp}
+                            <p className="text-xs text-slate-500 line-clamp-1">
+                              Lanjut: {rep.followUp}
                             </p>
                           )}
                         </td>
-                        <td className="py-3 px-3 font-mono text-xs text-slate-700 whitespace-nowrap">
-                          {rep.palletLocation || '-'}
+
+                        <td className="py-3.5 px-4 font-mono text-xs text-slate-700 whitespace-nowrap">
+                          {rep.palletLocation || '—'}
                         </td>
-                        <td className="py-3 px-3 text-xs text-slate-700 whitespace-nowrap">
-                          {rep.createdByName}
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <p className="text-xs font-medium text-slate-800">{rep.createdByName}</p>
+                          <p className="font-mono text-[11px] tabular-nums text-slate-400 mt-0.5">
+                            {formatDateTimeId(rep.updatedAt)}
+                          </p>
                         </td>
-                        <td className="py-3 px-3 font-mono text-xs tabular-nums text-slate-500 whitespace-nowrap">
-                          {formatDateTimeId(rep.updatedAt)}
-                        </td>
-                        <td className="py-3 pl-3 text-right whitespace-nowrap">
-                          <div className="inline-flex items-center gap-1.5">
+
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => onSelectReport(rep)}
                               aria-label={`Detail laporan ${rep.reportDate} ${rep.shift}`}
-                              className="min-h-[36px] px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-slate-700 inline-flex items-center gap-1"
+                              className="min-h-[34px] px-3 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 transition-all"
                             >
                               <Eye className="w-3.5 h-3.5" />
-                              Detail
+                              <span>Detail</span>
                             </button>
                             {editable && (
                               <button
                                 type="button"
                                 onClick={() => onEditReport(rep)}
                                 aria-label={`Edit laporan ${rep.reportDate} ${rep.shift}`}
-                                className="min-h-[36px] px-2.5 py-1 rounded border border-slate-300 bg-white hover:bg-slate-50 text-xs font-medium text-[#0F294A] inline-flex items-center gap-1"
+                                className="min-h-[34px] px-3 py-1 rounded-full bg-[#0F294A] hover:bg-[#163864] text-xs font-semibold text-white shadow-xs shadow-[#0F294A]/20 hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 transition-all"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
-                                Edit
+                                <span>Edit</span>
                               </button>
                             )}
                           </div>
@@ -281,64 +302,65 @@ export function HistoryView({
               </table>
             </div>
 
-            {/* Mobile Cards */}
-            <div className="md:hidden space-y-3">
+            {/* Mobile List */}
+            <div className="md:hidden divide-y divide-slate-200">
               {filteredReports.map((rep) => {
                 const editable = canEditReport(rep, currentUser);
                 const durationShifts = durationByReportId.get(rep.id);
+                const badge = formatWorkflowBadge(rep);
                 return (
-                  <article
-                    key={rep.id}
-                    className="p-4 rounded-lg border border-slate-200 bg-slate-50/70 space-y-2.5"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <ShiftTag shift={rep.shift} />
-                        <CategoryTag category={rep.category} />
+                  <article key={rep.id} className="p-4 space-y-2.5">
+                    <div className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                      <div className="min-w-0 truncate">
+                        <span className="font-semibold text-slate-900">{rep.shift}</span>
+                        <span aria-hidden="true"> · </span>
+                        <span>{rep.category}</span>
                       </div>
-                      <span className="font-mono text-xs text-slate-500 tabular-nums">
-                        {rep.reportDate}
-                      </span>
+                      <span className="font-mono tabular-nums shrink-0">{rep.reportDate}</span>
                     </div>
 
-                    {(rep.machine || durationShifts !== undefined) && (
-                      <p className="font-mono text-xs font-semibold text-[#0F294A]">
-                        Mesin: {rep.machine || '-'}
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-mono text-sm font-bold text-[#0F294A]">
+                        {rep.machine || 'Umum / Non-Mesin'}
                         {durationShifts !== undefined && (
-                          <span className="text-slate-600 font-medium">
+                          <span className="text-slate-500 font-medium text-xs">
                             {' '}
                             | {durationShifts} Shift
                           </span>
                         )}
                       </p>
+                      {rep.isCompleted && (
+                        <span className="text-xs font-semibold text-emerald-700">Selesai (OK)</span>
+                      )}
+                    </div>
+
+                    {badge && (
+                      <div>
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded border text-[11px] font-semibold ${badge.badgeClass}`}
+                        >
+                          {badge.badgeLabel}
+                        </span>
+                      </div>
                     )}
 
                     <p className="text-sm text-slate-900 leading-relaxed line-clamp-3">
                       {rep.information}
                     </p>
 
-                    {rep.issue && (
-                      <p className="text-xs text-rose-700 line-clamp-2">
-                        Masalah: {rep.issue}
-                      </p>
+                    {(rep.followUp || rep.palletLocation) && (
+                      <div className="text-xs text-slate-500 space-y-0.5">
+                        {rep.followUp && <p>Lanjut: {rep.followUp}</p>}
+                        {rep.palletLocation && (
+                          <p className="font-mono">Palet: {rep.palletLocation}</p>
+                        )}
+                      </div>
                     )}
 
-                    {rep.followUp && (
-                      <p className="text-xs text-slate-600 line-clamp-2">
-                        Tindak lanjut: {rep.followUp}
-                      </p>
-                    )}
-
-                    {rep.palletLocation && (
-                      <p className="text-xs font-mono text-slate-700">
-                        Lokasi Palet: {rep.palletLocation}
-                      </p>
-                    )}
-
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200 text-xs text-slate-500">
+                    <div className="flex items-center justify-between gap-2 pt-2 text-xs text-slate-500">
                       <div className="min-w-0 truncate">
                         <span className="font-medium text-slate-700">{rep.createdByName}</span>
-                        <span className="mx-1">·</span>
+                        <span aria-hidden="true"> · </span>
                         <span className="font-mono tabular-nums">
                           {formatDateTimeId(rep.updatedAt)}
                         </span>
@@ -347,7 +369,7 @@ export function HistoryView({
                         <button
                           type="button"
                           onClick={() => onSelectReport(rep)}
-                          className="min-h-[40px] px-3 py-1.5 rounded-md border border-slate-300 bg-white text-slate-700 font-medium"
+                          className="min-h-[38px] px-4 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold shadow-xs active:scale-[0.97] transition-all"
                         >
                           Detail
                         </button>
@@ -355,7 +377,7 @@ export function HistoryView({
                           <button
                             type="button"
                             onClick={() => onEditReport(rep)}
-                            className="min-h-[40px] px-3 py-1.5 rounded-md bg-[#0F294A] text-white font-medium"
+                            className="min-h-[38px] px-4 py-1.5 rounded-full bg-[#0F294A] hover:bg-[#163864] text-white font-semibold shadow-sm shadow-[#0F294A]/20 active:scale-[0.97] transition-all"
                           >
                             Edit
                           </button>

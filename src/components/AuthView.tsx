@@ -101,7 +101,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
         }
         if (res.needsEmailConfirm) {
           setInfoMsg(
-            'Akun berhasil dibuat dengan role Pengawas. Periksa inbox email Anda untuk verifikasi sebelum login.'
+            'Akun berhasil dibuat dengan role Pengawas. Cek inbox email Anda untuk verifikasi, lalu tunggu persetujuan Admin sebelum menggunakan aplikasi.'
           );
           setTab('login');
           return;
@@ -148,10 +148,12 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                 {tab === 'login' ? 'Masuk Akun' : 'Registrasi Akun'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Autentikasi Firebase Cloud aktif
+                {tab === 'login'
+                  ? 'Gunakan akun Google atau email terdaftar.'
+                  : 'Isi data akun baru untuk mulai mencatat.'}
               </p>
             </div>
-            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg shrink-0">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-full shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -159,7 +161,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                   setErrorMsg(null);
                   setInfoMsg(null);
                 }}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                   tab === 'login'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
@@ -174,7 +176,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                   setErrorMsg(null);
                   setInfoMsg(null);
                 }}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors whitespace-nowrap ${
+                className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                   tab === 'register'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
@@ -209,7 +211,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
               type="button"
               onClick={handleGoogleAuth}
               disabled={googleLoading || loading}
-              className="w-full min-h-[44px] px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-sm font-semibold flex items-center justify-center gap-2.5 transition-colors shadow-2xs"
+              className="w-full min-h-[44px] px-5 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-sm font-semibold flex items-center justify-center gap-2.5 shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
             >
               <GoogleIcon />
               <span>
@@ -299,14 +301,15 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             {tab === 'register' && (
               <p className="text-xs text-slate-500 leading-relaxed">
                 Akun baru (email maupun Google) otomatis terdaftar dengan role default{' '}
-                <strong className="text-slate-700">Pengawas</strong>.
+                <strong className="text-slate-700">Pengawas</strong> dan menunggu konfirmasi{' '}
+                <strong className="text-slate-700">Admin</strong> sebelum dapat mengakses data.
               </p>
             )}
 
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="w-full min-h-[44px] px-4 py-2.5 rounded-lg bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+              className="w-full min-h-[46px] px-5 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 text-white text-sm font-semibold shadow-md shadow-[#0F294A]/25 hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 transition-all"
             >
               {tab === 'login' ? (
                 <LogIn className="w-4 h-4 shrink-0" />

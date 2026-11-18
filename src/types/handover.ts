@@ -135,12 +135,28 @@ export const OVERHAUL_MACHINES = [
 export const USER_ROLES = ['pengawas', 'supervisor', 'admin'] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+export const APPROVAL_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export type ApprovalStatus = (typeof APPROVAL_STATUSES)[number];
+
+export const ACTIVITY_STAGES = ['OH', 'REPAIR', 'MILITARY', 'STABILITY'] as const;
+export type ActivityStage = (typeof ACTIVITY_STAGES)[number];
+
+export const MILITARY_STATUSES = ['PENDING', 'OK', 'LEAK'] as const;
+export type MilitaryStatus = (typeof MILITARY_STATUSES)[number];
+
+export const STABILITY_PHASES = ['4_HOURS', '8_HOURS'] as const;
+export type StabilityPhase = (typeof STABILITY_PHASES)[number];
+
+export const STABILITY_STATUSES = ['PENDING', 'OK', 'LEAK'] as const;
+export type StabilityStatus = (typeof STABILITY_STATUSES)[number];
+
 export interface UserProfile {
   id: string;
   email: string;
   fullName: string;
   role: UserRole;
   canEditAll: boolean;
+  approvalStatus: ApprovalStatus;
 }
 
 export interface HandoverReport {
@@ -150,11 +166,16 @@ export interface HandoverReport {
   category: CategoryType;
   machine: string | null;
   information: string;
-  issue: string;
   followUp: string;
   palletLocation: string;
   isCompleted: boolean;
   isRepairStart?: boolean;
+  activityStage?: ActivityStage;
+  militaryRound?: number;
+  militaryStatus?: MilitaryStatus;
+  militaryLeakBoxes?: number;
+  stabilityPhase?: StabilityPhase;
+  stabilityStatus?: StabilityStatus;
   createdBy: string;
   createdByName: string;
   updatedBy: string | null;
@@ -169,11 +190,16 @@ export interface HandoverFormInput {
   category: CategoryType;
   machine: string | null;
   information: string;
-  issue: string;
   followUp: string;
   palletLocation: string;
   isCompleted?: boolean;
   isRepairStart?: boolean;
+  activityStage?: ActivityStage;
+  militaryRound?: number;
+  militaryStatus?: MilitaryStatus;
+  militaryLeakBoxes?: number;
+  stabilityPhase?: StabilityPhase;
+  stabilityStatus?: StabilityStatus;
 }
 
 export interface HistoryFilters {

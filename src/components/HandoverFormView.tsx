@@ -1,5 +1,18 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Pencil, Save, ShieldCheck, XCircle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock,
+  Hourglass,
+  Minus,
+  PauseCircle,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Save,
+  Wrench,
+  XCircle,
+} from 'lucide-react';
 import {
   APK_MACHINES,
   AST_MACHINES,
@@ -7,15 +20,20 @@ import {
   MACHINE_OPTIONS,
   OTHER_MACHINES,
   SHIFTS,
+  type ActivityStage,
   type CategoryType,
   type HandoverFormInput,
   type HandoverReport,
+  type MilitaryStatus,
   type ShiftType,
+  type StabilityPhase,
+  type StabilityStatus,
   type UserProfile,
 } from '../types/handover';
 import {
   canSubmitReport,
   categoryRequiresMachine,
+  getCaseWorkflowContext,
   getCurrentShiftStatus,
   getOpenOperatorShiftSlots,
   getOperationalDateString,
@@ -83,26 +101,44 @@ export function HandoverFormView({
   );
   const [category, setCategory] = useState<CategoryType>('OVERHAUL');
   const [machine, setMachine] = useState('');
+
+  // Tahapan Terstruktur (SOP)
+  const [activityStage, setActivityStage] = useState<ActivityStage>('REPAIR');
+  const [stageManuallyPicked, setStageManuallyPicked] = useState(false);
+  const [militaryRound, setMilitaryRound] = useState<number>(1);
+  const [militaryStatus, setMilitaryStatus] = useState<MilitaryStatus>('PENDING');
+  const [militaryLeakBoxes, setMilitaryLeakBoxes] = useState<string>('0');
+  const [stabilityPhase, setStabilityPhase] = useState<StabilityPhase>('4_HOURS');
+  const [stabilityStatus, setStabilityStatus] = useState<StabilityStatus>('PENDING');
+
   const [information, setInformation] = useState('');
-  const [issue, setIssue] = useState('');
   const [followUp, setFollowUp] = useState('');
   const [palletLocation, setPalletLocation] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
-  const [isRepairStart, setIsRepairStart] = useState(false);
-  const [repairStartTouched, setRepairStartTouched] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof HandoverFormInput, string>>
   >({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const infoTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const followUpTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    const resizeEl = (el: HTMLTextAreaElement | null, minHeight: number) => {
+      if (!el) return;
+      el.style.height = 'auto';
+      el.style.height = `${Math.max(el.scrollHeight, minHeight)}px`;
+    };
+    resizeEl(infoTextareaRef.current, 92);
+    resizeEl(followUpTextareaRef.current, 68);
+  }, [information, followUp, activityStage, editingReport]);
+
   const shiftSchedule = useMemo(
     () => getShiftScheduleForDate(parseLocalDate(reportDate)),
     [reportDate]
   );
 
-  // Operator hanya bisa input pada shift yang masih dalam jendela aktif/+4 jam;
-  // saat mengedit laporan lama miliknya, tanggal & shift dikunci sesuai laporan asli.
   const operatorClosedNow =
     !fullAccess && !editingReport && openOperatorSlots.length === 0;
   const lockDateAndShiftOnEdit = Boolean(editingReport && !fullAccess);
@@ -112,6 +148,46 @@ export function HandoverFormView({
     return unique.sort();
   }, [openOperatorSlots]);
 
+  const wfContext = useMemo(
+    () => getCaseWorkflowContext(reports, category, machine),
+    [reports, category, machine]
+  );
+
+  const isOverhaul = category === 'OVERHAUL';
+
+  // Saat mesin berubah (input baru), sarankan tahapan kerja alami & nomor military
+  useEffect(() => {
+    if (editingReport) return;
+    if (!machine) return;
+
+    if (!stageManuallyPicked) {
+      setActivityStage(wfContext.suggestedStage);
+    }
+    setMilitaryRound(wfContext.suggestedMilitaryRound);
+
+    if (!isOverhaul) {
+      setStabilityPhase('8_HOURS');
+    } else {
+      setStabilityPhase(wfContext.suggestedStabilityPhase);
+    }
+
+    if (!palletLocation && wfContext.lastPalletLocation) {
+      setPalletLocation(wfContext.lastPalletLocation);
+    }
+  }, [
+    machine,
+    category,
+    isOverhaul,
+    editingReport,
+    stageManuallyPicked,
+    wfContext.suggestedStage,
+    wfContext.suggestedMilitaryRound,
+    wfContext.suggestedStabilityPhase,
+    wfContext.lastPalletLocation,
+    palletLocation,
+  ]);
+
+  // Inisialisasi editing atau preset
   useEffect(() => {
     const freshNow = new Date();
     const freshToday = getOperationalDateString(freshNow);
@@ -125,13 +201,34 @@ export function HandoverFormView({
       setShift(editingReport.shift || freshStatus.primaryShift);
       setCategory(editingReport.category || 'OVERHAUL');
       setMachine(editingReport.machine ?? '');
+
+      const initialStage: ActivityStage =
+        editingReport.activityStage ||
+        (isOhOnlyInformation(editingReport.information ?? '')
+          ? 'OH'
+          : editingReport.category === 'STABILITY TINGGI'
+            ? 'STABILITY'
+            : /\bmilitary\b/i.test(editingReport.information)
+              ? 'MILITARY'
+              : /\bstability\b/i.test(editingReport.information)
+                ? 'STABILITY'
+                : 'REPAIR');
+
+      setActivityStage(initialStage);
+      setStageManuallyPicked(true);
+      setMilitaryRound(editingReport.militaryRound ?? 1);
+      setMilitaryStatus(editingReport.militaryStatus ?? 'PENDING');
+      setMilitaryLeakBoxes(String(editingReport.militaryLeakBoxes ?? 0));
+      setStabilityPhase(
+        editingReport.stabilityPhase ??
+          (editingReport.category === 'OVERHAUL' ? '4_HOURS' : '8_HOURS')
+      );
+      setStabilityStatus(editingReport.stabilityStatus ?? 'PENDING');
+
       setInformation(editingReport.information ?? '');
-      setIssue(editingReport.issue ?? '');
       setFollowUp(editingReport.followUp ?? '');
       setPalletLocation(editingReport.palletLocation ?? '');
       setIsCompleted(Boolean(editingReport.isCompleted));
-      setIsRepairStart(Boolean(editingReport.isRepairStart));
-      setRepairStartTouched(true);
       setFieldErrors({});
       setSubmitError(null);
       return;
@@ -153,12 +250,16 @@ export function HandoverFormView({
       setCategory(presetValues.category || 'OVERHAUL');
       setMachine(presetValues.machine ?? '');
       setInformation(presetValues.information ?? '');
-      setIssue(presetValues.issue ?? '');
       setFollowUp(presetValues.followUp ?? '');
       setPalletLocation(presetValues.palletLocation ?? '');
       setIsCompleted(Boolean(presetValues.isCompleted));
-      setIsRepairStart(Boolean(presetValues.isRepairStart));
-      setRepairStartTouched(presetValues.isRepairStart !== undefined);
+
+      if (presetValues.activityStage) {
+        setActivityStage(presetValues.activityStage);
+        setStageManuallyPicked(true);
+      }
+      setMilitaryStatus('PENDING');
+      setStabilityStatus('PENDING');
       setFieldErrors({});
       setSubmitError(null);
     } else {
@@ -175,24 +276,20 @@ export function HandoverFormView({
       setMachine('');
       setPalletLocation('');
       setIsCompleted(false);
-      setIsRepairStart(false);
-      setRepairStartTouched(false);
+      setActivityStage('REPAIR');
+      setStageManuallyPicked(false);
+      setMilitaryRound(1);
+      setMilitaryStatus('PENDING');
+      setMilitaryLeakBoxes('0');
+      setStabilityPhase(category === 'OVERHAUL' ? '4_HOURS' : '8_HOURS');
+      setStabilityStatus('PENDING');
       setFieldErrors({});
       setSubmitError(null);
     }
-  }, [editingReport, presetValues, fullAccess]);
+  }, [editingReport, presetValues, fullAccess, category]);
 
-  // Otomatis tentukan default "Hari pertama perbaikan?" selama pengguna belum memilih manual
-  useEffect(() => {
-    if (editingReport || repairStartTouched) return;
-    const trimmedInfo = information.trim();
-    if (!trimmedInfo || isOhOnlyInformation(trimmedInfo)) {
-      setIsRepairStart(false);
-      return;
-    }
-    const alreadyStarted = hasOpenEpisodeStartedRepair(reports, category, machine);
-    setIsRepairStart(!alreadyStarted);
-  }, [editingReport, repairStartTouched, information, category, machine, reports]);
+  const showPalletLocationField =
+    activityStage === 'MILITARY' || activityStage === 'STABILITY';
 
   const machineRequired = categoryRequiresMachine(category);
   const isCustomLegacyMachine =
@@ -203,17 +300,33 @@ export function HandoverFormView({
     e.preventDefault();
     setSubmitError(null);
 
+    const effectivePalletLocation = showPalletLocationField ? palletLocation.trim() : '';
+    const otherReports = editingReport
+      ? reports.filter((r) => r.id !== editingReport.id)
+      : reports;
+    const effectiveRepairStart =
+      activityStage !== 'OH' &&
+      !hasOpenEpisodeStartedRepair(otherReports, category, machine);
+
     const payload: HandoverFormInput = {
       reportDate,
       shift,
       category,
       machine: machine.trim() || null,
-      information,
-      issue,
-      followUp,
-      palletLocation,
+      information: information.trim(),
+      followUp: followUp.trim(),
+      palletLocation: effectivePalletLocation,
       isCompleted,
-      isRepairStart,
+      isRepairStart: effectiveRepairStart,
+      activityStage,
+      militaryRound: activityStage === 'MILITARY' ? militaryRound : undefined,
+      militaryStatus: activityStage === 'MILITARY' ? militaryStatus : undefined,
+      militaryLeakBoxes:
+        activityStage === 'MILITARY' && militaryStatus === 'LEAK'
+          ? Math.max(0, parseInt(militaryLeakBoxes, 10) || 0)
+          : undefined,
+      stabilityPhase: activityStage === 'STABILITY' ? stabilityPhase : undefined,
+      stabilityStatus: activityStage === 'STABILITY' ? stabilityStatus : undefined,
     };
 
     const permission = canSubmitReport({
@@ -223,13 +336,23 @@ export function HandoverFormView({
       now: new Date(),
     });
     if (!permission.allowed) {
-      setSubmitError(permission.reason || 'Anda tidak memiliki izin untuk menyimpan laporan ini.');
+      setSubmitError(
+        permission.reason || 'Anda tidak memiliki izin untuk menyimpan laporan ini.'
+      );
       return;
     }
 
     const validation = validateHandoverInput(payload);
     if (!validation.valid) {
       setFieldErrors(validation.errors);
+      return;
+    }
+
+    if (showPalletLocationField && !effectivePalletLocation) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        palletLocation: 'Lokasi palet wajib diisi saat mengambil military atau stability.',
+      }));
       return;
     }
 
@@ -243,131 +366,141 @@ export function HandoverFormView({
       }
       if (!editingReport) {
         setInformation('');
-        setIssue('');
         setFollowUp('');
         setPalletLocation('');
         setIsCompleted(false);
-        setIsRepairStart(false);
-        setRepairStartTouched(false);
+        setStageManuallyPicked(false);
       }
     } finally {
       setSubmitting(false);
     }
   }
 
+  const infoPlaceholder =
+    activityStage === 'OH'
+      ? 'Contoh: OH / menunggu perbaikan...'
+      : activityStage === 'MILITARY'
+        ? `Tulis catatan Military #${militaryRound}...`
+        : activityStage === 'STABILITY'
+          ? `Tulis catatan Stability ${stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}...`
+          : 'Tulis kondisi / hasil perbaikan mesin...';
+
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="bg-white rounded-xl border border-slate-300 p-5 sm:p-7">
-        <div className="border-b border-slate-200 pb-4 mb-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold text-slate-900">
-              {editingReport ? 'Edit Laporan Handover' : 'Input Laporan Handover'}
-            </h2>
-            {fullAccess && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-[11px] font-semibold text-[#0F294A]">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Akses Penuh ({currentUser.role === 'admin' ? 'Admin' : 'Supervisor'})
-              </span>
-            )}
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Pembuat:{' '}
-            <span className="font-medium text-slate-800">
-              {editingReport ? editingReport.createdByName : currentUser.fullName}
-            </span>
-          </p>
+    <div className="max-w-2xl mx-auto space-y-4">
+      {/* Page Header */}
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
+          {editingReport ? 'Edit Handover' : 'Input Handover'}
+        </h2>
+
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-[38px] px-4 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-all"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Kembali</span>
+        </button>
+      </div>
+
+      {operatorClosedNow && (
+        <div
+          role="alert"
+          className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm"
+        >
+          Di luar batas input shift (+4 jam). Hubungi Admin atau Supervisor.
         </div>
+      )}
 
-        {operatorClosedNow && (
-          <div
-            role="alert"
-            className="mb-5 p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm leading-relaxed"
-          >
-            Saat ini di luar jendela input shift reguler (batas maksimal <strong>+4 jam</strong> setelah shift selesai). Hubungi <strong>Admin</strong> atau <strong>Supervisor</strong> untuk penginputan di luar jadwal. Pengeditan laporan milik Anda tetap bisa dilakukan kapan pun melalui menu History atau Dashboard.
-          </div>
-        )}
+      {submitError && (
+        <div
+          role="alert"
+          className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm"
+        >
+          {submitError}
+        </div>
+      )}
 
-        {submitError && (
-          <div
-            role="alert"
-            className="mb-5 p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm"
-          >
-            {submitError}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Tanggal */}
-          <div>
-            <label
-              htmlFor="input-report-date"
-              className="block text-sm font-medium text-slate-700 mb-1.5"
-            >
-              Tanggal Laporan
-            </label>
-            <input
-              id="input-report-date"
-              type="date"
-              value={reportDate}
-              disabled={lockDateAndShiftOnEdit}
-              min={!fullAccess && !editingReport && openDates.length > 0 ? openDates[0] : undefined}
-              max={
-                !fullAccess && !editingReport && openDates.length > 0
-                  ? openDates[openDates.length - 1]
-                  : undefined
-              }
-              onChange={(e) => {
-                const nextDate = e.target.value;
-                setReportDate(nextDate);
-                if (!fullAccess && !editingReport) {
-                  const slotForCurrentShift = openOperatorSlots.find(
-                    (s) => s.reportDate === nextDate && s.shift === shift
-                  );
-                  if (!slotForCurrentShift) {
-                    const firstOpenOnDate = openOperatorSlots.find(
-                      (s) => s.reportDate === nextDate
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-2xl border border-slate-200/90 shadow-xs divide-y divide-slate-200 overflow-hidden"
+      >
+        {/* 1. JADWAL & MESIN */}
+        <section className="p-5 sm:p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="input-report-date"
+                className="block text-xs font-semibold text-slate-700 mb-1.5"
+              >
+                Tanggal
+              </label>
+              <input
+                id="input-report-date"
+                type="date"
+                value={reportDate}
+                disabled={lockDateAndShiftOnEdit}
+                min={!fullAccess && !editingReport && openDates.length > 0 ? openDates[0] : undefined}
+                max={
+                  !fullAccess && !editingReport && openDates.length > 0
+                    ? openDates[openDates.length - 1]
+                    : undefined
+                }
+                onChange={(e) => {
+                  const nextDate = e.target.value;
+                  setReportDate(nextDate);
+                  if (!fullAccess && !editingReport) {
+                    const slotForCurrentShift = openOperatorSlots.find(
+                      (s) => s.reportDate === nextDate && s.shift === shift
                     );
-                    if (firstOpenOnDate) {
-                      setShift(firstOpenOnDate.shift);
+                    if (!slotForCurrentShift) {
+                      const firstOpenOnDate = openOperatorSlots.find(
+                        (s) => s.reportDate === nextDate
+                      );
+                      if (firstOpenOnDate) {
+                        setShift(firstOpenOnDate.shift);
+                      }
                     }
                   }
-                }
-              }}
-              className={`w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A] ${
-                lockDateAndShiftOnEdit ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'
-              }`}
-            />
-            {lockDateAndShiftOnEdit && (
-              <p className="mt-1 text-[11px] text-slate-500">
-                Pengeditan tersedia kapan pun; tanggal &amp; shift terkunci sesuai laporan asli (Admin/Supervisor dapat mengubahnya bebas).
-              </p>
-            )}
-            {fieldErrors.reportDate && (
-              <p className="mt-1 text-xs text-rose-600">{fieldErrors.reportDate}</p>
-            )}
-          </div>
-
-          {/* Shift (Admin/Supervisor bebas; Pengawas mengikuti jadwal +4 jam saat input baru) */}
-          <div>
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-              <span className="block text-sm font-medium text-slate-700">
-                Shift ({parseLocalDate(reportDate).getDay() === 6 ? 'Jadwal Sabtu' : 'Jadwal Senin - Jumat'})
-              </span>
-              {fullAccess ? (
-                <span className="text-[11px] font-medium text-[#0F294A]">
-                  Bebas pilih shift
-                </span>
-              ) : editingReport ? (
-                <span className="text-[11px] font-medium text-slate-500">
-                  Mengikuti shift laporan asli
-                </span>
-              ) : (
-                <span className="text-[11px] font-medium text-[#0F294A]">
-                  Input aktif hingga +4 jam setelah selesai
-                </span>
+                }}
+                className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A] ${
+                  lockDateAndShiftOnEdit ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'
+                }`}
+              />
+              {fieldErrors.reportDate && (
+                <p className="mt-1 text-xs text-rose-600">{fieldErrors.reportDate}</p>
               )}
             </div>
-            <div role="group" aria-label="Pilih Shift" className="grid grid-cols-3 gap-2">
+
+            <div>
+              <label
+                htmlFor="input-category"
+                className="block text-xs font-semibold text-slate-700 mb-1.5"
+              >
+                Kategori
+              </label>
+              <select
+                id="input-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as CategoryType)}
+                className="w-full min-h-[42px] px-3.5 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.category && (
+                <p className="mt-1 text-xs text-rose-600">{fieldErrors.category}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Shift Selector */}
+          <div>
+            <span className="block text-xs font-semibold text-slate-700 mb-1.5">Shift</span>
+            <div role="group" aria-label="Pilih Shift" className="grid grid-cols-3 gap-2.5">
               {SHIFTS.map((s) => {
                 const active =
                   shift === s &&
@@ -396,12 +529,12 @@ export function HandoverFormView({
                       }
                     }}
                     aria-pressed={active}
-                    className={`min-h-[54px] px-2 py-2 rounded-lg border transition-colors text-center ${
+                    className={`min-h-[50px] px-2 py-2 rounded-xl border transition-all active:scale-[0.98] text-center ${
                       active
-                        ? 'bg-[#0F294A] text-white border-[#0F294A]'
+                        ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
                         : disabled
                           ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                          : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                          : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
                     }`}
                   >
                     <span className="block text-xs sm:text-sm font-semibold">{s}</span>
@@ -411,9 +544,7 @@ export function HandoverFormView({
                       }`}
                     >
                       {!fullAccess && !editingReport && openSlot
-                        ? openSlot.isGracePeriod
-                          ? `+4j s/d ${openSlot.graceDeadlineLabel}`
-                          : `s/d +4j (${openSlot.graceDeadlineLabel})`
+                        ? `s/d ${openSlot.graceDeadlineLabel}`
                         : shiftSchedule[s]}
                     </span>
                   </button>
@@ -425,254 +556,500 @@ export function HandoverFormView({
             )}
           </div>
 
-          {/* Kategori & Dropdown Mesin Lengkap (Wajib) */}
-          <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="input-category"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
-              >
-                Kategori Pekerjaan
-              </label>
-              <select
-                id="input-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value as CategoryType)}
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+          {/* Pilih Mesin */}
+          <div>
+            <label
+              htmlFor="input-machine"
+              className="block text-xs font-semibold text-slate-700 mb-1.5"
+            >
+              Mesin {machineRequired ? <span className="text-rose-600">*</span> : ''}
+            </label>
+            <select
+              id="input-machine"
+              required
+              value={machine}
+              onChange={(e) => setMachine(e.target.value)}
+              className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            >
+              <option value="">Pilih Mesin</option>
+              {isCustomLegacyMachine && (
+                <option value={machine}>{machine}</option>
+              )}
+              <optgroup label={`Seri AST (${AST_MACHINES.length})`}>
+                {AST_MACHINES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
                   </option>
                 ))}
-              </select>
-              {fieldErrors.category && (
-                <p className="mt-1 text-xs text-rose-600">{fieldErrors.category}</p>
-              )}
-            </div>
+              </optgroup>
+              <optgroup label={`Seri APK (${APK_MACHINES.length})`}>
+                {APK_MACHINES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label={`Lainnya (${OTHER_MACHINES.length})`}>
+                {OTHER_MACHINES.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </optgroup>
+            </select>
+            {fieldErrors.machine && (
+              <p className="mt-1 text-xs text-rose-600">{fieldErrors.machine}</p>
+            )}
+          </div>
+        </section>
 
-            <div>
-              <label
-                htmlFor="input-machine"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
-              >
-                Pilih Mesin {machineRequired ? <span className="text-rose-600">* (Wajib)</span> : ''}
-              </label>
-              <select
-                id="input-machine"
-                required
-                value={machine}
-                onChange={(e) => setMachine(e.target.value)}
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-              >
-                <option value="">-- Pilih Mesin (Wajib) --</option>
-                {isCustomLegacyMachine && (
-                  <option value={machine}>{machine}</option>
-                )}
-                <optgroup label={`Seri AST (${AST_MACHINES.length} Mesin)`}>
-                  {AST_MACHINES.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label={`Seri APK (${APK_MACHINES.length} Mesin)`}>
-                  {APK_MACHINES.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label={`Mesin / Line Lainnya (${OTHER_MACHINES.length} Mesin)`}>
-                  {OTHER_MACHINES.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-              {fieldErrors.machine && (
-                <p className="mt-1 text-xs text-rose-600">{fieldErrors.machine}</p>
-              )}
-            </div>
+        {/* 2. TAHAP & HASIL */}
+        <section className="p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-slate-700">Tahap Kerja</span>
+            {machine && wfContext.militaryCount > 0 && (
+              <span className="text-xs font-mono text-slate-500 tabular-nums">
+                {wfContext.militaryCount}x Military
+              </span>
+            )}
           </div>
 
-          {/* Blok Isian Terstruktur (urutan identik dengan Dashboard) */}
-          <div className="space-y-4 p-4 rounded-xl border border-slate-200 bg-white">
-            {/* 1. Update Shift / Informasi / Keterangan */}
-            <div>
-              <label
-                htmlFor="input-information"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
-              >
-                Update Shift / Informasi / Keterangan <span className="text-rose-600">*</span>
-              </label>
-              <textarea
-                id="input-information"
-                rows={3}
-                value={information}
-                onChange={(e) => setInformation(e.target.value)}
-                placeholder="Contoh: sudah press 10T / hasil military OK / hasil stability OK"
-                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-              />
-              {fieldErrors.information && (
-                <p className="mt-1 text-xs text-rose-600">{fieldErrors.information}</p>
+          <div
+            role="group"
+            aria-label="Pilih Tahap Shift Ini"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-2"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setStageManuallyPicked(true);
+                setActivityStage('OH');
+                setIsCompleted(false);
+                if (!information.trim()) {
+                  setInformation('OH');
+                }
+              }}
+              aria-pressed={activityStage === 'OH'}
+              className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
+                activityStage === 'OH'
+                  ? 'bg-slate-800 text-white border-slate-800 shadow-md shadow-slate-900/20'
+                  : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+              }`}
+            >
+              <PauseCircle className="w-4 h-4 shrink-0" />
+              <span>OH</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStageManuallyPicked(true);
+                setActivityStage('REPAIR');
+                if (isOhOnlyInformation(information)) {
+                  setInformation('');
+                }
+              }}
+              aria-pressed={activityStage === 'REPAIR'}
+              className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
+                activityStage === 'REPAIR'
+                  ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
+                  : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+              }`}
+            >
+              <Wrench className="w-4 h-4 shrink-0" />
+              <span>Perbaikan</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStageManuallyPicked(true);
+                setActivityStage('MILITARY');
+                if (isOhOnlyInformation(information)) {
+                  setInformation('');
+                }
+              }}
+              aria-pressed={activityStage === 'MILITARY'}
+              className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
+                activityStage === 'MILITARY'
+                  ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
+                  : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+              }`}
+            >
+              <RotateCcw className="w-4 h-4 shrink-0" />
+              <span>Military</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStageManuallyPicked(true);
+                setActivityStage('STABILITY');
+                if (isOhOnlyInformation(information)) {
+                  setInformation('');
+                }
+              }}
+              aria-pressed={activityStage === 'STABILITY'}
+              className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
+                activityStage === 'STABILITY'
+                  ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
+                  : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+              }`}
+            >
+              <Clock className="w-4 h-4 shrink-0" />
+              <span>Stability</span>
+            </button>
+          </div>
+
+          {activityStage === 'MILITARY' && (
+            <div className="pt-1 space-y-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-slate-700">Military Ke-</span>
+                <div className="inline-flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="Kurangi nomor military"
+                    onClick={() => setMilitaryRound((prev) => Math.max(1, prev - 1))}
+                    className="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 transition-all"
+                  >
+                    <Minus className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    type="number"
+                    aria-label="Nomor pengambilan military"
+                    min={1}
+                    max={20}
+                    value={militaryRound}
+                    onChange={(e) =>
+                      setMilitaryRound(Math.max(1, parseInt(e.target.value, 10) || 1))
+                    }
+                    className="w-14 h-9 px-2 text-sm font-mono font-bold text-center border border-slate-300 rounded-xl bg-white"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Tambah nomor military"
+                    onClick={() => setMilitaryRound((prev) => Math.min(20, prev + 1))}
+                    className="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 transition-all"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <span className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Hasil Uji
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMilitaryStatus('PENDING');
+                      setMilitaryLeakBoxes('0');
+                      if (!information.trim() || information.startsWith('Ambil Military')) {
+                        setInformation(
+                          `Ambil Military Ke-${militaryRound}: Palet siap, belum diuji.`
+                        );
+                      }
+                    }}
+                    className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+                      militaryStatus === 'PENDING'
+                        ? 'bg-slate-800 text-white border-slate-800 shadow-md shadow-slate-900/20'
+                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                    }`}
+                  >
+                    <Hourglass className="w-3.5 h-3.5 shrink-0" />
+                    <span>Belum Diuji</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMilitaryStatus('OK');
+                      setMilitaryLeakBoxes('0');
+                      if (!information.trim() || information.startsWith('Ambil Military')) {
+                        setInformation(
+                          `Ambil Military Ke-${militaryRound}: 0% Bocor (OK).`
+                        );
+                      }
+                    }}
+                    className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+                      militaryStatus === 'OK'
+                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-700/25'
+                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>OK (0%)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMilitaryStatus('LEAK');
+                      if (!information.trim() || information.startsWith('Ambil Military')) {
+                        setInformation(
+                          `Ambil Military Ke-${militaryRound}: Ada bocor.`
+                        );
+                      }
+                    }}
+                    className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+                      militaryStatus === 'LEAK'
+                        ? 'bg-rose-700 text-white border-rose-700 shadow-md shadow-rose-700/25'
+                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                    }`}
+                  >
+                    <XCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Ada Bocor</span>
+                  </button>
+                </div>
+              </div>
+
+              {militaryStatus === 'LEAK' && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3 text-xs sm:text-sm">
+                  <label htmlFor="input-leak-boxes" className="text-rose-900 font-medium">
+                    Jumlah Bocor
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="input-leak-boxes"
+                      type="number"
+                      min={1}
+                      max={200}
+                      value={militaryLeakBoxes}
+                      onChange={(e) => setMilitaryLeakBoxes(e.target.value)}
+                      placeholder="0"
+                      className="w-20 px-2.5 py-1.5 text-sm font-mono font-bold text-center border border-rose-300 rounded-xl bg-white text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    />
+                    <span className="text-rose-800 text-xs font-medium">Box</span>
+                  </div>
+                </div>
               )}
             </div>
+          )}
 
-            {/* 2. Masalah */}
-            <div>
-              <label
-                htmlFor="input-issue"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
-              >
-                Masalah
-              </label>
-              <textarea
-                id="input-issue"
-                rows={2}
-                value={issue}
-                onChange={(e) => setIssue(e.target.value)}
-                placeholder="Contoh: Bocor PH L2N4."
-                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-              />
+          {activityStage === 'STABILITY' && (
+            <div className="pt-1 space-y-3.5">
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-xs font-semibold text-slate-700">Durasi</span>
+                  {!isOverhaul && (
+                    <span className="text-xs font-semibold text-teal-800">8 Jam</span>
+                  )}
+                </div>
+
+                {isOverhaul && (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStabilityPhase('4_HOURS');
+                        if (!information.trim() || information.includes('Stability')) {
+                          setInformation('Uji Stability 4 Jam.');
+                        }
+                      }}
+                      className={`min-h-[42px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+                        stabilityPhase === '4_HOURS'
+                          ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
+                          : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                      }`}
+                    >
+                      <Clock className="w-4 h-4 shrink-0" />
+                      <span>4 Jam</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStabilityPhase('8_HOURS');
+                        if (!information.trim() || information.includes('Stability')) {
+                          setInformation('Uji Stability 8 Jam.');
+                        }
+                      }}
+                      className={`min-h-[42px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+                        stabilityPhase === '8_HOURS'
+                          ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
+                          : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                      }`}
+                    >
+                      <Clock className="w-4 h-4 shrink-0" />
+                      <span>8 Jam</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <span className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Hasil Uji
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStabilityStatus('PENDING');
+                      setIsCompleted(false);
+                    }}
+                    className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+                      stabilityStatus === 'PENDING'
+                        ? 'bg-slate-800 text-white border-slate-800 shadow-md shadow-slate-900/20'
+                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                    }`}
+                  >
+                    <Hourglass className="w-3.5 h-3.5 shrink-0" />
+                    <span>Belum Diuji</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStabilityStatus('OK');
+                      if (stabilityPhase === '8_HOURS') {
+                        setIsCompleted(true);
+                      }
+                    }}
+                    className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+                      stabilityStatus === 'OK'
+                        ? 'bg-teal-700 text-white border-teal-700 shadow-md shadow-teal-700/25'
+                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                    <span>OK</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStabilityStatus('LEAK');
+                      setIsCompleted(false);
+                    }}
+                    className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
+                      stabilityStatus === 'LEAK'
+                        ? 'bg-rose-700 text-white border-rose-700 shadow-md shadow-rose-700/25'
+                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                    }`}
+                  >
+                    <XCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Bocor</span>
+                  </button>
+                </div>
+              </div>
             </div>
+          )}
+        </section>
 
-            {/* 3. Tindak Lanjut */}
-            <div>
-              <label
-                htmlFor="input-followup"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
-              >
-                Tindak Lanjut
-              </label>
-              <textarea
-                id="input-followup"
-                rows={2}
-                value={followUp}
-                onChange={(e) => setFollowUp(e.target.value)}
-                placeholder="Contoh: lanjut military shift 2 / lanjut stability 8 jam shift 3"
-                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-              />
-            </div>
+        {/* 3. CATATAN & STATUS */}
+        <section className="p-5 sm:p-6 space-y-4">
+          <div>
+            <label
+              htmlFor="input-information"
+              className="block text-xs font-semibold text-slate-700 mb-1.5"
+            >
+              Keterangan <span className="text-rose-600">*</span>
+            </label>
+            <textarea
+              ref={infoTextareaRef}
+              id="input-information"
+              rows={3}
+              value={information}
+              onChange={(e) => setInformation(e.target.value)}
+              placeholder={infoPlaceholder}
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            />
+            {fieldErrors.information && (
+              <p className="mt-1 text-xs text-rose-600">{fieldErrors.information}</p>
+            )}
+          </div>
 
-            {/* 4. Lokasi Palet */}
+          <div>
+            <label
+              htmlFor="input-followup"
+              className="block text-xs font-semibold text-slate-700 mb-1.5"
+            >
+              Tindak Lanjut <span className="text-slate-400 font-normal">(Opsional)</span>
+            </label>
+            <textarea
+              ref={followUpTextareaRef}
+              id="input-followup"
+              rows={2}
+              value={followUp}
+              onChange={(e) => setFollowUp(e.target.value)}
+              placeholder="Rencana untuk shift berikutnya..."
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            />
+          </div>
+
+          {showPalletLocationField && (
             <div>
               <label
                 htmlFor="input-pallet-location"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
+                className="block text-xs font-semibold text-slate-700 mb-1.5"
               >
-                Lokasi Palet
+                Lokasi Palet <span className="text-rose-600">*</span>
               </label>
               <input
                 id="input-pallet-location"
                 type="text"
                 value={palletLocation}
                 onChange={(e) => setPalletLocation(e.target.value)}
-                placeholder="Contoh: Staging Line A / Area HOLD / Line 1B"
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                placeholder="Contoh: Staging Line A / Rak 02"
+                className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               />
+              {fieldErrors.palletLocation && (
+                <p className="mt-1 text-xs text-rose-600">{fieldErrors.palletLocation}</p>
+              )}
             </div>
-          </div>
+          )}
 
-          {/* Hari Pertama Perbaikan (Mulai Perhitungan Total Durasi) */}
-          <div className="p-3.5 rounded-lg border border-slate-200 bg-slate-50 space-y-2.5">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-              <div>
-                <span className="block text-xs sm:text-sm font-semibold text-slate-900">
-                  Hari pertama perbaikan?
-                </span>
-                <span className="block text-xs text-slate-600 mt-0.5">
-                  Pilih <strong>Ya</strong> untuk mulai menghitung Total Durasi (Shift ke-1). Pilih <strong>Tidak</strong> jika status masih <strong>OH</strong> / belum mulai perbaikan.
-                </span>
-              </div>
-              <div
-                role="radiogroup"
-                aria-label="Hari pertama perbaikan?"
-                className="inline-grid grid-cols-2 gap-1.5 shrink-0"
-              >
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={isRepairStart === true}
-                  onClick={() => {
-                    setRepairStartTouched(true);
-                    setIsRepairStart(true);
-                  }}
-                  className={`min-h-[40px] px-4 py-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${
-                    isRepairStart
-                      ? 'bg-[#0F294A] text-white border-[#0F294A]'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                  }`}
-                >
-                  Ya
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={isRepairStart === false}
-                  onClick={() => {
-                    setRepairStartTouched(true);
-                    setIsRepairStart(false);
-                  }}
-                  className={`min-h-[40px] px-4 py-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-colors ${
-                    !isRepairStart
-                      ? 'bg-slate-800 text-white border-slate-800'
-                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                  }`}
-                >
-                  Tidak
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Status Case Selesai vs Berlanjut */}
-          <label className="flex items-start gap-3 p-3.5 rounded-lg border border-slate-200 bg-slate-50 cursor-pointer">
+          <label
+            className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+              isCompleted
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-xs'
+                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/70'
+            }`}
+          >
             <input
               type="checkbox"
               checked={isCompleted}
               onChange={(e) => setIsCompleted(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0F294A] focus:ring-[#0F294A]"
+              className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
             />
-            <span className="text-xs sm:text-sm text-slate-700 leading-snug">
-              <strong className="text-slate-900 block">
-                Tandai case / pekerjaan selesai (OK)
-              </strong>
+            <span className="text-xs sm:text-sm font-semibold">
+              Selesai (OK / Siap Produksi)
             </span>
           </label>
+        </section>
 
-          {/* Action Buttons */}
-          <div className="pt-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="min-h-[44px] px-5 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold inline-flex items-center justify-center gap-2"
-            >
-              <XCircle className="w-4 h-4" />
-              BATAL
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || operatorClosedNow}
-              className="min-h-[44px] px-6 py-2.5 rounded-lg bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold inline-flex items-center justify-center gap-2"
-            >
-              {editingReport ? (
-                <Pencil className="w-4 h-4" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              <span>
-                {submitting
-                  ? 'Menyimpan...'
-                  : editingReport
-                    ? 'EDIT LAPORAN'
-                    : 'SIMPAN LAPORAN'}
-              </span>
-            </button>
-          </div>
-        </form>
-      </div>
+        {/* Footer Actions */}
+        <div className="px-5 py-4 sm:px-6 bg-slate-50/80 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="min-h-[44px] px-6 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+          >
+            <span>Batal</span>
+          </button>
+          <button
+            type="submit"
+            disabled={submitting || operatorClosedNow}
+            className="min-h-[44px] px-7 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-md shadow-[#0F294A]/25 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+          >
+            {editingReport ? (
+              <Pencil className="w-4 h-4" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            <span>
+              {submitting
+                ? 'Menyimpan...'
+                : editingReport
+                  ? 'Simpan Perubahan'
+                  : 'Simpan Laporan'}
+            </span>
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

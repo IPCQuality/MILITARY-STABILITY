@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import {
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -23,10 +24,15 @@ import {
   type DocumentData,
 } from 'firebase/firestore';
 import type {
+  ActivityStage,
+  ApprovalStatus,
   CategoryType,
   HandoverFormInput,
   HandoverReport,
+  MilitaryStatus,
   ShiftType,
+  StabilityPhase,
+  StabilityStatus,
   UserProfile,
   UserRole,
 } from '../types/handover';
@@ -134,6 +140,19 @@ export function normalizeUserRole(rawRole?: string | null): UserRole {
   return 'pengawas';
 }
 
+export function normalizeApprovalStatus(
+  rawStatus?: string | null,
+  isPrimaryAdmin = false
+): ApprovalStatus {
+  if (isPrimaryAdmin) return 'approved';
+  const lower = (rawStatus ?? '').trim().toLowerCase();
+  if (lower === 'pending') return 'pending';
+  if (lower === 'rejected') return 'rejected';
+  if (lower === 'approved') return 'approved';
+  // Akun lama sebelum fitur approval dianggap sudah disetujui
+  return 'approved';
+}
+
 export function clearLegacyDemoStorage(): void {
   if (typeof window === 'undefined') return;
   for (const key of LEGACY_LOCAL_KEYS) {
@@ -171,11 +190,30 @@ function mapDocToReport(id: string, data: DocumentData): HandoverReport {
     category: (data.category as CategoryType) ?? 'OVERHAUL',
     machine: data.machine ? String(data.machine) : null,
     information: String(data.information ?? ''),
-    issue: String(data.issue ?? ''),
     followUp: String(data.followUp ?? ''),
     palletLocation: String(data.palletLocation ?? ''),
     isCompleted: Boolean(data.isCompleted),
     isRepairStart: typeof data.isRepairStart === 'boolean' ? data.isRepairStart : undefined,
+    activityStage:
+      typeof data.activityStage === 'string'
+        ? (data.activityStage as ActivityStage)
+        : undefined,
+    militaryRound:
+      typeof data.militaryRound === 'number' ? data.militaryRound : undefined,
+    militaryStatus:
+      typeof data.militaryStatus === 'string'
+        ? (data.militaryStatus as MilitaryStatus)
+        : undefined,
+    militaryLeakBoxes:
+      typeof data.militaryLeakBoxes === 'number' ? data.militaryLeakBoxes : undefined,
+    stabilityPhase:
+      typeof data.stabilityPhase === 'string'
+        ? (data.stabilityPhase as StabilityPhase)
+        : undefined,
+    stabilityStatus:
+      typeof data.stabilityStatus === 'string'
+        ? (data.stabilityStatus as StabilityStatus)
+        : undefined,
     createdBy: String(data.createdBy ?? ''),
     createdByName: String(data.createdByName ?? ''),
     updatedBy: data.updatedBy ? String(data.updatedBy) : null,
@@ -230,19 +268,25 @@ export async function ensureFirebaseUserProfile(
   if (snapData) {
     const existingRole = normalizeUserRole(String(snapData.role ?? 'pengawas'));
     const effectiveRole: UserRole = isPrimaryAdmin ? 'admin' : existingRole;
+    const approvalStatus = normalizeApprovalStatus(
+      typeof snapData.approvalStatus === 'string' ? snapData.approvalStatus : undefined,
+      isPrimaryAdmin
+    );
     return {
       id: firebaseUser.uid,
       email: String(snapData.email || userEmail),
       fullName: String(snapData.fullName || fallbackName),
       role: effectiveRole,
       canEditAll: Boolean(snapData.canEditAll) || isPrimaryAdmin || effectiveRole !== 'pengawas',
+      approvalStatus,
     };
   }
 
   // Setiap akun baru otomatis terdaftar dengan role default 'pengawas'
-  // (kecuali akun admin utama yang sudah terverifikasi).
+  // dan status 'pending' menunggu konfirmasi Admin (kecuali admin utama).
   const initialRole: UserRole = isPrimaryAdmin ? 'admin' : 'pengawas';
   const initialCanEditAll = isPrimaryAdmin;
+  const initialApprovalStatus: ApprovalStatus = isPrimaryAdmin ? 'approved' : 'pending';
 
   try {
     await setDoc(userRef, {
@@ -251,6 +295,7 @@ export async function ensureFirebaseUserProfile(
       fullName: fallbackName,
       role: initialRole,
       canEditAll: initialCanEditAll,
+      approvalStatus: initialApprovalStatus,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -264,7 +309,99 @@ export async function ensureFirebaseUserProfile(
     fullName: fallbackName,
     role: initialRole,
     canEditAll: initialCanEditAll,
+    approvalStatus: initialApprovalStatus,
   };
+}
+
+export interface AdminManagedUser extends UserProfile {
+  createdAt: string;
+  updatedAt: string;
+}
+
+export function subscribeUsersForAdmin(
+  onData: (users: AdminManagedUser[]) => void,
+  onError: (message: string) => void
+): () => void {
+  const usersPath = 'users';
+  return onSnapshot(
+    collection(db, usersPath),
+    (snapshot) => {
+      const mapped: AdminManagedUser[] = snapshot.docs.map((d) => {
+        const data = d.data();
+        const email = String(data.email ?? '');
+        const isPrimaryAdmin = email.trim().toLowerCase() === PRIMARY_ADMIN_EMAIL;
+        const role = isPrimaryAdmin
+          ? 'admin'
+          : normalizeUserRole(String(data.role ?? 'pengawas'));
+        return {
+          id: d.id,
+          email,
+          fullName: String(data.fullName ?? 'Pengawas'),
+          role,
+          canEditAll: Boolean(data.canEditAll) || role !== 'pengawas',
+          approvalStatus: normalizeApprovalStatus(
+            typeof data.approvalStatus === 'string' ? data.approvalStatus : undefined,
+            isPrimaryAdmin
+          ),
+          createdAt: toIsoString(data.createdAt),
+          updatedAt: toIsoString(data.updatedAt),
+        };
+      });
+
+      const statusRank: Record<ApprovalStatus, number> = {
+        pending: 0,
+        approved: 1,
+        rejected: 2,
+      };
+      mapped.sort((a, b) => {
+        const rankDiff = statusRank[a.approvalStatus] - statusRank[b.approvalStatus];
+        if (rankDiff !== 0) return rankDiff;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+      onData(mapped);
+    },
+    (error) => {
+      try {
+        handleFirestoreError(error, OperationType.LIST, usersPath);
+      } catch (thrown) {
+        onError(formatCaughtError(thrown, 'Gagal memuat daftar konfirmasi pengguna.'));
+      }
+    }
+  );
+}
+
+export async function updateUserApprovalByAdmin(
+  targetUserId: string,
+  updates: { approvalStatus: ApprovalStatus; role?: UserRole },
+  adminUser: UserProfile
+): Promise<{ ok: boolean; error?: string }> {
+  if (adminUser.role !== 'admin') {
+    return { ok: false, error: 'Hanya Admin yang dapat mengonfirmasi akun pengguna.' };
+  }
+
+  const nextRole: UserRole = normalizeUserRole(updates.role ?? 'pengawas');
+  const nextCanEditAll = nextRole !== 'pengawas';
+  const userPath = `users/${targetUserId}`;
+  const userRef = doc(db, 'users', targetUserId);
+
+  try {
+    await updateDoc(userRef, {
+      approvalStatus: updates.approvalStatus,
+      role: nextRole,
+      canEditAll: nextCanEditAll,
+      updatedAt: serverTimestamp(),
+    });
+    return { ok: true };
+  } catch (err) {
+    try {
+      handleFirestoreError(err, OperationType.UPDATE, userPath);
+    } catch (thrown) {
+      return {
+        ok: false,
+        error: formatCaughtError(thrown, 'Gagal memperbarui status persetujuan pengguna.'),
+      };
+    }
+  }
 }
 
 export async function signInWithGoogleFirebase(): Promise<{
@@ -417,7 +554,7 @@ export async function createReportFirebase(
   const actorName = (user.fullName || 'Pengawas').trim().slice(0, 120) || 'Pengawas';
   const sanitizedMachine = (validation.sanitizedMachine || '').trim().slice(0, 64);
 
-  const payload = {
+  const payload: DocumentData = {
     id: newDocRef.id,
     workspaceId: WORKSPACE_ID,
     reportDate: input.reportDate,
@@ -425,11 +562,18 @@ export async function createReportFirebase(
     category: input.category,
     machine: sanitizedMachine,
     information: input.information.trim().slice(0, 2000),
-    issue: input.issue.trim().slice(0, 2000),
     followUp: input.followUp.trim().slice(0, 2000),
     palletLocation: (input.palletLocation ?? '').trim().slice(0, 200),
     isCompleted: Boolean(input.isCompleted),
     isRepairStart: Boolean(input.isRepairStart),
+    ...(input.activityStage ? { activityStage: input.activityStage } : {}),
+    ...(typeof input.militaryRound === 'number' ? { militaryRound: input.militaryRound } : {}),
+    ...(input.militaryStatus ? { militaryStatus: input.militaryStatus } : {}),
+    ...(typeof input.militaryLeakBoxes === 'number'
+      ? { militaryLeakBoxes: input.militaryLeakBoxes }
+      : {}),
+    ...(input.stabilityPhase ? { stabilityPhase: input.stabilityPhase } : {}),
+    ...(input.stabilityStatus ? { stabilityStatus: input.stabilityStatus } : {}),
     createdBy: user.id,
     createdByName: actorName,
     updatedBy: user.id,
@@ -459,11 +603,16 @@ export async function createReportFirebase(
       category: payload.category,
       machine: payload.machine,
       information: payload.information,
-      issue: payload.issue,
       followUp: payload.followUp,
       palletLocation: payload.palletLocation,
       isCompleted: payload.isCompleted,
       isRepairStart: payload.isRepairStart,
+      activityStage: input.activityStage,
+      militaryRound: input.militaryRound,
+      militaryStatus: input.militaryStatus,
+      militaryLeakBoxes: input.militaryLeakBoxes,
+      stabilityPhase: input.stabilityPhase,
+      stabilityStatus: input.stabilityStatus,
       createdBy: payload.createdBy,
       createdByName: payload.createdByName,
       updatedBy: payload.updatedBy,
@@ -502,17 +651,25 @@ export async function updateReportFirebase(
   const actorName = (user.fullName || 'Pengawas').trim().slice(0, 120) || 'Pengawas';
   const sanitizedMachine = (validation.sanitizedMachine || '').trim().slice(0, 64);
 
-  const updates = {
+  const updates: DocumentData = {
     reportDate: input.reportDate,
     shift: input.shift,
     category: input.category,
     machine: sanitizedMachine,
     information: input.information.trim().slice(0, 2000),
-    issue: input.issue.trim().slice(0, 2000),
+    issue: deleteField(),
     followUp: input.followUp.trim().slice(0, 2000),
     palletLocation: (input.palletLocation ?? '').trim().slice(0, 200),
     isCompleted: Boolean(input.isCompleted),
     isRepairStart: Boolean(input.isRepairStart),
+    ...(input.activityStage ? { activityStage: input.activityStage } : {}),
+    ...(typeof input.militaryRound === 'number' ? { militaryRound: input.militaryRound } : {}),
+    ...(input.militaryStatus ? { militaryStatus: input.militaryStatus } : {}),
+    ...(typeof input.militaryLeakBoxes === 'number'
+      ? { militaryLeakBoxes: input.militaryLeakBoxes }
+      : {}),
+    ...(input.stabilityPhase ? { stabilityPhase: input.stabilityPhase } : {}),
+    ...(input.stabilityStatus ? { stabilityStatus: input.stabilityStatus } : {}),
     updatedBy: user.id,
     updatedByName: actorName,
     updatedAt: serverTimestamp(),
@@ -541,11 +698,16 @@ export async function updateReportFirebase(
       category: updates.category,
       machine: updates.machine,
       information: updates.information,
-      issue: updates.issue,
       followUp: updates.followUp,
       palletLocation: updates.palletLocation,
       isCompleted: updates.isCompleted,
       isRepairStart: updates.isRepairStart,
+      activityStage: input.activityStage ?? existingReport?.activityStage,
+      militaryRound: input.militaryRound ?? existingReport?.militaryRound,
+      militaryStatus: input.militaryStatus ?? existingReport?.militaryStatus,
+      militaryLeakBoxes: input.militaryLeakBoxes ?? existingReport?.militaryLeakBoxes,
+      stabilityPhase: input.stabilityPhase ?? existingReport?.stabilityPhase,
+      stabilityStatus: input.stabilityStatus ?? existingReport?.stabilityStatus,
       createdBy: existingReport?.createdBy ?? user.id,
       createdByName: existingReport?.createdByName ?? actorName,
       updatedBy: updates.updatedBy,

@@ -13,6 +13,8 @@ import {
   countStabilityInReport,
   extractOAuthErrorFromUrl,
   filterAndSortReports,
+  formatWorkflowBadge,
+  getCaseWorkflowContext,
   getCurrentShiftStatus,
   getOpenOperatorShiftSlots,
   getOperationalDateString,
@@ -24,10 +26,12 @@ import {
   isReportResultOk,
   isShiftResultOk,
   mapAuthErrorMessage,
+  requiresPalletLocation,
+  shouldShowRepairStartField,
   validateHandoverInput,
 } from './handoverLogic';
 import { buildHandoverFilename, buildHandoverWorkbook } from './excelExport';
-import { normalizeUserRole } from '../services/handoverService';
+import { normalizeApprovalStatus, normalizeUserRole } from '../services/handoverService';
 import type { HandoverReport, UserProfile } from '../types/handover';
 
 const sampleReports: HandoverReport[] = [
@@ -38,7 +42,6 @@ const sampleReports: HandoverReport[] = [
     category: 'OVERHAUL',
     machine: 'AST 9-16L',
     information: 'sudah press 10T',
-    issue: '',
     followUp: 'lanjut military shift 2',
     palletLocation: 'Zona A - Rak 02',
     isCompleted: false,
@@ -56,7 +59,6 @@ const sampleReports: HandoverReport[] = [
     category: 'STABILITY TINGGI',
     machine: 'AST 67-16L',
     information: 'Uji kestabilan chamber suhu 40C/75%RH berjalan stabil.',
-    issue: 'Tidak ada deviasi.',
     followUp: 'Catat log pembacaan tiap 2 jam.',
     palletLocation: 'Zona C - Palet 14',
     isCompleted: false,
@@ -74,7 +76,6 @@ const sampleReports: HandoverReport[] = [
     category: 'CASE PERBAIKAN PART',
     machine: 'AST 14-12L',
     information: 'Penggantian seal solenoid valve line B.',
-    issue: 'Kebocoran minor pada fitting output.',
     followUp: 'Cek tekanan kerja saat start awal Shift 1.',
     palletLocation: 'Staging B2',
     isCompleted: false,
@@ -101,7 +102,6 @@ test('validateHandoverInput mewajibkan mesin pada semua kategori termasuk STABIL
     category: 'OVERHAUL',
     machine: '',
     information: 'Kalibrasi sensor',
-    issue: '',
     followUp: '',
     palletLocation: '',
   });
@@ -114,7 +114,6 @@ test('validateHandoverInput mewajibkan mesin pada semua kategori termasuk STABIL
     category: 'STABILITY TINGGI',
     machine: '   ',
     information: 'Monitoring kestabilan batch.',
-    issue: '',
     followUp: '',
     palletLocation: 'Rak A3',
   });
@@ -127,7 +126,6 @@ test('validateHandoverInput mewajibkan mesin pada semua kategori termasuk STABIL
     category: 'STABILITY TINGGI',
     machine: 'AST 67-16L',
     information: 'Monitoring kestabilan batch.',
-    issue: '',
     followUp: '',
     palletLocation: 'Zona C - Palet 14',
   });
@@ -244,6 +242,7 @@ test('canEditReport menerapkan otorisasi pembuat vs supervisor', () => {
     fullName: 'Budi Santoso',
     role: 'pengawas',
     canEditAll: false,
+    approvalStatus: 'approved',
   };
   const supervisor: UserProfile = {
     id: 'user-sup',
@@ -251,6 +250,7 @@ test('canEditReport menerapkan otorisasi pembuat vs supervisor', () => {
     fullName: 'Hendra',
     role: 'supervisor',
     canEditAll: true,
+    approvalStatus: 'approved',
   };
 
   assert.equal(canEditReport(sampleReports[0], shift1User), true);
@@ -290,8 +290,8 @@ test('buildHandoverWorkbook menghasilkan 1 worksheet DETAIL DATA modern berwarna
     'Shift',
     'Kategori',
     'Mesin',
+    'Tahap & Hasil Uji',
     'Update Shift / Informasi / Keterangan',
-    'Masalah',
     'Tindak Lanjut',
     'Lokasi Palet',
     'Status',
@@ -423,6 +423,7 @@ test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, 
     fullName: 'Suryadi (Admin)',
     role: 'admin',
     canEditAll: true,
+    approvalStatus: 'approved',
   };
   const supervisor: UserProfile = {
     id: 'sup-1',
@@ -430,6 +431,7 @@ test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, 
     fullName: 'Hendra',
     role: 'supervisor',
     canEditAll: true,
+    approvalStatus: 'approved',
   };
 
   assert.equal(hasFullShiftAccess(admin), true);
@@ -471,6 +473,7 @@ test('Pengawas dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
     fullName: 'Budi Santoso',
     role: 'pengawas',
     canEditAll: false,
+    approvalStatus: 'approved',
   };
   const op2: UserProfile = {
     id: 'user-shift-2',
@@ -478,6 +481,7 @@ test('Pengawas dibatasi batas input +4 jam untuk Shift 1, 2, 3 (weekday & Sabtu)
     fullName: 'Rina Wijaya',
     role: 'pengawas',
     canEditAll: false,
+    approvalStatus: 'approved',
   };
 
   assert.equal(
@@ -673,7 +677,7 @@ test('calculateShiftSpan dan computeCaseDurations menghitung total durasi per ca
   assert.equal(single.durationShifts, 1);
 });
 
-test('hari Minggu tidak dihitung jika tidak ada shift yang update, namun dihitung untuk shift Minggu yang memiliki update', () => {
+test('hari Minggu dan hari libur penuh (3 shift kosong) tidak dihitung ke Total Durasi', () => {
   // 2026-11-14 = Sabtu, 2026-11-15 = Minggu, 2026-11-16 = Senin
   // Tanpa update di hari Minggu: Sabtu Shift 3 -> Senin Shift 1 = 2 Shift
   assert.equal(calculateShiftSpan('2026-11-14', 'Shift 3', '2026-11-16', 'Shift 1'), 2);
@@ -690,6 +694,7 @@ test('hari Minggu tidak dihitung jika tidak ada shift yang update, namun dihitun
     3
   );
 
+  // Hari kerja normal dengan activeDates: 2026-11-14 punya laporan, 2026-11-16 punya laporan (Minggu dilewati)
   const weekendOpenCase: HandoverReport = {
     ...sampleReports[0],
     id: 'sun-skip-1',
@@ -699,14 +704,25 @@ test('hari Minggu tidak dihitung jika tidak ada shift yang update, namun dihitun
     machine: 'AST 25-12L',
     isCompleted: false,
   };
+  const saturdayActiveReport: HandoverReport = {
+    ...sampleReports[1],
+    id: 'sat-active-1',
+    reportDate: '2026-11-14', // Sabtu masuk kerja (ada laporan dari mesin lain)
+    shift: 'Shift 1',
+    category: 'CASE PERBAIKAN PART',
+    machine: 'AST 9-16L',
+    isCompleted: true,
+  };
 
   // Diperiksa pada Minggu 15 Nov jam 10:00 tanpa laporan Minggu:
   // Jumat (3) + Sabtu (3) + Minggu tanpa update (0) = 6 Shift
   const sundayNoUpdate = computeCaseDurations(
-    [weekendOpenCase],
+    [weekendOpenCase, saturdayActiveReport],
     new Date(2026, 10, 15, 10, 0)
   );
-  assert.equal(sundayNoUpdate[0].durationShifts, 6);
+  const openDuration = sundayNoUpdate.find((d) => d.machineName === 'AST 25-12L');
+  assert.ok(openDuration);
+  assert.equal(openDuration.durationShifts, 6);
 
   // Jika selesai Senin 16 Nov Shift 1 tanpa update Minggu:
   // Jumat (3) + Sabtu (3) + Minggu (0) + Senin Shift 1 (1) = 7 Shift
@@ -718,10 +734,12 @@ test('hari Minggu tidak dihitung jika tidak ada shift yang update, namun dihitun
     isCompleted: true,
   };
   const monWithoutSunday = computeCaseDurations(
-    [weekendOpenCase, closedMonday],
+    [weekendOpenCase, saturdayActiveReport, closedMonday],
     new Date(2026, 10, 16, 10, 0)
   );
-  assert.equal(monWithoutSunday[0].durationShifts, 7);
+  const monClosedDur = monWithoutSunday.find((d) => d.machineName === 'AST 25-12L');
+  assert.ok(monClosedDur);
+  assert.equal(monClosedDur.durationShifts, 7);
 
   // Jika ada update pada Minggu 15 Nov Shift 1:
   // Jumat (3) + Sabtu (3) + Minggu Shift 1 (1) + Senin Shift 1 (1) = 8 Shift
@@ -733,10 +751,38 @@ test('hari Minggu tidak dihitung jika tidak ada shift yang update, namun dihitun
     isCompleted: false,
   };
   const monWithSundayShift1 = computeCaseDurations(
-    [weekendOpenCase, sundayShift1Report, closedMonday],
+    [weekendOpenCase, saturdayActiveReport, sundayShift1Report, closedMonday],
     new Date(2026, 10, 16, 10, 0)
   );
-  assert.equal(monWithSundayShift1[0].durationShifts, 8);
+  const monWithSunDur = monWithSundayShift1.find((d) => d.machineName === 'AST 25-12L');
+  assert.ok(monWithSunDur);
+  assert.equal(monWithSunDur.durationShifts, 8);
+
+  // Jika hari biasa (mis. Selasa 17 Nov) semua 3 shift kosong sama sekali (libur nasional), jangan dihitung:
+  // Senin 16 Nov S1-S3 (3) + Selasa 17 Nov Libur (0) + Rabu 18 Nov S1 (1) = 4 Shift
+  const monRepairStart: HandoverReport = {
+    ...sampleReports[0],
+    id: 'hol-1',
+    reportDate: '2026-11-16',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 14-12L',
+    isRepairStart: true,
+    isCompleted: false,
+  };
+  const wedClosedAfterHoliday: HandoverReport = {
+    ...monRepairStart,
+    id: 'hol-2',
+    reportDate: '2026-11-18',
+    shift: 'Shift 1',
+    isRepairStart: undefined,
+    isCompleted: true,
+  };
+  const holidaySkipRes = computeCaseDurations(
+    [monRepairStart, wedClosedAfterHoliday],
+    new Date(2026, 10, 18, 10, 0)
+  );
+  assert.equal(holidaySkipRes[0].durationShifts, 4);
 });
 
 test('extractOAuthErrorFromUrl, mapAuthErrorMessage, dan default role pengawas bekerja dengan benar', () => {
@@ -917,7 +963,7 @@ test('countMilitaryInReport, countStabilityInReport, dan ekspor kolom Total Mili
   const wb = buildHandoverWorkbook([repMultiMilitary, repStabilityText, repStabilityCat]);
   const ws = wb.Sheets['DETAIL DATA'];
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
-  // Baris 5 (idx 4) -> repMultiMilitary: Military = 2, Stability = 0
+  // Baris 5 (idx 4) -> repMultiMilitary: Military = 2, Stability = 0 (kolom 11 & 12)
   assert.equal(rows[4][11], 2);
   assert.equal(rows[4][12], 0);
   // Baris 6 (idx 5) -> repStabilityText: Military = 1, Stability = 1
@@ -931,6 +977,413 @@ test('countMilitaryInReport, countStabilityInReport, dan ekspor kolom Total Mili
   assert.equal(rows[7][11], 3);
   assert.equal(rows[7][12], 2);
 });
+
+test('SOP 4 Tahap Pabrik: Perbaikan -> Military (ulang jika bocor) -> Stability (Overhaul 4j & 8j, Non-Overhaul langsung 8j)', () => {
+  // Skenario 1: Kasus OVERHAUL (AST 47-16L)
+  // Shift 1: Perbaikan setting (Tahap 1)
+  const step1Repair: HandoverReport = {
+    ...sampleReports[0],
+    id: 'wf-1',
+    reportDate: '2026-11-17',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 47-16L',
+    activityStage: 'REPAIR',
+    information: 'Setting PMA dan press 10 turunan selesai.',
+    isRepairStart: true,
+    isCompleted: false,
+  };
+
+  const ctxAfterRepair = getCaseWorkflowContext([step1Repair], 'OVERHAUL', 'AST 47-16L');
+  assert.equal(ctxAfterRepair.hasStartedRepair, true);
+  assert.equal(ctxAfterRepair.militaryCount, 0);
+  assert.equal(ctxAfterRepair.suggestedMilitaryRound, 1);
+  assert.equal(ctxAfterRepair.hasPassedMilitary, false);
+  assert.equal(ctxAfterRepair.suggestedStage, 'MILITARY'); // siap ambil military 1
+
+  // Shift 2: Ambil Military 1 ternyata BOCOR 4 box (Tahap 2 Gagal -> kembali ke perbaikan)
+  const step2Military1Leak: HandoverReport = {
+    ...step1Repair,
+    id: 'wf-2',
+    shift: 'Shift 2',
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'LEAK',
+    militaryLeakBoxes: 4,
+    palletLocation: 'Line 3 - Palet 01',
+    information: 'Ambil military 1: bocor 4 box line 3 seal luka.',
+  };
+
+  const ctxAfterLeak = getCaseWorkflowContext([step1Repair, step2Military1Leak], 'OVERHAUL', 'AST 47-16L');
+  assert.equal(ctxAfterLeak.militaryCount, 1);
+  assert.equal(ctxAfterLeak.suggestedMilitaryRound, 2);
+  assert.equal(ctxAfterLeak.lastMilitaryStatus, 'LEAK');
+  assert.equal(ctxAfterLeak.hasPassedMilitary, false);
+  assert.equal(ctxAfterLeak.suggestedStage, 'REPAIR'); // Aturan 1: Jika bocor, perbaikan lagi!
+
+  // Shift 3: Perbaikan setting ganti seal (Tahap 1 lagi)
+  const step3RepairAgain: HandoverReport = {
+    ...step1Repair,
+    id: 'wf-3',
+    shift: 'Shift 3',
+    activityStage: 'REPAIR',
+    information: 'Ganti seal baru & setting ulang press 20T.',
+  };
+
+  // Shift 4: Ambil Military 2 OK (0% bocor) di palet 'Line 3 - Palet 02'
+  const step4Military2Ok: HandoverReport = {
+    ...step1Repair,
+    id: 'wf-4',
+    reportDate: '2026-11-18',
+    shift: 'Shift 1',
+    activityStage: 'MILITARY',
+    militaryRound: 2,
+    militaryStatus: 'OK',
+    militaryLeakBoxes: 0,
+    palletLocation: 'Line 3 - Palet 02',
+    information: 'Ambil military 2: 0% bocor (OK).',
+  };
+
+  const ctxAfterMil2Ok = getCaseWorkflowContext(
+    [step1Repair, step2Military1Leak, step3RepairAgain, step4Military2Ok],
+    'OVERHAUL',
+    'AST 47-16L'
+  );
+  assert.equal(ctxAfterMil2Ok.militaryCount, 2);
+  assert.equal(ctxAfterMil2Ok.hasPassedMilitary, true);
+  // Aturan 2: Jika military OK, lanjut stability di palet yang sama!
+  assert.equal(ctxAfterMil2Ok.suggestedStage, 'STABILITY');
+  assert.equal(ctxAfterMil2Ok.lastPalletLocation, 'Line 3 - Palet 02');
+  // Aturan 4 (Overhaul): Fase pertama stability adalah 4 Jam
+  assert.deepEqual(ctxAfterMil2Ok.allowedStabilityPhases, ['4_HOURS', '8_HOURS']);
+  assert.equal(ctxAfterMil2Ok.suggestedStabilityPhase, '4_HOURS');
+
+  // Shift 5: Uji Stability 4 Jam OK
+  const step5Stability4hOk: HandoverReport = {
+    ...step1Repair,
+    id: 'wf-5',
+    reportDate: '2026-11-18',
+    shift: 'Shift 2',
+    activityStage: 'STABILITY',
+    stabilityPhase: '4_HOURS',
+    stabilityStatus: 'OK',
+    palletLocation: 'Line 3 - Palet 02', // Palet yang sama
+    information: 'Uji stability 4 jam OK.',
+  };
+
+  const ctxAfter4hOk = getCaseWorkflowContext(
+    [step1Repair, step2Military1Leak, step3RepairAgain, step4Military2Ok, step5Stability4hOk],
+    'OVERHAUL',
+    'AST 47-16L'
+  );
+  assert.equal(ctxAfter4hOk.hasPassedStability4h, true);
+  // Aturan 3: Jika stability 4 jam OK -> lanjut 8 jam
+  assert.equal(ctxAfter4hOk.suggestedStage, 'STABILITY');
+  assert.equal(ctxAfter4hOk.suggestedStabilityPhase, '8_HOURS');
+
+  // Shift 6: Uji Stability 8 Jam OK -> Selesai Siap Produksi
+  const step6Stability8hOk: HandoverReport = {
+    ...step1Repair,
+    id: 'wf-6',
+    reportDate: '2026-11-18',
+    shift: 'Shift 3',
+    activityStage: 'STABILITY',
+    stabilityPhase: '8_HOURS',
+    stabilityStatus: 'OK',
+    palletLocation: 'Line 3 - Palet 02',
+    information: 'Uji stability 8 jam OK. Siap produksi.',
+    isCompleted: true,
+  };
+
+  const fullCaseReports = [
+    step1Repair,
+    step2Military1Leak,
+    step3RepairAgain,
+    step4Military2Ok,
+    step5Stability4hOk,
+    step6Stability8hOk,
+  ];
+
+  // Verifikasi perhitungan durasi & total count
+  const durations = computeCaseDurations(fullCaseReports, new Date(2026, 10, 19, 8, 0));
+  assert.equal(durations[0].isCompleted, true);
+  assert.equal(durations[0].totalMilitary, 2); // 2 kali ambil military
+  assert.equal(durations[0].totalStability, 2); // 2 kali uji stability (4 jam & 8 jam)
+  assert.equal(durations[0].durationShifts, 6); // 17 Nov S1 s/d 18 Nov S3 = 6 Shift
+
+  // Skenario 2: Kasus NON-OVERHAUL (CASE PERBAIKAN PART)
+  // Aturan 4: Jika case selain overhaul, setelah military OK langsung stability 8 jam
+  const nonOhMilitaryOk: HandoverReport = {
+    ...sampleReports[0],
+    id: 'non-oh-1',
+    category: 'CASE PERBAIKAN PART',
+    machine: 'AST 14-12L',
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'OK',
+    palletLocation: 'Rak Part B',
+    information: 'Military OK',
+  };
+
+  const nonOhCtx = getCaseWorkflowContext([nonOhMilitaryOk], 'CASE PERBAIKAN PART', 'AST 14-12L');
+  assert.deepEqual(nonOhCtx.allowedStabilityPhases, ['8_HOURS']);
+  assert.equal(nonOhCtx.suggestedStabilityPhase, '8_HOURS'); // Langsung 8 jam!
+  assert.equal(nonOhCtx.suggestedStage, 'STABILITY');
+  assert.equal(nonOhCtx.lastPalletLocation, 'Rak Part B');
+
+  // Format badge visual
+  const milBadge = formatWorkflowBadge(step2Military1Leak);
+  assert.equal(milBadge?.badgeLabel, 'Military #1: Bocor 4 Box');
+  const stabBadge = formatWorkflowBadge(step5Stability4hOk);
+  assert.equal(stabBadge?.badgeLabel, 'Stability 4 Jam: OK');
+  const repairBadge = formatWorkflowBadge(step1Repair);
+  assert.equal(repairBadge?.badgeLabel, 'Perbaikan / Setting');
+});
+
+test('requiresPalletLocation hanya menampilkan Lokasi Palet saat ambil military atau stability', () => {
+  assert.equal(requiresPalletLocation('OVERHAUL', 'OH'), false);
+  assert.equal(requiresPalletLocation('OVERHAUL', 'Setting PMA press 10T masih bocor'), false);
+  assert.equal(requiresPalletLocation('OVERHAUL', 'ambil military'), true);
+  assert.equal(requiresPalletLocation('OVERHAUL', 'hasil military OK\nambil stability'), true);
+  assert.equal(requiresPalletLocation('CASE PERBAIKAN PART', 'ambil stability line 3'), true);
+  assert.equal(requiresPalletLocation('STABILITY TINGGI', 'Monitoring suhu'), true);
+});
+
+test('shouldShowRepairStartField hanya muncul sekali per case mesin yang aktif setelah dijawab Ya', () => {
+  const ohOpen: HandoverReport = {
+    ...sampleReports[0],
+    id: 'rs-1',
+    reportDate: '2026-11-16',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 47-16L',
+    information: 'OH',
+    isRepairStart: false,
+    isCompleted: false,
+  };
+  assert.equal(shouldShowRepairStartField([ohOpen], 'OVERHAUL', ''), false);
+  assert.equal(shouldShowRepairStartField([ohOpen], 'OVERHAUL', 'AST 47-16L'), true);
+
+  const startedOpen: HandoverReport = {
+    ...ohOpen,
+    id: 'rs-2',
+    reportDate: '2026-11-16',
+    shift: 'Shift 2',
+    information: 'Setting PMA press 10T',
+    isRepairStart: true,
+    isCompleted: false,
+  };
+  // Setelah dijawab Ya pada case aktif AST 47-16L, form input tidak lagi menampilkan pertanyaan ini
+  assert.equal(
+    shouldShowRepairStartField([ohOpen, startedOpen], 'OVERHAUL', 'AST 47-16L'),
+    false
+  );
+  // Mesin lain tetap memunculkan pertanyaan
+  assert.equal(
+    shouldShowRepairStartField([ohOpen, startedOpen], 'OVERHAUL', 'AST 9-16L'),
+    true
+  );
+  // Saat mengedit laporan yang memegang jawaban Ya, field tetap ditampilkan
+  assert.equal(
+    shouldShowRepairStartField([ohOpen, startedOpen], 'OVERHAUL', 'AST 47-16L', startedOpen),
+    true
+  );
+
+  // Setelah case sebelumnya ditandai selesai (isCompleted: true), case baru memunculkan pertanyaan lagi
+  const closedPrev: HandoverReport = {
+    ...startedOpen,
+    id: 'rs-3',
+    reportDate: '2026-11-16',
+    shift: 'Shift 3',
+    information: 'Military OK',
+    isCompleted: true,
+  };
+  assert.equal(
+    shouldShowRepairStartField([ohOpen, startedOpen, closedPrev], 'OVERHAUL', 'AST 47-16L'),
+    true
+  );
+});
+
+test('normalizeApprovalStatus memvalidasi status konfirmasi Admin dengan benar', () => {
+  assert.equal(normalizeApprovalStatus('pending', false), 'pending');
+  assert.equal(normalizeApprovalStatus('approved', false), 'approved');
+  assert.equal(normalizeApprovalStatus('rejected', false), 'rejected');
+  assert.equal(normalizeApprovalStatus('pending', true), 'approved');
+  assert.equal(normalizeApprovalStatus(undefined, false), 'approved');
+});
+
+test('status PENDING (Belum Diuji) pada Military dan Stability tidak dihitung ganda dan diteruskan ke shift berikutnya', () => {
+  const prepMilShift1: HandoverReport = {
+    ...sampleReports[0],
+    id: 'pend-mil-1',
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 31-12L',
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'PENDING',
+    palletLocation: 'Staging Line B',
+    information: 'Ambil Military Ke-1: Palet sudah siap, hasil uji menyusul di shift berikutnya.',
+    isRepairStart: true,
+    isCompleted: false,
+  };
+
+  // Saat Shift 1 baru membuat palet (PENDING): hitungan Military = 0, saran tetap MILITARY #1
+  assert.equal(countMilitaryInReport(prepMilShift1), 0);
+  const ctxPendingMil = getCaseWorkflowContext([prepMilShift1], 'OVERHAUL', 'AST 31-12L');
+  assert.equal(ctxPendingMil.suggestedStage, 'MILITARY');
+  assert.equal(ctxPendingMil.suggestedMilitaryRound, 1);
+  assert.equal(ctxPendingMil.militaryCount, 0);
+  assert.equal(ctxPendingMil.lastPalletLocation, 'Staging Line B');
+  assert.equal(formatWorkflowBadge(prepMilShift1)?.badgeLabel, 'Military #1: Belum Diuji');
+
+  // Shift 2 menginput hasil uji Military #1 OK -> total Military hanya 1 (tidak ganda)
+  const testMilShift2: HandoverReport = {
+    ...prepMilShift1,
+    id: 'pend-mil-2',
+    shift: 'Shift 2',
+    militaryStatus: 'OK',
+    militaryLeakBoxes: 0,
+    information: 'Ambil Military Ke-1: 0% Bocor (OK).',
+    isRepairStart: false,
+  };
+  assert.equal(countMilitaryInReport(testMilShift2), 1);
+
+  // Shift 2 juga mulai Stability 4 Jam namun belum sempat dicek hasilnya (PENDING)
+  const prepStabShift2: HandoverReport = {
+    ...prepMilShift1,
+    id: 'pend-stab-1',
+    shift: 'Shift 3',
+    activityStage: 'STABILITY',
+    stabilityPhase: '4_HOURS',
+    stabilityStatus: 'PENDING',
+    palletLocation: 'Staging Line B',
+    information: 'Palet masuk chamber stability 4 jam.',
+    isRepairStart: false,
+  };
+  assert.equal(countStabilityInReport(prepStabShift2), 0);
+  assert.equal(formatWorkflowBadge(prepStabShift2)?.badgeLabel, 'Stability 4 Jam: Belum Diuji');
+
+  const ctxPendingStab = getCaseWorkflowContext(
+    [prepMilShift1, testMilShift2, prepStabShift2],
+    'OVERHAUL',
+    'AST 31-12L'
+  );
+  assert.equal(ctxPendingStab.suggestedStage, 'STABILITY');
+  assert.equal(ctxPendingStab.suggestedStabilityPhase, '4_HOURS');
+
+  // Shift berikutnya menginput hasil Stability 4 Jam OK
+  const testStabShiftNext: HandoverReport = {
+    ...prepStabShift2,
+    id: 'pend-stab-2',
+    reportDate: '2026-11-20',
+    shift: 'Shift 1',
+    stabilityStatus: 'OK',
+    information: 'Uji Stability 4 Jam OK.',
+    isCompleted: false,
+  };
+
+  const dur = computeCaseDurations(
+    [prepMilShift1, testMilShift2, prepStabShift2, testStabShiftNext],
+    new Date(2026, 10, 20, 10, 0)
+  );
+  assert.equal(dur[0].totalMilitary, 1);
+  assert.equal(dur[0].totalStability, 1);
+
+  const wb = buildHandoverWorkbook([prepMilShift1, testMilShift2, prepStabShift2, testStabShiftNext]);
+  const ws = wb.Sheets['DETAIL DATA'];
+  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
+  assert.equal(rows[4][5], 'Military #1 [Belum Diuji]');
+  assert.equal(rows[4][11], 0);
+  assert.equal(rows[5][11], 1);
+  assert.equal(rows[6][5], 'Stability 4 Jam [Belum Diuji]');
+  assert.equal(rows[6][12], 0);
+  assert.equal(rows[7][12], 1);
+  assert.equal(rows[8][11], 1);
+  assert.equal(rows[8][12], 1);
+});
+
+test('Opsi A: tahap OH (belum mulai perbaikan) tidak menghitung durasi, tidak memunculkan Lokasi Palet, dan REPAIR berikutnya otomatis jadi Shift ke-1', () => {
+  const ohReport: HandoverReport = {
+    ...sampleReports[0],
+    id: 'opt-a-oh',
+    reportDate: '2026-11-16',
+    shift: 'Shift 2',
+    category: 'OVERHAUL',
+    machine: 'AST 47-16L',
+    activityStage: 'OH',
+    information: 'OH',
+    palletLocation: '',
+    isRepairStart: false,
+    isCompleted: false,
+  };
+
+  assert.equal(requiresPalletLocation('OVERHAUL', 'OH', 'OH'), false);
+  assert.equal(requiresPalletLocation('STABILITY TINGGI', 'OH', 'OH'), false);
+  assert.equal(countMilitaryInReport(ohReport), 0);
+  assert.equal(countStabilityInReport(ohReport), 0);
+  assert.equal(formatWorkflowBadge(ohReport)?.badgeLabel, 'OH (Belum Perbaikan)');
+
+  const ohOnlyDurations = computeCaseDurations(
+    [ohReport],
+    new Date(2026, 10, 16, 18, 0)
+  );
+  assert.equal(ohOnlyDurations.length, 1);
+  assert.equal(ohOnlyDurations[0].hasStartedRepair, false);
+  assert.equal(ohOnlyDurations[0].durationShifts, 0);
+  assert.deepEqual(ohOnlyDurations[0].countedReportIds, []);
+
+  const ctxAfterOh = getCaseWorkflowContext([ohReport], 'OVERHAUL', 'AST 47-16L');
+  assert.equal(ctxAfterOh.hasStartedRepair, false);
+  assert.equal(ctxAfterOh.suggestedStage, 'REPAIR');
+
+  // Shift berikutnya masuk tahap REPAIR (bahkan jika isRepairStart false, tetap otomatis jadi Shift ke-1)
+  const repairStartReport: HandoverReport = {
+    ...ohReport,
+    id: 'opt-a-repair',
+    reportDate: '2026-11-17',
+    shift: 'Shift 1',
+    activityStage: 'REPAIR',
+    information: 'Setting PMA sudah press 10T masih bocor L2N3',
+    isRepairStart: false,
+    isCompleted: false,
+  };
+
+  const startedDurations = computeCaseDurations(
+    [ohReport, repairStartReport],
+    new Date(2026, 10, 17, 10, 0)
+  );
+  assert.equal(startedDurations[0].hasStartedRepair, true);
+  assert.equal(startedDurations[0].startDate, '2026-11-17');
+  assert.equal(startedDurations[0].startShift, 'Shift 1');
+  assert.equal(startedDurations[0].durationShifts, 1);
+  assert.deepEqual(startedDurations[0].countedReportIds, ['opt-a-repair']);
+
+  // Verifikasi output Excel untuk baris OH vs REPAIR hingga selesai (deterministik)
+  const closingReport: HandoverReport = {
+    ...repairStartReport,
+    id: 'opt-a-close',
+    shift: 'Shift 2',
+    activityStage: 'STABILITY',
+    stabilityPhase: '8_HOURS',
+    stabilityStatus: 'OK',
+    palletLocation: 'Staging A',
+    information: 'Stability 8 Jam OK',
+    isCompleted: true,
+  };
+  const wb = buildHandoverWorkbook([ohReport, repairStartReport, closingReport]);
+  const ws = wb.Sheets['DETAIL DATA'];
+  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
+  assert.equal(rows[4][5], 'OH (Belum Perbaikan)');
+  assert.equal(rows[4][10], '0 Shift');
+  assert.equal(ws['F5'].s?.fill?.fgColor?.rgb, 'F1F5F9');
+  assert.equal(rows[5][5], 'Perbaikan / Setting');
+  assert.equal(rows[5][10], '2 Shift');
+  assert.equal(rows[6][5], 'Stability 8 Jam [OK (Stabil)]');
+  assert.equal(rows[6][10], '2 Shift');
+});
+
 
 
 
