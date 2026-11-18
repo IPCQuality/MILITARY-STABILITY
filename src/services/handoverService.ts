@@ -279,6 +279,7 @@ export async function ensureFirebaseUserProfile(
       role: effectiveRole,
       canEditAll: Boolean(snapData.canEditAll) || isPrimaryAdmin || effectiveRole !== 'pengawas',
       approvalStatus,
+      photoURL: firebaseUser.photoURL ?? null,
     };
   }
 
@@ -310,6 +311,7 @@ export async function ensureFirebaseUserProfile(
     role: initialRole,
     canEditAll: initialCanEditAll,
     approvalStatus: initialApprovalStatus,
+    photoURL: firebaseUser.photoURL ?? null,
   };
 }
 

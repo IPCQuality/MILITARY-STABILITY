@@ -106,16 +106,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-      <div>
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-          Report &amp; Ekspor Excel
-        </h2>
-        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-          Pilih filter data yang dibutuhkan lalu unduh laporan dalam format Excel (.xlsx).
-        </p>
-      </div>
-
+    <div className="max-w-4xl mx-auto space-y-4">
       {/* Filter & Download Card */}
       <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-200 overflow-hidden">
         <div className="p-5 space-y-4">

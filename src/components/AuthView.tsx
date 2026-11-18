@@ -6,6 +6,7 @@ import {
   signInWithGoogleFirebase,
   signUpFirebase,
 } from '../services/handoverService';
+import { BrandLogo } from './BrandLogo';
 
 interface AuthViewProps {
   onAuthenticated: (user: UserProfile) => void;
@@ -120,13 +121,18 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
       <div className="max-w-md w-full mx-auto space-y-4">
         {/* Compact Brand Banner */}
         <div className="bg-[#0F294A] text-white rounded-xl px-6 py-5 border border-slate-800 shadow-xs">
-          <p className="text-[11px] font-mono tracking-wider text-slate-300 uppercase">
-            Shift Handover Log
-          </p>
-          <h1 className="mt-1 text-xl sm:text-2xl font-bold tracking-tight">
-            MILITARY &amp; STABILITY
-          </h1>
-          <p className="mt-1.5 text-xs text-slate-200 leading-relaxed">
+          <div className="flex items-center gap-3.5">
+            <BrandLogo size={38} variant="light" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-mono tracking-wider text-slate-300 uppercase">
+                Shift Handover Log
+              </p>
+              <h1 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight">
+                MILITARY &amp; STABILITY
+              </h1>
+            </div>
+          </div>
+          <p className="mt-2.5 text-xs text-slate-200 leading-relaxed">
             Masuk menggunakan akun terdaftar untuk mencatat &amp; memantau handover antar-shift.
           </p>
         </div>

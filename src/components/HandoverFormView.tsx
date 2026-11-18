@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import {
-  ArrowLeft,
   CheckCircle2,
   Clock,
   Hourglass,
@@ -387,22 +386,6 @@ export function HandoverFormView({
 
   return (
     <div className="max-w-2xl mx-auto space-y-4">
-      {/* Page Header */}
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">
-          {editingReport ? 'Edit Handover' : 'Input Handover'}
-        </h2>
-
-        <button
-          type="button"
-          onClick={onCancel}
-          className="min-h-[38px] px-4 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap transition-all"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Kembali</span>
-        </button>
-      </div>
-
       {operatorClosedNow && (
         <div
           role="alert"

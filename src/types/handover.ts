@@ -157,6 +157,7 @@ export interface UserProfile {
   role: UserRole;
   canEditAll: boolean;
   approvalStatus: ApprovalStatus;
+  photoURL?: string | null;
 }
 
 export interface HandoverReport {
@@ -214,4 +215,5 @@ export type NavSection =
   | 'input'
   | 'history'
   | 'export'
-  | 'settings';
+  | 'settings'
+  | 'admin';

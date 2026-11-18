@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import {
+  ArrowLeft,
   Clock,
   FileSpreadsheet,
   History,
@@ -33,16 +34,18 @@ import {
   updateReportFirebase,
 } from './services/handoverService';
 import { AuthView } from './components/AuthView';
+import { BrandLogo } from './components/BrandLogo';
 import { DashboardView } from './components/DashboardView';
 import { HandoverFormView } from './components/HandoverFormView';
 import { HistoryView } from './components/HistoryView';
 import { ExportView } from './components/ExportView';
 import { SettingsView } from './components/SettingsView';
+import { AdminView } from './components/AdminView';
 import { ReportDetailModal } from './components/ReportDetailModal';
 import { getCurrentShiftStatus, mapAuthErrorMessage } from './utils/handoverLogic';
 
 const PRIMARY_TABS: {
-  id: Exclude<NavSection, 'input'>;
+  id: Exclude<NavSection, 'input' | 'admin'>;
   label: string;
   icon: typeof LayoutDashboard;
 }[] = [
@@ -184,11 +187,13 @@ export default function App() {
 
         setCurrentUser((prev) => {
           if (!prev) return prev;
+          const nextPhoto = auth.currentUser?.photoURL ?? prev.photoURL ?? null;
           if (
             prev.role === nextRole &&
             prev.approvalStatus === nextApproval &&
             prev.canEditAll === nextCanEditAll &&
-            prev.fullName === nextName
+            prev.fullName === nextName &&
+            prev.photoURL === nextPhoto
           ) {
             return prev;
           }
@@ -198,6 +203,7 @@ export default function App() {
             role: nextRole,
             canEditAll: nextCanEditAll,
             approvalStatus: nextApproval,
+            photoURL: nextPhoto,
           };
         });
       },
@@ -336,8 +342,9 @@ export default function App() {
   if (initializing) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <div className="text-center space-y-2">
-          <p className="text-sm font-semibold text-slate-800">MILITARY &amp; STABILITY</p>
+        <div className="text-center flex flex-col items-center gap-2.5">
+          <BrandLogo size={36} />
+          <p className="text-sm font-bold text-[#0F294A] tracking-tight">MILITARY &amp; STABILITY</p>
           <p className="text-xs text-slate-500">Memuat sesi aplikasi...</p>
         </div>
       </div>
@@ -353,13 +360,16 @@ export default function App() {
     return (
       <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col justify-center py-8 px-4 sm:px-6">
         <div className="max-w-md w-full mx-auto space-y-4">
-          <div className="bg-[#0F294A] text-white rounded-xl px-6 py-5 border border-slate-800 shadow-xs">
-            <p className="text-[11px] font-mono tracking-wider text-slate-300 uppercase">
-              Shift Handover Log
-            </p>
-            <h1 className="mt-1 text-xl font-bold tracking-tight">
-              MILITARY &amp; STABILITY
-            </h1>
+          <div className="bg-[#0F294A] text-white rounded-xl px-6 py-5 border border-slate-800 shadow-xs flex items-center gap-3.5">
+            <BrandLogo size={36} variant="light" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-mono tracking-wider text-slate-300 uppercase">
+                Shift Handover Log
+              </p>
+              <h1 className="mt-0.5 text-xl font-bold tracking-tight truncate">
+                MILITARY &amp; STABILITY
+              </h1>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-300 p-6 space-y-5 shadow-xs">
@@ -455,11 +465,25 @@ export default function App() {
   }
 
   const activeLabel =
-    activeNav === 'input'
-      ? editingReport
-        ? 'Edit Handover'
-        : 'Input Handover'
-      : PRIMARY_TABS.find((t) => t.id === activeNav)?.label ?? 'Dashboard';
+    activeNav === 'admin'
+      ? 'Menu Admin'
+      : activeNav === 'input'
+        ? editingReport
+          ? 'Edit Handover'
+          : 'Input Handover'
+        : PRIMARY_TABS.find((t) => t.id === activeNav)?.label ?? 'Dashboard';
+
+  const isSubPage = activeNav === 'input' || activeNav === 'admin';
+
+  function handleHeaderBack() {
+    if (activeNav === 'admin') {
+      setActiveNav('settings');
+      return;
+    }
+    setEditingReport(null);
+    setFormPreset(null);
+    setActiveNav('dashboard');
+  }
 
   const headerShiftStatus = getCurrentShiftStatus(headerNow);
   const headerShiftLabel =
@@ -470,20 +494,25 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col md:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200 z-30">
-        <div className="px-5 py-5 border-b border-slate-200">
-          <p className="text-[11px] font-mono tracking-wider text-slate-500 uppercase">
-            Shift Handover
-          </p>
-          <h1 className="mt-1 text-base font-bold tracking-tight text-[#0F294A] whitespace-nowrap">
-            MILITARY &amp; STABILITY
-          </h1>
+      <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 bg-white border-r border-slate-200 z-40">
+        <div className="h-[60px] px-4 border-b border-slate-200 flex items-center gap-2.5 shrink-0">
+          <BrandLogo size={28} />
+          <div className="min-w-0 leading-tight">
+            <p className="text-[10px] font-mono tracking-wider text-slate-500 uppercase truncate">
+              Shift Handover
+            </p>
+            <span className="block text-sm font-bold tracking-tight text-[#0F294A] truncate">
+              MILITARY &amp; STABILITY
+            </span>
+          </div>
         </div>
 
         <nav aria-label="Navigasi Utama" className="flex-1 px-3 py-4 space-y-1.5">
           {PRIMARY_TABS.map((item) => {
             const Icon = item.icon;
-            const active = activeNav === item.id;
+            const active =
+              activeNav === item.id ||
+              (item.id === 'settings' && activeNav === 'admin');
             return (
               <button
                 key={item.id}
@@ -527,35 +556,42 @@ export default function App() {
 
       {/* Main Content Area */}
       <div className="flex-1 md:pl-60 flex flex-col min-w-0">
-        {/* Compact Top Bar */}
-        <header className="sticky top-0 z-20 min-h-[58px] py-2 bg-white/95 backdrop-blur-sm border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="md:hidden text-sm font-bold tracking-tight text-[#0F294A] whitespace-nowrap">
-                MILITARY &amp; STABILITY
-              </span>
-              <span className="md:hidden text-slate-300" aria-hidden="true">
-                /
-              </span>
-              <span className="text-sm font-semibold text-slate-900 truncate">
-                {activeLabel}
-              </span>
+        {/* Fixed Uniform Top Header (Never Scrolls) */}
+        <header className="fixed top-0 left-0 right-0 md:left-60 z-30 h-[60px] bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {isSubPage ? (
+              <button
+                type="button"
+                onClick={handleHeaderBack}
+                aria-label="Kembali"
+                className="w-9 h-9 -ml-1.5 rounded-lg hover:bg-slate-100 active:scale-[0.96] text-slate-700 flex items-center justify-center shrink-0 transition-all"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            ) : (
+              <BrandLogo size={26} className="md:hidden" />
+            )}
+            <div className="min-w-0 leading-tight">
+              <h1 className="text-[13px] sm:text-sm font-bold tracking-tight truncate">
+                <span className="text-[#0F294A]">MILITARY &amp; STABILITY</span>
+                <span className="text-slate-400 font-normal">/</span>
+                <span className="text-slate-800">{activeLabel}</span>
+              </h1>
+              <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-0.5">
+                {headerShiftStatus.dateFormatted}
+              </p>
             </div>
-            <p className="mt-0.5 text-[11px] sm:text-xs text-slate-500 truncate">
-              {headerShiftStatus.dateFormatted} ·{' '}
-              <span className="font-semibold text-[#0F294A]">{headerShiftLabel}</span>
-            </p>
           </div>
 
           <div className="flex items-center gap-2.5 shrink-0">
-            <span className="hidden sm:inline text-xs font-medium text-slate-600 truncate max-w-[160px]">
-              {currentUser.fullName}
+            <span className="hidden sm:inline text-xs font-semibold text-[#0F294A] whitespace-nowrap">
+              {headerShiftLabel}
             </span>
             <button
               type="button"
               onClick={() => fetchReports()}
               aria-label="Sinkronkan Data Terbaru"
-              className="min-h-[38px] px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1.5 whitespace-nowrap transition-all"
+              className="min-h-[36px] px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1.5 whitespace-nowrap transition-all"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loadingReports ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Sinkronkan</span>
@@ -563,12 +599,13 @@ export default function App() {
           </div>
         </header>
 
-        {/* Feedback Toast */}
-        {toast && (
-          <div className="px-4 sm:px-6 pt-3">
+        {/* Active View — directly below fixed header without sub-headers */}
+        <main className="flex-1 px-4 sm:px-6 pt-[76px] sm:pt-[80px] pb-28 md:pb-12 max-w-6xl w-full mx-auto">
+          {/* Feedback Toast */}
+          {toast && (
             <div
               role="status"
-              className={`max-w-5xl mx-auto p-3 rounded-lg border text-sm flex items-center justify-between gap-3 ${
+              className={`mb-4 p-3 rounded-lg border text-sm flex items-center justify-between gap-3 ${
                 toast.ok
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
                   : 'bg-rose-50 border-rose-200 text-rose-900'
@@ -583,11 +620,8 @@ export default function App() {
                 Tutup
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Active View */}
-        <main className="flex-1 px-4 sm:px-6 py-5 sm:py-6 pb-28 md:pb-12 max-w-6xl w-full mx-auto">
           {activeNav === 'dashboard' && (
             <DashboardView
               reports={reports}
@@ -636,13 +670,22 @@ export default function App() {
             <SettingsView
               currentUser={currentUser}
               onLogout={handleLogout}
+              onOpenAdmin={
+                currentUser.role === 'admin'
+                  ? () => setActiveNav('admin')
+                  : undefined
+              }
             />
+          )}
+
+          {activeNav === 'admin' && (
+            <AdminView currentUser={currentUser} />
           )}
         </main>
       </div>
 
       {/* Floating Input Button */}
-      {activeNav !== 'input' && !selectedReport && (
+      {!isSubPage && !selectedReport && (
         <button
           type="button"
           onClick={openFloatingInput}
@@ -660,7 +703,9 @@ export default function App() {
       >
         {PRIMARY_TABS.map((item) => {
           const Icon = item.icon;
-          const active = activeNav === item.id;
+          const active =
+            activeNav === item.id ||
+            (item.id === 'settings' && activeNav === 'admin');
           return (
             <button
               key={item.id}
