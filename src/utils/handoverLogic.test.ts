@@ -283,45 +283,45 @@ test('buildHandoverWorkbook menghasilkan 1 worksheet DETAIL DATA modern berwarna
 
   const detailSheet = wb.Sheets['DETAIL DATA'];
   const detailJson = XLSX.utils.sheet_to_json<(string | number)[]>(detailSheet, { header: 1 });
-  assert.equal(detailJson[0][0], 'DETAIL DATA SHIFT HANDOVER — MILITARY & STABILITY');
-  assert.deepEqual(detailJson[3], [
-    'ID',
+  assert.equal(detailJson[0][0], 'DATA MILITARY & STABILITY');
+  assert.deepEqual(detailJson[1], [
+    'No',
     'Tanggal',
     'Shift',
-    'Kategori',
     'Mesin',
+    'Kategori',
     'Tahap & Hasil Uji',
-    'Update Shift / Informasi / Keterangan',
+    'Update Shift / Keterangan',
     'Tindak Lanjut',
     'Lokasi Palet',
     'Status',
     'Total Durasi',
     'Total Military',
     'Total Stability',
-    'Pembuat',
+    'PIC',
     'Waktu Dibuat',
-    'Waktu Diperbarui',
   ]);
-  // 4 baris banner/spacer/header + 4 data + 1 baris TOTAL KESELURUHAN = 9 baris total
-  assert.equal(detailJson.length, 9);
-  assert.equal(detailSheet['!autofilter']?.ref, 'A4:P8');
-  assert.ok(Array.isArray(detailSheet['!merges']) && detailSheet['!merges'].length === 2);
-  assert.ok(Array.isArray(detailSheet['!cols']) && detailSheet['!cols'].length === 16);
+  // 1 baris judul + 1 baris header tabel + 4 data (tanpa ringkasan & tanpa TOTAL KESELURUHAN) = 6 baris
+  assert.equal(detailJson.length, 6);
+  assert.equal(detailJson[2][0], 1);
+  assert.equal(detailJson[2][3], 'AST 9-16L');
+  assert.equal(detailJson[2][4], 'OVERHAUL');
+  assert.equal(detailJson[5][0], 4);
+  assert.equal(detailSheet['!autofilter']?.ref, 'A2:O6');
+  assert.ok(Array.isArray(detailSheet['!merges']) && detailSheet['!merges'].length === 1);
+  assert.ok(Array.isArray(detailSheet['!cols']) && detailSheet['!cols'].length === 15);
 
-  // Verifikasi cell styling & nilai (banner navy A1, header A4, status badge, total durasi, total military & stability)
-  assert.equal(detailSheet['A1'].s?.fill?.fgColor?.rgb, '0F294A');
-  assert.equal(detailSheet['A4'].s?.fill?.fgColor?.rgb, '1E3A5F');
-  assert.equal(detailSheet['A4'].s?.font?.bold, true);
-  assert.equal(detailSheet['J8'].v, 'OK (Selesai)');
-  assert.equal(detailSheet['J8'].s?.fill?.fgColor?.rgb, 'BBF7D0');
-  assert.equal(detailSheet['K8'].v, '1 Shift');
-  assert.equal(detailSheet['K8'].s?.fill?.fgColor?.rgb, 'DCFCE7');
-  assert.equal(detailSheet['M6'].v, 1); // rep-2 kategori STABILITY TINGGI
-  assert.equal(detailJson[8][4], 'TOTAL KESELURUHAN');
-  assert.equal(detailJson[8][11], 0);
-  assert.equal(detailJson[8][12], 1);
+  // Verifikasi header teal baru & nilai cell data
+  assert.equal(detailSheet['A1'].s?.fill?.fgColor?.rgb, '115E59');
+  assert.equal(detailSheet['A2'].s?.fill?.fgColor?.rgb, '0F766E');
+  assert.equal(detailSheet['A2'].s?.font?.bold, true);
+  assert.equal(detailSheet['J6'].v, 'OK (Selesai)');
+  assert.equal(detailSheet['J6'].s?.fill?.fgColor?.rgb, 'BBF7D0');
+  assert.equal(detailSheet['K6'].v, '1 Shift');
+  assert.equal(detailSheet['K6'].s?.fill?.fgColor?.rgb, 'DCFCE7');
+  assert.equal(detailSheet['M4'].v, 1); // rep-2 kategori STABILITY TINGGI
 
-  assert.equal(buildHandoverFilename('2026-11-13'), 'HANDOVER_2026-11-13.xlsx');
+  assert.equal(buildHandoverFilename(), 'Data Military & Stability.xlsx');
 
   // Pastikan xlsx-js-style bisa menulis dan membaca ulang buffer XLSX valid
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer;
@@ -412,8 +412,8 @@ test('mesin yang dicentang selesai (OK) di Shift 3 tanggal 13 Nov tetap tampil s
 
   const wb = buildHandoverWorkbook([shift3CheckedOk]);
   const rows = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['DETAIL DATA'], { header: 1 });
-  // 4 baris header/banner + 1 baris data + 1 baris TOTAL KESELURUHAN
-  assert.equal(rows.length, 6);
+  // 1 baris judul + 1 baris header + 1 baris data = 3 baris
+  assert.equal(rows.length, 3);
 });
 
 test('Admin dan Supervisor punya akses full (pilih shift & tanggal input bebas, edit bebas)', () => {
@@ -963,19 +963,20 @@ test('countMilitaryInReport, countStabilityInReport, dan ekspor kolom Total Mili
   const wb = buildHandoverWorkbook([repMultiMilitary, repStabilityText, repStabilityCat]);
   const ws = wb.Sheets['DETAIL DATA'];
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
-  // Baris 5 (idx 4) -> repMultiMilitary: Military = 2, Stability = 0 (kolom 11 & 12)
-  assert.equal(rows[4][11], 2);
-  assert.equal(rows[4][12], 0);
-  // Baris 6 (idx 5) -> repStabilityText: Military = 1, Stability = 1
-  assert.equal(rows[5][11], 1);
-  assert.equal(rows[5][12], 1);
-  // Baris 7 (idx 6) -> repStabilityCat: Military = 0, Stability = 1
-  assert.equal(rows[6][11], 0);
-  assert.equal(rows[6][12], 1);
-  // Baris TOTAL KESELURUHAN (idx 7): Total Military = 3, Total Stability = 2
-  assert.equal(rows[7][4], 'TOTAL KESELURUHAN');
-  assert.equal(rows[7][11], 3);
-  assert.equal(rows[7][12], 2);
+  // Baris 3 (idx 2) -> repMultiMilitary: Military = 2, Stability = 0 (kolom 11 & 12)
+  assert.equal(rows[2][0], 1);
+  assert.equal(rows[2][11], 2);
+  assert.equal(rows[2][12], 0);
+  // Baris 4 (idx 3) -> repStabilityText: Military = 1, Stability = 1
+  assert.equal(rows[3][0], 2);
+  assert.equal(rows[3][11], 1);
+  assert.equal(rows[3][12], 1);
+  // Baris 5 (idx 4) -> repStabilityCat: Military = 0, Stability = 1
+  assert.equal(rows[4][0], 3);
+  assert.equal(rows[4][11], 0);
+  assert.equal(rows[4][12], 1);
+  // Tanpa baris TOTAL KESELURUHAN -> total 5 baris (2 header + 3 data)
+  assert.equal(rows.length, 5);
 });
 
 test('SOP 4 Tahap Pabrik: Perbaikan -> Military (ulang jika bocor) -> Stability (Overhaul 4j & 8j, Non-Overhaul langsung 8j)', () => {
@@ -1294,14 +1295,13 @@ test('status PENDING (Belum Diuji) pada Military dan Stability tidak dihitung ga
   const wb = buildHandoverWorkbook([prepMilShift1, testMilShift2, prepStabShift2, testStabShiftNext]);
   const ws = wb.Sheets['DETAIL DATA'];
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
-  assert.equal(rows[4][5], 'Military #1 [Belum Diuji]');
-  assert.equal(rows[4][11], 0);
-  assert.equal(rows[5][11], 1);
-  assert.equal(rows[6][5], 'Stability 4 Jam [Belum Diuji]');
-  assert.equal(rows[6][12], 0);
-  assert.equal(rows[7][12], 1);
-  assert.equal(rows[8][11], 1);
-  assert.equal(rows[8][12], 1);
+  assert.equal(rows[2][5], 'Military #1 [Belum Diuji]');
+  assert.equal(rows[2][11], 0);
+  assert.equal(rows[3][11], 1);
+  assert.equal(rows[4][5], 'Stability 4 Jam [Belum Diuji]');
+  assert.equal(rows[4][12], 0);
+  assert.equal(rows[5][12], 1);
+  assert.equal(rows.length, 6);
 });
 
 test('Opsi A: tahap OH (belum mulai perbaikan) tidak menghitung durasi, tidak memunculkan Lokasi Palet, dan REPAIR berikutnya otomatis jadi Shift ke-1', () => {
@@ -1375,13 +1375,16 @@ test('Opsi A: tahap OH (belum mulai perbaikan) tidak menghitung durasi, tidak me
   const wb = buildHandoverWorkbook([ohReport, repairStartReport, closingReport]);
   const ws = wb.Sheets['DETAIL DATA'];
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
-  assert.equal(rows[4][5], 'OH (Belum Perbaikan)');
-  assert.equal(rows[4][10], '0 Shift');
-  assert.equal(ws['F5'].s?.fill?.fgColor?.rgb, 'F1F5F9');
-  assert.equal(rows[5][5], 'Perbaikan / Setting');
-  assert.equal(rows[5][10], '2 Shift');
-  assert.equal(rows[6][5], 'Stability 8 Jam [OK (Stabil)]');
-  assert.equal(rows[6][10], '2 Shift');
+  assert.equal(rows[2][0], 1);
+  assert.equal(rows[2][5], 'OH (Belum Perbaikan)');
+  assert.equal(rows[2][10], '0 Shift');
+  assert.equal(ws['F3'].s?.fill?.fgColor?.rgb, 'F1F5F9');
+  assert.equal(rows[3][0], 2);
+  assert.equal(rows[3][5], 'Perbaikan / Setting');
+  assert.equal(rows[3][10], '2 Shift');
+  assert.equal(rows[4][0], 3);
+  assert.equal(rows[4][5], 'Stability 8 Jam [OK (Stabil)]');
+  assert.equal(rows[4][10], '2 Shift');
 });
 
 

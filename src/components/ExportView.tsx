@@ -19,7 +19,6 @@ import {
   filterAndSortReports,
   formatWorkflowBadge,
   getOperationalDateString,
-  getTodayDateString,
 } from '../utils/handoverLogic';
 
 interface ExportViewProps {
@@ -64,7 +63,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
   }, [previewRows]);
 
   const operationalToday = getOperationalDateString();
-  const targetFilename = buildHandoverFilename(exportDate || getTodayDateString());
+  const targetFilename = buildHandoverFilename();
 
   async function handleExportExcel() {
     setStatusMsg(null);
