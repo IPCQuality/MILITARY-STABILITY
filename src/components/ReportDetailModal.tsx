@@ -10,6 +10,7 @@ import {
   formatDisplayDate,
   formatWorkflowBadge,
 } from '../utils/handoverLogic';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
 interface ReportDetailModalProps {
   report: HandoverReport | null;
@@ -26,6 +27,8 @@ export function ReportDetailModal({
   onClose,
   onEdit,
 }: ReportDetailModalProps) {
+  useBodyScrollLock(Boolean(report));
+
   useEffect(() => {
     if (!report) return;
     function handleKeyDown(e: KeyboardEvent) {
@@ -61,7 +64,7 @@ export function ReportDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/50 backdrop-blur-[2px] p-0 sm:p-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/50 backdrop-blur-[2px] p-0 sm:p-4 overscroll-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="detail-modal-title"
@@ -112,7 +115,7 @@ export function ReportDetailModal({
         </div>
 
         {/* Body */}
-        <div className="p-5 overflow-y-auto text-sm space-y-4">
+        <div className="p-5 overflow-y-auto overscroll-contain text-sm space-y-4">
           {caseMetrics && (
             <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
               <div>

@@ -42,6 +42,7 @@ import { ExportView } from './components/ExportView';
 import { SettingsView } from './components/SettingsView';
 import { AdminView } from './components/AdminView';
 import { ReportDetailModal } from './components/ReportDetailModal';
+import { useBodyScrollLock } from './hooks/useBodyScrollLock';
 import { getCurrentShiftStatus, mapAuthErrorMessage } from './utils/handoverLogic';
 
 const PRIMARY_TABS: {
@@ -81,6 +82,8 @@ export default function App() {
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
   const [headerNow, setHeaderNow] = useState(() => new Date());
   const [checkingApproval, setCheckingApproval] = useState(false);
+
+  useBodyScrollLock(Boolean(currentUser) && currentUser?.approvalStatus === 'approved' && activeNav === 'input');
 
   useEffect(() => {
     const timer = window.setInterval(() => setHeaderNow(new Date()), 30000);
@@ -644,18 +647,41 @@ export default function App() {
           )}
 
           {activeNav === 'input' && (
-            <HandoverFormView
-              currentUser={currentUser}
-              reports={reports}
-              editingReport={editingReport}
-              presetValues={formPreset}
-              onSubmitReport={handleSubmitReport}
-              onCancel={() => {
-                setEditingReport(null);
-                setFormPreset(null);
-                setActiveNav('dashboard');
-              }}
-            />
+            <div className="fixed inset-x-0 top-[60px] bottom-0 md:left-60 z-20 bg-slate-50 overflow-y-auto overscroll-contain px-4 sm:px-6 pt-4 sm:pt-5 pb-28 md:pb-12">
+              <div className="max-w-6xl w-full mx-auto">
+                {toast && (
+                  <div
+                    role="status"
+                    className={`mb-4 max-w-2xl mx-auto p-3 rounded-lg border text-sm flex items-center justify-between gap-3 ${
+                      toast.ok
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                        : 'bg-rose-50 border-rose-200 text-rose-900'
+                    }`}
+                  >
+                    <span>{toast.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => setToast(null)}
+                      className="text-xs font-semibold underline shrink-0"
+                    >
+                      Tutup
+                    </button>
+                  </div>
+                )}
+                <HandoverFormView
+                  currentUser={currentUser}
+                  reports={reports}
+                  editingReport={editingReport}
+                  presetValues={formPreset}
+                  onSubmitReport={handleSubmitReport}
+                  onCancel={() => {
+                    setEditingReport(null);
+                    setFormPreset(null);
+                    setActiveNav('dashboard');
+                  }}
+                />
+              </div>
+            </div>
           )}
 
           {activeNav === 'history' && (

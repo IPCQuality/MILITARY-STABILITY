@@ -170,7 +170,7 @@ export function MachinePicker({
           </div>
 
           {/* Options List */}
-          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-64 overflow-y-auto overscroll-contain divide-y divide-slate-100">
             {filteredGroups.length === 0 ? (
               <div className="px-4 py-6 text-center text-xs text-slate-500">
                 Mesin &ldquo;{query}&rdquo; tidak ditemukan.
