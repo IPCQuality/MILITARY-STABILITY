@@ -205,8 +205,11 @@ export interface HandoverFormInput {
 
 export interface HistoryFilters {
   date: string; // '' = semua tanggal, or 'YYYY-MM-DD'
+  startDate?: string; // opsional rentang tanggal awal
+  endDate?: string; // opsional rentang tanggal akhir
   shift: ShiftType | 'ALL';
   category: CategoryType | 'ALL';
+  status?: 'ALL' | 'OPEN' | 'COMPLETED';
   keyword: string;
 }
 

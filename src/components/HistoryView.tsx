@@ -14,7 +14,9 @@ import {
   computeCaseDurations,
   filterAndSortReports,
   formatDateTimeId,
+  formatDisplayDate,
   formatWorkflowBadge,
+  getOperationalDateString,
 } from '../utils/handoverLogic';
 
 interface HistoryViewProps {
@@ -36,6 +38,17 @@ export function HistoryView({
   onSelectReport,
   onEditReport,
 }: HistoryViewProps) {
+  const operationalToday = getOperationalDateString();
+  const [opYear, opMonth, opDay] = operationalToday.split('-').map(Number);
+  const past7DateStr = useMemo(() => {
+    const d = new Date(opYear, opMonth - 1, opDay - 6, 12, 0);
+    return getOperationalDateString(d);
+  }, [opYear, opMonth, opDay]);
+  const monthStartStr = useMemo(() => {
+    const d = new Date(opYear, opMonth - 1, 1, 12, 0);
+    return getOperationalDateString(d);
+  }, [opYear, opMonth]);
+
   const filteredReports = useMemo(
     () => filterAndSortReports(reports, filters),
     [reports, filters]
@@ -55,101 +68,228 @@ export function HistoryView({
     return map;
   }, [reports]);
 
+  const startDate = filters.startDate ?? '';
+  const endDate = filters.endDate ?? '';
+  const statusFilter = filters.status ?? 'ALL';
+
   const hasActiveFilters =
     Boolean(filters.date) ||
+    Boolean(startDate) ||
+    Boolean(endDate) ||
     filters.shift !== 'ALL' ||
     filters.category !== 'ALL' ||
+    statusFilter !== 'ALL' ||
     Boolean(filters.keyword.trim());
 
   function resetFilters() {
     onChangeFilters({
       date: '',
+      startDate: '',
+      endDate: '',
       shift: 'ALL',
       category: 'ALL',
+      status: 'ALL',
       keyword: '',
     });
+  }
+
+  function applyDatePreset(preset: 'all' | 'today' | '7days' | 'month') {
+    if (preset === 'all') {
+      onChangeFilters({ ...filters, date: '', startDate: '', endDate: '' });
+    } else if (preset === 'today') {
+      onChangeFilters({
+        ...filters,
+        date: '',
+        startDate: operationalToday,
+        endDate: operationalToday,
+      });
+    } else if (preset === '7days') {
+      onChangeFilters({
+        ...filters,
+        date: '',
+        startDate: past7DateStr,
+        endDate: operationalToday,
+      });
+    } else if (preset === 'month') {
+      onChangeFilters({
+        ...filters,
+        date: '',
+        startDate: monthStartStr,
+        endDate: operationalToday,
+      });
+    }
   }
 
   return (
     <div className="space-y-4">
       {/* Filter Bar */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="sm:col-span-2 lg:col-span-1">
-          <label htmlFor="filter-keyword" className="block text-xs font-semibold text-slate-600 mb-1">
-            Cari Mesin / Kata Kunci
-          </label>
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              id="filter-keyword"
-              type="text"
-              value={filters.keyword}
-              onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
-              placeholder="Cari mesin, palet, pembuat..."
-              className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-            />
+      <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3.5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-semibold text-slate-700">Filter Riwayat</span>
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100">
+            <button
+              type="button"
+              onClick={() => applyDatePreset('all')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                !startDate && !endDate && !filters.date
+                  ? 'bg-white text-[#0F294A] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Semua
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDatePreset('today')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                startDate === operationalToday && endDate === operationalToday
+                  ? 'bg-white text-[#0F294A] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Hari Ini
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDatePreset('7days')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                startDate === past7DateStr && endDate === operationalToday
+                  ? 'bg-white text-[#0F294A] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              7 Hari
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDatePreset('month')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                startDate === monthStartStr && endDate === operationalToday
+                  ? 'bg-white text-[#0F294A] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Bulan Ini
+            </button>
           </div>
         </div>
 
-        <div>
-          <label htmlFor="filter-date" className="block text-xs font-semibold text-slate-600 mb-1">
-            Tanggal
-          </label>
-          <input
-            id="filter-date"
-            type="date"
-            value={filters.date}
-            onChange={(e) => onChangeFilters({ ...filters, date: e.target.value })}
-            className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-          />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div>
+            <label htmlFor="filter-keyword" className="block text-xs font-semibold text-slate-600 mb-1">
+              Cari Mesin / Kata Kunci
+            </label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                id="filter-keyword"
+                type="text"
+                value={filters.keyword}
+                onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
+                placeholder="Cari mesin, palet, PIC..."
+                className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="filter-start-date" className="block text-xs font-semibold text-slate-600 mb-1">
+              Dari Tanggal
+            </label>
+            <input
+              id="filter-start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) =>
+                onChangeFilters({ ...filters, date: '', startDate: e.target.value })
+              }
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="filter-end-date" className="block text-xs font-semibold text-slate-600 mb-1">
+              Sampai Tanggal
+            </label>
+            <input
+              id="filter-end-date"
+              type="date"
+              value={endDate}
+              onChange={(e) =>
+                onChangeFilters({ ...filters, date: '', endDate: e.target.value })
+              }
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="filter-shift" className="block text-xs font-semibold text-slate-600 mb-1">
+              Shift
+            </label>
+            <select
+              id="filter-shift"
+              value={filters.shift}
+              onChange={(e) =>
+                onChangeFilters({ ...filters, shift: e.target.value as ShiftType | 'ALL' })
+              }
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            >
+              <option value="ALL">Semua Shift</option>
+              {SHIFTS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="filter-category" className="block text-xs font-semibold text-slate-600 mb-1">
+              Kategori
+            </label>
+            <select
+              id="filter-category"
+              value={filters.category}
+              onChange={(e) =>
+                onChangeFilters({
+                  ...filters,
+                  category: e.target.value as CategoryType | 'ALL',
+                })
+              }
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            >
+              <option value="ALL">Semua Kategori</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="filter-status" className="block text-xs font-semibold text-slate-600 mb-1">
+              Status
+            </label>
+            <select
+              id="filter-status"
+              value={statusFilter}
+              onChange={(e) =>
+                onChangeFilters({
+                  ...filters,
+                  status: e.target.value as 'ALL' | 'OPEN' | 'COMPLETED',
+                })
+              }
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+            >
+              <option value="ALL">Semua Status</option>
+              <option value="OPEN">Berlanjut</option>
+              <option value="COMPLETED">Selesai (OK)</option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label htmlFor="filter-shift" className="block text-xs font-semibold text-slate-600 mb-1">
-            Shift
-          </label>
-          <select
-            id="filter-shift"
-            value={filters.shift}
-            onChange={(e) =>
-              onChangeFilters({ ...filters, shift: e.target.value as ShiftType | 'ALL' })
-            }
-            className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-          >
-            <option value="ALL">Semua Shift</option>
-            {SHIFTS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="filter-category" className="block text-xs font-semibold text-slate-600 mb-1">
-            Kategori
-          </label>
-          <select
-            id="filter-category"
-            value={filters.category}
-            onChange={(e) =>
-              onChangeFilters({
-                ...filters,
-                category: e.target.value as CategoryType | 'ALL',
-              })
-            }
-            className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-          >
-            <option value="ALL">Semua Kategori</option>
-            {CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="sm:col-span-2 lg:col-span-4 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
           <p className="text-xs text-slate-500 tabular-nums">
             Menampilkan <span className="font-semibold text-slate-800">{filteredReports.length}</span> dari{' '}
             <span className="font-semibold text-slate-800">{reports.length}</span> laporan
@@ -199,7 +339,7 @@ export function HistoryView({
                     <th className="py-3 px-4">Mesin &amp; Kategori</th>
                     <th className="py-3 px-4">Tahap &amp; Keterangan</th>
                     <th className="py-3 px-4">Lokasi Palet</th>
-                    <th className="py-3 px-4">Pembuat</th>
+                    <th className="py-3 px-4">PIC</th>
                     <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
@@ -212,7 +352,7 @@ export function HistoryView({
                       <tr key={rep.id} className="hover:bg-slate-50/70 align-top">
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           <p className="font-mono text-xs font-semibold tabular-nums text-slate-900">
-                            {rep.reportDate}
+                            {formatDisplayDate(rep.reportDate)}
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">{rep.shift}</p>
                         </td>
@@ -223,7 +363,7 @@ export function HistoryView({
                             {durationShifts !== undefined && (
                               <span className="text-slate-500 font-medium">
                                 {' '}
-                                | {durationShifts} Shift
+                                · Total: {durationShifts} Shift
                               </span>
                             )}
                           </p>
@@ -311,7 +451,9 @@ export function HistoryView({
                         <span aria-hidden="true"> · </span>
                         <span>{rep.category}</span>
                       </div>
-                      <span className="font-mono tabular-nums shrink-0">{rep.reportDate}</span>
+                      <span className="font-mono tabular-nums shrink-0">
+                        {formatDisplayDate(rep.reportDate)}
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -320,7 +462,7 @@ export function HistoryView({
                         {durationShifts !== undefined && (
                           <span className="text-slate-500 font-medium text-xs">
                             {' '}
-                            | {durationShifts} Shift
+                            · Total: {durationShifts} Shift
                           </span>
                         )}
                       </p>

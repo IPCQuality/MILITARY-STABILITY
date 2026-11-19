@@ -58,7 +58,11 @@ export function DashboardView({
         className="bg-white rounded-xl border border-slate-200 overflow-hidden"
       >
         {/* Category Header Row */}
-        <div className="px-4 py-3 sm:px-5 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">
+        <div
+          className={`px-4 py-3 sm:px-5 bg-slate-50 flex items-center justify-between gap-3 ${
+            machineGroups.length > 0 ? 'border-b border-slate-200' : ''
+          }`}
+        >
           <div className="flex items-center gap-2 min-w-0">
             <h3 className="text-xs sm:text-sm font-bold tracking-wide text-slate-900 truncate">
               {category}
@@ -84,12 +88,8 @@ export function DashboardView({
           </button>
         </div>
 
-        {/* Empty Category State */}
-        {machineGroups.length === 0 ? (
-          <div className="px-4 py-4 sm:px-5 text-xs sm:text-sm text-slate-400">
-            Belum ada mesin aktif.
-          </div>
-        ) : (
+        {/* Machine List */}
+        {machineGroups.length > 0 && (
           <div className="divide-y divide-slate-200">
             {machineGroups.map((group) => (
               <div key={group.machineName}>
@@ -100,7 +100,11 @@ export function DashboardView({
                       aria-label={group.isCompleted ? 'Status OK' : 'Dalam proses'}
                       data-machine-status={group.isCompleted ? 'ok' : 'in-progress'}
                       className={`inline-block h-2.5 w-2.5 rounded-full shrink-0 ${
-                        group.isCompleted ? 'bg-emerald-600' : 'bg-amber-500'
+                        group.isCompleted
+                          ? 'bg-emerald-600'
+                          : !group.hasStartedRepair
+                            ? 'bg-slate-400'
+                            : 'bg-amber-500'
                       }`}
                     />
                     <span
@@ -113,12 +117,20 @@ export function DashboardView({
                   </div>
                   <span
                     className={`text-xs font-semibold tabular-nums shrink-0 ${
-                      group.isCompleted ? 'text-emerald-700' : 'text-amber-700'
+                      group.isCompleted
+                        ? 'text-emerald-700'
+                        : !group.hasStartedRepair
+                          ? 'text-slate-600'
+                          : 'text-amber-700'
                     }`}
                   >
                     {group.isCompleted
-                      ? 'Selesai (OK)'
-                      : `Dalam Proses · ${group.rows.length} shift`}
+                      ? group.durationShifts > 0
+                        ? `Selesai (OK) · ${group.durationShifts} shift`
+                        : 'Selesai (OK)'
+                      : !group.hasStartedRepair
+                        ? 'OH · 0 shift'
+                        : `Dalam Proses · ${group.durationShifts} shift`}
                   </span>
                 </div>
 
@@ -222,6 +234,23 @@ export function DashboardView({
                                   </button>
                                 );
                               })}
+                              {row.canFill && !group.isCompleted && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    onCreatePreset({
+                                      reportDate: today,
+                                      shift: row.shift,
+                                      category,
+                                      machine: group.rawMachine ?? '',
+                                    })
+                                  }
+                                  className="w-full min-h-[36px] px-3.5 sm:px-4 py-2 text-left text-xs text-[#0F294A] font-semibold hover:bg-blue-50/50 transition-colors flex items-center gap-1.5"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>Tambah tahap / update di {row.shift}</span>
+                                </button>
+                              )}
                             </div>
                           ) : row.canFill ? (
                             <button
@@ -257,19 +286,19 @@ export function DashboardView({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Category Grid */}
       {loading ? (
         <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-sm text-slate-500">
           Memuat catatan handover hari ini...
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-          <div data-testid="dashboard-col-overhaul" className="space-y-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+          <div data-testid="dashboard-col-overhaul" className="space-y-4">
             {renderCategoryCard('OVERHAUL')}
           </div>
 
-          <div data-testid="dashboard-col-others" className="space-y-5">
+          <div data-testid="dashboard-col-others" className="space-y-4">
             {OTHER_CATEGORIES.map((category) => renderCategoryCard(category))}
           </div>
         </div>

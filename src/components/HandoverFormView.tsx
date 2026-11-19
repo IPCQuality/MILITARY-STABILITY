@@ -13,11 +13,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
-  APK_MACHINES,
-  AST_MACHINES,
   CATEGORIES,
-  MACHINE_OPTIONS,
-  OTHER_MACHINES,
   SHIFTS,
   type ActivityStage,
   type CategoryType,
@@ -32,6 +28,9 @@ import {
 import {
   canSubmitReport,
   categoryRequiresMachine,
+  formatDisplayDate,
+  formatWorkflowBadge,
+  getActiveMachinesForCategory,
   getCaseWorkflowContext,
   getCurrentShiftStatus,
   getOpenOperatorShiftSlots,
@@ -43,6 +42,7 @@ import {
   isOperatorShiftInputAllowed,
   validateHandoverInput,
 } from '../utils/handoverLogic';
+import { MachinePicker } from './MachinePicker';
 
 interface HandoverFormViewProps {
   currentUser: UserProfile;
@@ -106,13 +106,14 @@ export function HandoverFormView({
   const [stageManuallyPicked, setStageManuallyPicked] = useState(false);
   const [militaryRound, setMilitaryRound] = useState<number>(1);
   const [militaryStatus, setMilitaryStatus] = useState<MilitaryStatus>('PENDING');
-  const [militaryLeakBoxes, setMilitaryLeakBoxes] = useState<string>('0');
+  const [militaryLeakBoxes, setMilitaryLeakBoxes] = useState<string>('1');
   const [stabilityPhase, setStabilityPhase] = useState<StabilityPhase>('4_HOURS');
   const [stabilityStatus, setStabilityStatus] = useState<StabilityStatus>('PENDING');
 
   const [information, setInformation] = useState('');
   const [followUp, setFollowUp] = useState('');
   const [palletLocation, setPalletLocation] = useState('');
+  const [palletManuallyEdited, setPalletManuallyEdited] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<
     Partial<Record<keyof HandoverFormInput, string>>
@@ -154,10 +155,27 @@ export function HandoverFormView({
 
   const isOverhaul = category === 'OVERHAUL';
 
+  // Saat kategori berubah ke non-Overhaul, pastikan stabilityPhase langsung ke 8 Jam
+  useEffect(() => {
+    if (!isOverhaul && stabilityPhase === '4_HOURS') {
+      setStabilityPhase('8_HOURS');
+    }
+  }, [isOverhaul, stabilityPhase]);
+
+  // Reset tanda edit manual lokasi palet hanya ketika mesin atau kategori berganti
+  useEffect(() => {
+    if (!editingReport) {
+      setPalletManuallyEdited(false);
+    }
+  }, [machine, category, editingReport]);
+
   // Saat mesin berubah (input baru), sarankan tahapan kerja alami & nomor military
   useEffect(() => {
     if (editingReport) return;
-    if (!machine) return;
+    if (!machine) {
+      setPalletLocation('');
+      return;
+    }
 
     if (!stageManuallyPicked) {
       setActivityStage(wfContext.suggestedStage);
@@ -170,8 +188,8 @@ export function HandoverFormView({
       setStabilityPhase(wfContext.suggestedStabilityPhase);
     }
 
-    if (!palletLocation && wfContext.lastPalletLocation) {
-      setPalletLocation(wfContext.lastPalletLocation);
+    if (!palletManuallyEdited) {
+      setPalletLocation(wfContext.lastPalletLocation || '');
     }
   }, [
     machine,
@@ -179,14 +197,14 @@ export function HandoverFormView({
     isOverhaul,
     editingReport,
     stageManuallyPicked,
+    palletManuallyEdited,
     wfContext.suggestedStage,
     wfContext.suggestedMilitaryRound,
     wfContext.suggestedStabilityPhase,
     wfContext.lastPalletLocation,
-    palletLocation,
   ]);
 
-  // Inisialisasi editing atau preset
+  // Inisialisasi editing atau preset (JANGAN masukkan `category` agar dropdown Kategori bisa diubah bebas)
   useEffect(() => {
     const freshNow = new Date();
     const freshToday = getOperationalDateString(freshNow);
@@ -217,7 +235,13 @@ export function HandoverFormView({
       setStageManuallyPicked(true);
       setMilitaryRound(editingReport.militaryRound ?? 1);
       setMilitaryStatus(editingReport.militaryStatus ?? 'PENDING');
-      setMilitaryLeakBoxes(String(editingReport.militaryLeakBoxes ?? 0));
+      setMilitaryLeakBoxes(
+        String(
+          editingReport.militaryLeakBoxes && editingReport.militaryLeakBoxes > 0
+            ? editingReport.militaryLeakBoxes
+            : 1
+        )
+      );
       setStabilityPhase(
         editingReport.stabilityPhase ??
           (editingReport.category === 'OVERHAUL' ? '4_HOURS' : '8_HOURS')
@@ -227,6 +251,7 @@ export function HandoverFormView({
       setInformation(editingReport.information ?? '');
       setFollowUp(editingReport.followUp ?? '');
       setPalletLocation(editingReport.palletLocation ?? '');
+      setPalletManuallyEdited(true);
       setIsCompleted(Boolean(editingReport.isCompleted));
       setFieldErrors({});
       setSubmitError(null);
@@ -246,18 +271,25 @@ export function HandoverFormView({
         setReportDate(targetDate);
         setShift(targetShift);
       }
-      setCategory(presetValues.category || 'OVERHAUL');
+      const nextCat = presetValues.category || 'OVERHAUL';
+      setCategory(nextCat);
       setMachine(presetValues.machine ?? '');
       setInformation(presetValues.information ?? '');
       setFollowUp(presetValues.followUp ?? '');
       setPalletLocation(presetValues.palletLocation ?? '');
+      setPalletManuallyEdited(Boolean(presetValues.palletLocation));
       setIsCompleted(Boolean(presetValues.isCompleted));
 
       if (presetValues.activityStage) {
         setActivityStage(presetValues.activityStage);
         setStageManuallyPicked(true);
+      } else {
+        setActivityStage('REPAIR');
+        setStageManuallyPicked(false);
       }
       setMilitaryStatus('PENDING');
+      setMilitaryLeakBoxes('1');
+      setStabilityPhase(nextCat === 'OVERHAUL' ? '4_HOURS' : '8_HOURS');
       setStabilityStatus('PENDING');
       setFieldErrors({});
       setSubmitError(null);
@@ -274,26 +306,72 @@ export function HandoverFormView({
       }
       setMachine('');
       setPalletLocation('');
+      setPalletManuallyEdited(false);
       setIsCompleted(false);
       setActivityStage('REPAIR');
       setStageManuallyPicked(false);
       setMilitaryRound(1);
       setMilitaryStatus('PENDING');
-      setMilitaryLeakBoxes('0');
-      setStabilityPhase(category === 'OVERHAUL' ? '4_HOURS' : '8_HOURS');
+      setMilitaryLeakBoxes('1');
+      setStabilityPhase('4_HOURS');
       setStabilityStatus('PENDING');
       setFieldErrors({});
       setSubmitError(null);
     }
-  }, [editingReport, presetValues, fullAccess, category]);
+  }, [editingReport, presetValues, fullAccess]);
 
   const showPalletLocationField =
     activityStage === 'MILITARY' || activityStage === 'STABILITY';
 
+  const canMarkCompleted =
+    activityStage !== 'OH' &&
+    activityStage !== 'MILITARY' &&
+    !(isOverhaul && (activityStage !== 'STABILITY' || stabilityPhase !== '8_HOURS')) &&
+    !(activityStage === 'STABILITY' && (stabilityStatus !== 'OK' || (isOverhaul && stabilityPhase !== '8_HOURS')));
+
+  const completedLockReason = useMemo(() => {
+    if (canMarkCompleted) return null;
+    if (activityStage === 'OH') {
+      return 'Tahap OH (menunggu perbaikan) belum dapat ditandai selesai.';
+    }
+    if (activityStage === 'MILITARY') {
+      return 'Tahap Military wajib dilanjutkan ke Stability sebelum mesin selesai.';
+    }
+    if (isOverhaul && activityStage === 'REPAIR') {
+      return 'Kasus Overhaul wajib melalui Military & Stability 8 Jam sebelum selesai.';
+    }
+    if (isOverhaul && activityStage === 'STABILITY' && stabilityPhase === '4_HOURS') {
+      return 'Pada Overhaul, Stability 4 Jam harus lanjut ke 8 Jam sebelum selesai.';
+    }
+    if (activityStage === 'STABILITY' && stabilityStatus !== 'OK') {
+      return 'Hanya bisa ditandai selesai jika hasil Stability sudah OK.';
+    }
+    return 'Tahap saat ini belum memenuhi syarat untuk ditandai selesai.';
+  }, [canMarkCompleted, activityStage, isOverhaul, stabilityPhase, stabilityStatus]);
+
+  useEffect(() => {
+    if (!canMarkCompleted && isCompleted) {
+      setIsCompleted(false);
+    }
+  }, [canMarkCompleted, isCompleted]);
+
+  const sameSlotReports = useMemo(() => {
+    if (editingReport || !machine.trim() || !reportDate) return [];
+    const normMachine = machine.trim().toUpperCase();
+    return reports.filter(
+      (r) =>
+        r.reportDate === reportDate &&
+        r.shift === shift &&
+        r.category === category &&
+        (r.machine ?? '').trim().toUpperCase() === normMachine
+    );
+  }, [editingReport, reports, reportDate, shift, category, machine]);
+
   const machineRequired = categoryRequiresMachine(category);
-  const isCustomLegacyMachine =
-    Boolean(machine) &&
-    !MACHINE_OPTIONS.includes(machine as (typeof MACHINE_OPTIONS)[number]);
+  const activeMachinesForCategory = useMemo(
+    () => getActiveMachinesForCategory(reports, category),
+    [reports, category]
+  );
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -315,16 +393,21 @@ export function HandoverFormView({
       information: information.trim(),
       followUp: followUp.trim(),
       palletLocation: effectivePalletLocation,
-      isCompleted,
+      isCompleted: canMarkCompleted ? isCompleted : false,
       isRepairStart: effectiveRepairStart,
       activityStage,
       militaryRound: activityStage === 'MILITARY' ? militaryRound : undefined,
       militaryStatus: activityStage === 'MILITARY' ? militaryStatus : undefined,
       militaryLeakBoxes:
         activityStage === 'MILITARY' && militaryStatus === 'LEAK'
-          ? Math.max(0, parseInt(militaryLeakBoxes, 10) || 0)
+          ? parseInt(militaryLeakBoxes, 10) || 0
           : undefined,
-      stabilityPhase: activityStage === 'STABILITY' ? stabilityPhase : undefined,
+      stabilityPhase:
+        activityStage === 'STABILITY'
+          ? isOverhaul
+            ? stabilityPhase
+            : '8_HOURS'
+          : undefined,
       stabilityStatus: activityStage === 'STABILITY' ? stabilityStatus : undefined,
     };
 
@@ -391,7 +474,9 @@ export function HandoverFormView({
           role="alert"
           className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm"
         >
-          Di luar batas input shift (+4 jam). Hubungi Admin atau Supervisor.
+          {now.getDay() === 0
+            ? 'Hari Minggu libur operasional. Pengawas dibatasi; hubungi Admin atau Supervisor jika terdapat shift lembur.'
+            : 'Di luar batas input shift (+4 jam). Hubungi Admin atau Supervisor.'}
         </div>
       )}
 
@@ -401,6 +486,17 @@ export function HandoverFormView({
           className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm"
         >
           {submitError}
+        </div>
+      )}
+
+      {sameSlotReports.length > 0 && (
+        <div
+          role="status"
+          className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm"
+        >
+          Sudah ada <span className="font-semibold">{sameSlotReports.length} laporan</span> untuk{' '}
+          <span className="font-mono font-semibold">{machine}</span> pada {shift} ({reportDate}).
+          Jika hanya ingin merevisi, gunakan tombol Edit di Dashboard/History agar data tidak ganda.
         </div>
       )}
 
@@ -547,39 +643,37 @@ export function HandoverFormView({
             >
               Mesin {machineRequired ? <span className="text-rose-600">*</span> : ''}
             </label>
-            <select
+            <MachinePicker
               id="input-machine"
-              required
               value={machine}
-              onChange={(e) => setMachine(e.target.value)}
-              className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
-            >
-              <option value="">Pilih Mesin</option>
-              {isCustomLegacyMachine && (
-                <option value={machine}>{machine}</option>
-              )}
-              <optgroup label={`Seri AST (${AST_MACHINES.length})`}>
-                {AST_MACHINES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label={`Seri APK (${APK_MACHINES.length})`}>
-                {APK_MACHINES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label={`Lainnya (${OTHER_MACHINES.length})`}>
-                {OTHER_MACHINES.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
+              required={machineRequired}
+              activeMachines={activeMachinesForCategory}
+              onChange={(nextMachine) => {
+                setMachine(nextMachine);
+                if (!editingReport) {
+                  setPalletManuallyEdited(false);
+                  setStageManuallyPicked(false);
+                }
+              }}
+            />
+            {machine && wfContext.lastReport && (
+              <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex flex-wrap items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-semibold text-slate-900">Riwayat Terakhir:</span>
+                  <span className="font-mono text-slate-700">
+                    {wfContext.lastReport.shift} ({formatDisplayDate(wfContext.lastReport.reportDate)})
+                  </span>
+                  {formatWorkflowBadge(wfContext.lastReport) && (
+                    <span className="font-medium text-[#0F294A]">
+                      · {formatWorkflowBadge(wfContext.lastReport)?.badgeLabel}
+                    </span>
+                  )}
+                </div>
+                <span className="text-slate-500 tabular-nums">
+                  PIC: {wfContext.lastReport.createdByName}
+                </span>
+              </div>
+            )}
             {fieldErrors.machine && (
               <p className="mt-1 text-xs text-rose-600">{fieldErrors.machine}</p>
             )}
@@ -628,6 +722,7 @@ export function HandoverFormView({
               onClick={() => {
                 setStageManuallyPicked(true);
                 setActivityStage('REPAIR');
+                setIsCompleted(false);
                 if (isOhOnlyInformation(information)) {
                   setInformation('');
                 }
@@ -648,6 +743,7 @@ export function HandoverFormView({
               onClick={() => {
                 setStageManuallyPicked(true);
                 setActivityStage('MILITARY');
+                setIsCompleted(false);
                 if (isOhOnlyInformation(information)) {
                   setInformation('');
                 }
@@ -668,6 +764,9 @@ export function HandoverFormView({
               onClick={() => {
                 setStageManuallyPicked(true);
                 setActivityStage('STABILITY');
+                if (stabilityStatus !== 'OK' || (isOverhaul && stabilityPhase !== '8_HOURS')) {
+                  setIsCompleted(false);
+                }
                 if (isOhOnlyInformation(information)) {
                   setInformation('');
                 }
@@ -701,34 +800,44 @@ export function HandoverFormView({
                     type="number"
                     aria-label="Nomor pengambilan military"
                     min={1}
-                    max={20}
+                    max={50}
                     value={militaryRound}
                     onChange={(e) =>
-                      setMilitaryRound(Math.max(1, parseInt(e.target.value, 10) || 1))
+                      setMilitaryRound(
+                        Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 1))
+                      )
                     }
                     className="w-14 h-9 px-2 text-sm font-mono font-bold text-center border border-slate-300 rounded-xl bg-white"
                   />
                   <button
                     type="button"
                     aria-label="Tambah nomor military"
-                    onClick={() => setMilitaryRound((prev) => Math.min(20, prev + 1))}
+                    onClick={() => setMilitaryRound((prev) => Math.min(50, prev + 1))}
                     className="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 transition-all"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
+              {fieldErrors.militaryRound && (
+                <p className="text-xs text-rose-600">{fieldErrors.militaryRound}</p>
+              )}
 
               <div>
                 <span className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Hasil Uji
                 </span>
+                {!editingReport && wfContext.hasPendingMilitary && (
+                  <div className="mb-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                    Palet <strong>Military #{militaryRound}</strong> dari shift sebelumnya belum diuji. Klik <strong>OK (0%)</strong> jika lulus, atau <strong>Ada Bocor</strong> jika ada kebocoran.
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setMilitaryStatus('PENDING');
-                      setMilitaryLeakBoxes('0');
+                      setIsCompleted(false);
                       if (!information.trim() || information.startsWith('Ambil Military')) {
                         setInformation(
                           `Ambil Military Ke-${militaryRound}: Palet siap, belum diuji.`
@@ -749,7 +858,6 @@ export function HandoverFormView({
                     type="button"
                     onClick={() => {
                       setMilitaryStatus('OK');
-                      setMilitaryLeakBoxes('0');
                       if (!information.trim() || information.startsWith('Ambil Military')) {
                         setInformation(
                           `Ambil Military Ke-${militaryRound}: 0% Bocor (OK).`
@@ -770,6 +878,10 @@ export function HandoverFormView({
                     type="button"
                     onClick={() => {
                       setMilitaryStatus('LEAK');
+                      setIsCompleted(false);
+                      if (!parseInt(militaryLeakBoxes, 10)) {
+                        setMilitaryLeakBoxes('1');
+                      }
                       if (!information.trim() || information.startsWith('Ambil Military')) {
                         setInformation(
                           `Ambil Military Ke-${militaryRound}: Ada bocor.`
@@ -789,23 +901,38 @@ export function HandoverFormView({
               </div>
 
               {militaryStatus === 'LEAK' && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3 text-xs sm:text-sm">
-                  <label htmlFor="input-leak-boxes" className="text-rose-900 font-medium">
-                    Jumlah Bocor
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      id="input-leak-boxes"
-                      type="number"
-                      min={1}
-                      max={200}
-                      value={militaryLeakBoxes}
-                      onChange={(e) => setMilitaryLeakBoxes(e.target.value)}
-                      placeholder="0"
-                      className="w-20 px-2.5 py-1.5 text-sm font-mono font-bold text-center border border-rose-300 rounded-xl bg-white text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                    />
-                    <span className="text-rose-800 text-xs font-medium">Box</span>
+                <div className="space-y-1.5">
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3 text-xs sm:text-sm">
+                    <label htmlFor="input-leak-boxes" className="text-rose-900 font-medium">
+                      Jumlah Bocor <span className="text-rose-600">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        id="input-leak-boxes"
+                        type="number"
+                        min={1}
+                        max={500}
+                        value={militaryLeakBoxes}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            setMilitaryLeakBoxes('');
+                            return;
+                          }
+                          const parsed = parseInt(raw, 10);
+                          if (!Number.isNaN(parsed)) {
+                            setMilitaryLeakBoxes(String(Math.min(500, Math.max(1, parsed))));
+                          }
+                        }}
+                        placeholder="1"
+                        className="w-20 px-2.5 py-1.5 text-sm font-mono font-bold text-center border border-rose-300 rounded-xl bg-white text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                      />
+                      <span className="text-rose-800 text-xs font-medium">Box</span>
+                    </div>
                   </div>
+                  {fieldErrors.militaryLeakBoxes && (
+                    <p className="text-xs text-rose-600">{fieldErrors.militaryLeakBoxes}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -827,6 +954,7 @@ export function HandoverFormView({
                       type="button"
                       onClick={() => {
                         setStabilityPhase('4_HOURS');
+                        setIsCompleted(false);
                         if (!information.trim() || information.includes('Stability')) {
                           setInformation('Uji Stability 4 Jam.');
                         }
@@ -845,6 +973,9 @@ export function HandoverFormView({
                       type="button"
                       onClick={() => {
                         setStabilityPhase('8_HOURS');
+                        if (stabilityStatus === 'OK') {
+                          setIsCompleted(true);
+                        }
                         if (!information.trim() || information.includes('Stability')) {
                           setInformation('Uji Stability 8 Jam.');
                         }
@@ -866,12 +997,22 @@ export function HandoverFormView({
                 <span className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Hasil Uji
                 </span>
+                {!editingReport && wfContext.hasPendingStability && (
+                  <div className="mb-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                    Uji <strong>Stability {stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}</strong> dari shift sebelumnya belum diuji. Klik <strong>OK</strong> jika stabil, atau <strong>Bocor</strong> jika ada kebocoran.
+                  </div>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => {
                       setStabilityStatus('PENDING');
                       setIsCompleted(false);
+                      if (!information.trim() || information.startsWith('Uji Stability')) {
+                        setInformation(
+                          `Uji Stability ${stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}: Palet siap, belum diuji.`
+                        );
+                      }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'PENDING'
@@ -890,6 +1031,11 @@ export function HandoverFormView({
                       if (stabilityPhase === '8_HOURS') {
                         setIsCompleted(true);
                       }
+                      if (!information.trim() || information.startsWith('Uji Stability')) {
+                        setInformation(
+                          `Uji Stability ${stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}: Stabil (OK).`
+                        );
+                      }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'OK'
@@ -906,6 +1052,11 @@ export function HandoverFormView({
                     onClick={() => {
                       setStabilityStatus('LEAK');
                       setIsCompleted(false);
+                      if (!information.trim() || information.startsWith('Uji Stability')) {
+                        setInformation(
+                          `Uji Stability ${stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}: Ada bocor.`
+                        );
+                      }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'LEAK'
@@ -935,6 +1086,7 @@ export function HandoverFormView({
               ref={infoTextareaRef}
               id="input-information"
               rows={3}
+              maxLength={2000}
               value={information}
               onChange={(e) => setInformation(e.target.value)}
               placeholder={infoPlaceholder}
@@ -956,11 +1108,15 @@ export function HandoverFormView({
               ref={followUpTextareaRef}
               id="input-followup"
               rows={2}
+              maxLength={2000}
               value={followUp}
               onChange={(e) => setFollowUp(e.target.value)}
               placeholder="Rencana untuk shift berikutnya..."
               className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
             />
+            {fieldErrors.followUp && (
+              <p className="mt-1 text-xs text-rose-600">{fieldErrors.followUp}</p>
+            )}
           </div>
 
           {showPalletLocationField && (
@@ -974,8 +1130,12 @@ export function HandoverFormView({
               <input
                 id="input-pallet-location"
                 type="text"
+                maxLength={200}
                 value={palletLocation}
-                onChange={(e) => setPalletLocation(e.target.value)}
+                onChange={(e) => {
+                  setPalletManuallyEdited(true);
+                  setPalletLocation(e.target.value);
+                }}
                 placeholder="Contoh: Staging Line A / Rak 02"
                 className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               />
@@ -985,23 +1145,37 @@ export function HandoverFormView({
             </div>
           )}
 
-          <label
-            className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
-              isCompleted
-                ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-xs'
-                : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/70'
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={isCompleted}
-              onChange={(e) => setIsCompleted(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
-            />
-            <span className="text-xs sm:text-sm font-semibold">
-              Selesai (OK / Siap Produksi)
-            </span>
-          </label>
+          <div>
+            <label
+              className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all ${
+                !canMarkCompleted
+                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  : isCompleted
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-xs cursor-pointer'
+                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/70 cursor-pointer'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={canMarkCompleted && isCompleted}
+                disabled={!canMarkCompleted}
+                onChange={(e) => setIsCompleted(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+              />
+              <span className="text-xs sm:text-sm font-semibold">
+                Selesai (OK / Siap Produksi)
+              </span>
+            </label>
+            {!canMarkCompleted && completedLockReason && (
+              <p className="mt-1.5 text-xs text-slate-500 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                <span>{completedLockReason}</span>
+              </p>
+            )}
+            {fieldErrors.isCompleted && (
+              <p className="mt-1 text-xs text-rose-600">{fieldErrors.isCompleted}</p>
+            )}
+          </div>
         </section>
 
         {/* Footer Actions */}

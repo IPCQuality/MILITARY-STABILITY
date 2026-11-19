@@ -14,6 +14,7 @@ import {
   extractOAuthErrorFromUrl,
   filterAndSortReports,
   formatWorkflowBadge,
+  getActiveMachinesForCategory,
   getCaseWorkflowContext,
   getCurrentShiftStatus,
   getOpenOperatorShiftSlots,
@@ -26,6 +27,7 @@ import {
   isReportResultOk,
   isShiftResultOk,
   mapAuthErrorMessage,
+  formatDisplayDate,
   requiresPalletLocation,
   shouldShowRepairStartField,
   validateHandoverInput,
@@ -578,7 +580,7 @@ test('case yang belum ditandai selesai tetap tampil di Dashboard walaupun sudah 
   assert.equal(fiveDaysLater['CASE PERBAIKAN PART'].length, 1);
   assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].machineName, 'AST 14-12L');
   assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].rows[0].isCarryOver, true);
-  assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].rows[0].carryOverLabel, '2026-11-08');
+  assert.equal(fiveDaysLater['CASE PERBAIKAN PART'][0].rows[0].carryOverLabel, '8 Nov 2026');
 
   const completedToday: HandoverReport = {
     ...oldUnfinishedCase,
@@ -1387,7 +1389,452 @@ test('Opsi A: tahap OH (belum mulai perbaikan) tidak menghitung durasi, tidak me
   assert.equal(rows[4][10], '2 Shift');
 });
 
+test('Opsi 1 - Siklus ulang SOP Overhaul: Stability 8 Jam Bocor mereset hasPassedMilitary dan hasPassedStability4h', () => {
+  const base: HandoverReport = {
+    ...sampleReports[0],
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    isCompleted: false,
+  };
+  const reports: HandoverReport[] = [
+    { ...base, id: 'cy-1', reportDate: '2026-11-16', shift: 'Shift 1', activityStage: 'REPAIR', isRepairStart: true },
+    { ...base, id: 'cy-2', reportDate: '2026-11-16', shift: 'Shift 2', activityStage: 'MILITARY', militaryRound: 1, militaryStatus: 'OK', palletLocation: 'A1' },
+    { ...base, id: 'cy-3', reportDate: '2026-11-16', shift: 'Shift 3', activityStage: 'STABILITY', stabilityPhase: '4_HOURS', stabilityStatus: 'OK', palletLocation: 'A1' },
+    { ...base, id: 'cy-4', reportDate: '2026-11-17', shift: 'Shift 1', activityStage: 'STABILITY', stabilityPhase: '8_HOURS', stabilityStatus: 'LEAK', palletLocation: 'A1' },
+    { ...base, id: 'cy-5', reportDate: '2026-11-17', shift: 'Shift 2', activityStage: 'REPAIR', palletLocation: '' },
+  ];
 
+  const afterRepair = getCaseWorkflowContext(reports, 'OVERHAUL', 'AST4S 22-16L');
+  assert.equal(afterRepair.hasPassedMilitary, false);
+  assert.equal(afterRepair.hasPassedStability4h, false);
+  assert.equal(afterRepair.suggestedStage, 'MILITARY');
+  assert.equal(afterRepair.suggestedMilitaryRound, 2);
 
+  const afterMil2Ok = getCaseWorkflowContext(
+    [
+      ...reports,
+      { ...base, id: 'cy-6', reportDate: '2026-11-17', shift: 'Shift 3', activityStage: 'MILITARY', militaryRound: 2, militaryStatus: 'OK', palletLocation: 'A2' },
+    ],
+    'OVERHAUL',
+    'AST4S 22-16L'
+  );
+  assert.equal(afterMil2Ok.hasPassedMilitary, true);
+  assert.equal(afterMil2Ok.hasPassedStability4h, false);
+  assert.equal(afterMil2Ok.suggestedStage, 'STABILITY');
+  assert.equal(afterMil2Ok.suggestedStabilityPhase, '4_HOURS');
+});
 
+test('Opsi 1 - Dashboard: reopen di hari yang sama, multi-laporan carry-over, dan durasi riil (termasuk OH = 0 shift)', () => {
+  const sameDayReopen: HandoverReport[] = [
+    {
+      ...sampleReports[0],
+      id: 'sd-1',
+      reportDate: '2026-11-18',
+      shift: 'Shift 1',
+      category: 'OVERHAUL',
+      machine: 'AST4S 22-16L',
+      activityStage: 'STABILITY',
+      stabilityPhase: '8_HOURS',
+      stabilityStatus: 'OK',
+      palletLocation: 'A1',
+      isCompleted: true,
+    },
+    {
+      ...sampleReports[0],
+      id: 'sd-2',
+      reportDate: '2026-11-18',
+      shift: 'Shift 2',
+      category: 'OVERHAUL',
+      machine: 'AST4S 22-16L',
+      activityStage: 'REPAIR',
+      isRepairStart: true,
+      information: 'Rusak ulang di Shift 2',
+      isCompleted: false,
+    },
+  ];
 
+  const dashReopen = groupActiveDashboardCases(
+    sameDayReopen,
+    new Date(2026, 10, 18, 22, 30)
+  ).OVERHAUL[0];
+  assert.equal(dashReopen.isCompleted, false);
+  assert.equal(dashReopen.hasStartedRepair, true);
+  assert.equal(dashReopen.durationShifts, 2);
+  assert.equal(dashReopen.rows.at(-1)?.shift, 'Shift 3');
+  assert.equal(dashReopen.rows.at(-1)?.canFill, true);
+
+  const multiPrevShift: HandoverReport[] = [
+    {
+      ...sampleReports[0],
+      id: 'mp-1',
+      reportDate: '2026-11-17',
+      shift: 'Shift 3',
+      category: 'OVERHAUL',
+      machine: 'AST 25-12L',
+      activityStage: 'MILITARY',
+      militaryRound: 1,
+      militaryStatus: 'OK',
+      palletLocation: 'B1',
+      isCompleted: false,
+      createdAt: '2026-11-17T23:00:00.000Z',
+    },
+    {
+      ...sampleReports[0],
+      id: 'mp-2',
+      reportDate: '2026-11-17',
+      shift: 'Shift 3',
+      category: 'OVERHAUL',
+      machine: 'AST 25-12L',
+      activityStage: 'STABILITY',
+      stabilityPhase: '4_HOURS',
+      stabilityStatus: 'PENDING',
+      palletLocation: 'B1',
+      isCompleted: false,
+      createdAt: '2026-11-18T01:00:00.000Z',
+    },
+  ];
+  const dashMulti = groupActiveDashboardCases(
+    multiPrevShift,
+    new Date(2026, 10, 18, 8, 0)
+  ).OVERHAUL[0];
+  assert.equal(dashMulti.rows[0].isCarryOver, true);
+  assert.equal(dashMulti.rows[0].reports.length, 2);
+
+  const ohOnly: HandoverReport[] = [
+    {
+      ...sampleReports[0],
+      id: 'oh-d1',
+      reportDate: '2026-11-18',
+      shift: 'Shift 1',
+      category: 'OVERHAUL',
+      machine: 'AST 50-16L',
+      activityStage: 'OH',
+      information: 'OH',
+      isCompleted: false,
+    },
+  ];
+  const dashOh = groupActiveDashboardCases(
+    ohOnly,
+    new Date(2026, 10, 18, 15, 0)
+  ).OVERHAUL[0];
+  assert.equal(dashOh.hasStartedRepair, false);
+  assert.equal(dashOh.durationShifts, 0);
+});
+
+test('Opsi 1 - Ekspor Excel terfilter Hari Ini tetap memakai durasi riil multi-hari dari riwayat penuh', () => {
+  const fullHistory: HandoverReport[] = [
+    { ...sampleReports[0], id: 'fx-1', reportDate: '2026-11-16', shift: 'Shift 1', category: 'OVERHAUL', machine: 'AST4S 22-16L', activityStage: 'REPAIR', isRepairStart: true, isCompleted: false },
+    { ...sampleReports[0], id: 'fx-2', reportDate: '2026-11-17', shift: 'Shift 2', category: 'OVERHAUL', machine: 'AST4S 22-16L', activityStage: 'MILITARY', militaryRound: 1, militaryStatus: 'OK', palletLocation: 'A1', isCompleted: false },
+    { ...sampleReports[0], id: 'fx-3', reportDate: '2026-11-18', shift: 'Shift 3', category: 'OVERHAUL', machine: 'AST4S 22-16L', activityStage: 'STABILITY', stabilityPhase: '8_HOURS', stabilityStatus: 'OK', palletLocation: 'A1', isCompleted: true },
+  ];
+  const filteredToday = filterAndSortReports(fullHistory, {
+    date: '2026-11-18',
+    shift: 'ALL',
+    category: 'ALL',
+    keyword: '',
+  });
+  const wb = buildHandoverWorkbook(filteredToday, fullHistory);
+  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(wb.Sheets['DETAIL DATA'], {
+    header: 1,
+  });
+  assert.equal(rows.length, 3);
+  assert.equal(rows[2][10], '9 Shift');
+});
+
+test('Opsi 1 - Validasi input ekstrem sinkron dengan Firestore Rules & SOP', () => {
+  const leakZero = validateHandoverInput({
+    reportDate: '2026-11-18',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    information: 'Bocor',
+    followUp: '',
+    palletLocation: 'A1',
+    isCompleted: false,
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'LEAK',
+    militaryLeakBoxes: 0,
+  });
+  assert.equal(leakZero.valid, false);
+  assert.ok(leakZero.errors.militaryLeakBoxes);
+
+  const outOfBounds = validateHandoverInput({
+    reportDate: '2026-11-18',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    information: 'Bocor',
+    followUp: '',
+    palletLocation: 'A1',
+    isCompleted: false,
+    activityStage: 'MILITARY',
+    militaryRound: 51,
+    militaryStatus: 'LEAK',
+    militaryLeakBoxes: 501,
+  });
+  assert.equal(outOfBounds.valid, false);
+  assert.ok(outOfBounds.errors.militaryRound);
+  assert.ok(outOfBounds.errors.militaryLeakBoxes);
+
+  const ohDone = validateHandoverInput({
+    reportDate: '2026-11-18',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    information: 'OH',
+    followUp: '',
+    palletLocation: '',
+    isCompleted: true,
+    activityStage: 'OH',
+  });
+  assert.equal(ohDone.valid, false);
+  assert.ok(ohDone.errors.isCompleted);
+
+  const nonOh4h = validateHandoverInput({
+    reportDate: '2026-11-18',
+    shift: 'Shift 1',
+    category: 'STABILITY TINGGI',
+    machine: 'AST4S 22-16L',
+    information: 'Stab 4j',
+    followUp: '',
+    palletLocation: 'A1',
+    isCompleted: false,
+    activityStage: 'STABILITY',
+    stabilityPhase: '4_HOURS',
+    stabilityStatus: 'OK',
+  });
+  assert.equal(nonOh4h.valid, false);
+  assert.ok(nonOh4h.errors.stabilityPhase);
+
+  const noPallet = validateHandoverInput({
+    reportDate: '2026-11-18',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    information: 'Military #1 OK',
+    followUp: '',
+    palletLocation: '',
+    isCompleted: false,
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'OK',
+  });
+  assert.equal(noPallet.valid, false);
+  assert.ok(noPallet.errors.palletLocation);
+});
+
+test('Opsi 1 - Deteksi shift akhir pekan (Sabtu dini hari, Sabtu malam, Minggu dini hari, Senin dini hari)', () => {
+  const sat02 = new Date(2026, 10, 14, 2, 0);
+  assert.equal(getOperationalDateString(sat02), '2026-11-13');
+  assert.deepEqual(getCurrentShiftStatus(sat02).activeShifts, ['Shift 3']);
+  assert.ok(getCurrentShiftStatus(sat02).dateFormatted.includes('Jumat'));
+
+  const sat22 = new Date(2026, 10, 14, 22, 0);
+  assert.equal(getOperationalDateString(sat22), '2026-11-14');
+  assert.deepEqual(getCurrentShiftStatus(sat22).activeShifts, []);
+  assert.equal(getCurrentShiftStatus(sat22).primaryShift, 'Shift 3');
+  assert.ok(getCurrentShiftStatus(sat22).statusText.includes('Masa input'));
+
+  const sun02 = new Date(2026, 10, 15, 2, 0);
+  assert.equal(getOperationalDateString(sun02), '2026-11-15');
+  assert.deepEqual(getCurrentShiftStatus(sun02).activeShifts, []);
+  assert.ok(getCurrentShiftStatus(sun02).statusText.includes('Libur Operasional'));
+
+  const mon02 = new Date(2026, 10, 16, 2, 0);
+  assert.equal(getOperationalDateString(mon02), '2026-11-16');
+  assert.deepEqual(getCurrentShiftStatus(mon02).activeShifts, []);
+});
+
+test('Opsi 1 - Aturan penyelesaian SOP ketat, rentang tanggal ekspor, dan format tanggal ramah baca', () => {
+  // 1. Overhaul tidak boleh ditandai selesai di Repair, Military, atau Stability 4 Jam
+  const ohRepairDone = validateHandoverInput({
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    information: 'Perbaikan setting selesai',
+    followUp: '',
+    palletLocation: '',
+    isCompleted: true,
+    activityStage: 'REPAIR',
+  });
+  assert.equal(ohRepairDone.valid, false);
+  assert.ok(ohRepairDone.errors.isCompleted);
+
+  const ohMilDone = validateHandoverInput({
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    information: 'Military OK',
+    followUp: '',
+    palletLocation: 'Rak 1',
+    isCompleted: true,
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'OK',
+  });
+  assert.equal(ohMilDone.valid, false);
+  assert.ok(ohMilDone.errors.isCompleted);
+
+  const oh4hDone = validateHandoverInput({
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    information: 'Stability 4 jam OK',
+    followUp: '',
+    palletLocation: 'Rak 1',
+    isCompleted: true,
+    activityStage: 'STABILITY',
+    stabilityPhase: '4_HOURS',
+    stabilityStatus: 'OK',
+  });
+  assert.equal(oh4hDone.valid, false);
+  assert.ok(oh4hDone.errors.isCompleted);
+
+  // Overhaul HANYA sah selesai di Stability 8 Jam OK
+  const oh8hDone = validateHandoverInput({
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST4S 22-16L',
+    information: 'Stability 8 jam OK',
+    followUp: '',
+    palletLocation: 'Rak 1',
+    isCompleted: true,
+    activityStage: 'STABILITY',
+    stabilityPhase: '8_HOURS',
+    stabilityStatus: 'OK',
+  });
+  assert.equal(oh8hDone.valid, true);
+
+  // Non-Overhaul (misal perbaikan part mekanik langsung) boleh selesai di Repair
+  const partRepairDone = validateHandoverInput({
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'CASE PERBAIKAN PART',
+    machine: 'AST 12-16L',
+    information: 'Ganti solenoid siap kerja',
+    followUp: '',
+    palletLocation: '',
+    isCompleted: true,
+    activityStage: 'REPAIR',
+  });
+  assert.equal(partRepairDone.valid, true);
+
+  // 2. formatDisplayDate
+  assert.equal(formatDisplayDate('2026-11-19'), '19 Nov 2026');
+  assert.equal(formatDisplayDate('2026-01-05'), '5 Jan 2026');
+
+  // 3. filterAndSortReports rentang tanggal startDate & endDate
+  const r1: HandoverReport = { ...sampleReports[0], id: 'fr-1', reportDate: '2026-11-10' };
+  const r2: HandoverReport = { ...sampleReports[0], id: 'fr-2', reportDate: '2026-11-15' };
+  const r3: HandoverReport = { ...sampleReports[0], id: 'fr-3', reportDate: '2026-11-20' };
+  const ranged = filterAndSortReports([r1, r2, r3], {
+    date: '',
+    startDate: '2026-11-12',
+    endDate: '2026-11-18',
+    shift: 'ALL',
+    category: 'ALL',
+    keyword: '',
+  });
+  assert.equal(ranged.length, 1);
+  assert.equal(ranged[0].id, 'fr-2');
+
+  // 4. getCaseWorkflowContext hasPendingMilitary & lastReport
+  const milPendingRep: HandoverReport = {
+    ...sampleReports[0],
+    id: 'wp-1',
+    machine: 'AST 25-12L',
+    category: 'OVERHAUL',
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'PENDING',
+    palletLocation: 'Line 2',
+    isCompleted: false,
+  };
+  const ctx = getCaseWorkflowContext([milPendingRep], 'OVERHAUL', 'AST 25-12L');
+  assert.equal(ctx.hasPendingMilitary, true);
+  assert.equal(ctx.hasActiveEpisode, true);
+  assert.equal(ctx.lastReport?.id, 'wp-1');
+  assert.equal(ctx.lastPalletLocation, 'Line 2');
+});
+
+test('Rilis UI - Filter status (Berlanjut / Selesai OK) di History dan daftar mesin aktif untuk MachinePicker', () => {
+  const openOh1: HandoverReport = {
+    ...sampleReports[0],
+    id: 'rel-1',
+    reportDate: '2026-11-18',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 25-12L',
+    isCompleted: false,
+    updatedAt: '2026-11-18T08:00:00.000Z',
+  };
+  const openOh2: HandoverReport = {
+    ...sampleReports[0],
+    id: 'rel-2',
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 44-16L',
+    isCompleted: false,
+    updatedAt: '2026-11-19T09:00:00.000Z',
+  };
+  const doneOh: HandoverReport = {
+    ...sampleReports[0],
+    id: 'rel-3',
+    reportDate: '2026-11-19',
+    shift: 'Shift 2',
+    category: 'OVERHAUL',
+    machine: 'AST 50-16L',
+    isCompleted: true,
+    updatedAt: '2026-11-19T15:00:00.000Z',
+  };
+  const openPart: HandoverReport = {
+    ...sampleReports[0],
+    id: 'rel-4',
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'CASE PERBAIKAN PART',
+    machine: 'APK 19',
+    isCompleted: false,
+    updatedAt: '2026-11-19T10:00:00.000Z',
+  };
+
+  const all = [openOh1, openOh2, doneOh, openPart];
+
+  // Filter status OPEN vs COMPLETED
+  const openOnly = filterAndSortReports(all, {
+    date: '',
+    startDate: '2026-11-18',
+    endDate: '2026-11-19',
+    shift: 'ALL',
+    category: 'ALL',
+    status: 'OPEN',
+    keyword: '',
+  });
+  assert.equal(openOnly.length, 3);
+  assert.equal(openOnly.some((r) => r.id === 'rel-3'), false);
+
+  const completedOnly = filterAndSortReports(all, {
+    date: '',
+    shift: 'ALL',
+    category: 'ALL',
+    status: 'COMPLETED',
+    keyword: '',
+  });
+  assert.equal(completedOnly.length, 1);
+  assert.equal(completedOnly[0].id, 'rel-3');
+
+  // getActiveMachinesForCategory hanya mengembalikan mesin aktif di kategori terkait, terurut terbaru
+  const activeOverhaul = getActiveMachinesForCategory(all, 'OVERHAUL');
+  assert.deepEqual(activeOverhaul, ['AST 44-16L', 'AST 25-12L']);
+
+  const activePart = getActiveMachinesForCategory(all, 'CASE PERBAIKAN PART');
+  assert.deepEqual(activePart, ['APK 19']);
+});

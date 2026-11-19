@@ -2,6 +2,7 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -472,6 +473,24 @@ export async function signUpFirebase(params: {
   }
 }
 
+export async function resetPasswordFirebase(
+  email: string
+): Promise<{ ok: boolean; error?: string }> {
+  const trimmed = email.trim();
+  if (!trimmed) {
+    return { ok: false, error: 'Masukkan alamat email terlebih dahulu.' };
+  }
+  try {
+    await sendPasswordResetEmail(auth, trimmed);
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: formatCaughtError(err, 'Gagal mengirim email reset kata sandi.'),
+    };
+  }
+}
+
 export async function signOutFirebase(): Promise<void> {
   await signOut(auth);
 }
@@ -664,14 +683,29 @@ export async function updateReportFirebase(
     palletLocation: (input.palletLocation ?? '').trim().slice(0, 200),
     isCompleted: Boolean(input.isCompleted),
     isRepairStart: Boolean(input.isRepairStart),
-    ...(input.activityStage ? { activityStage: input.activityStage } : {}),
-    ...(typeof input.militaryRound === 'number' ? { militaryRound: input.militaryRound } : {}),
-    ...(input.militaryStatus ? { militaryStatus: input.militaryStatus } : {}),
-    ...(typeof input.militaryLeakBoxes === 'number'
-      ? { militaryLeakBoxes: input.militaryLeakBoxes }
-      : {}),
-    ...(input.stabilityPhase ? { stabilityPhase: input.stabilityPhase } : {}),
-    ...(input.stabilityStatus ? { stabilityStatus: input.stabilityStatus } : {}),
+    activityStage: input.activityStage ? input.activityStage : deleteField(),
+    militaryRound:
+      input.activityStage === 'MILITARY' && typeof input.militaryRound === 'number'
+        ? input.militaryRound
+        : deleteField(),
+    militaryStatus:
+      input.activityStage === 'MILITARY' && input.militaryStatus
+        ? input.militaryStatus
+        : deleteField(),
+    militaryLeakBoxes:
+      input.activityStage === 'MILITARY' &&
+      input.militaryStatus === 'LEAK' &&
+      typeof input.militaryLeakBoxes === 'number'
+        ? input.militaryLeakBoxes
+        : deleteField(),
+    stabilityPhase:
+      input.activityStage === 'STABILITY' && input.stabilityPhase
+        ? input.stabilityPhase
+        : deleteField(),
+    stabilityStatus:
+      input.activityStage === 'STABILITY' && input.stabilityStatus
+        ? input.stabilityStatus
+        : deleteField(),
     updatedBy: user.id,
     updatedByName: actorName,
     updatedAt: serverTimestamp(),
@@ -704,12 +738,19 @@ export async function updateReportFirebase(
       palletLocation: updates.palletLocation,
       isCompleted: updates.isCompleted,
       isRepairStart: updates.isRepairStart,
-      activityStage: input.activityStage ?? existingReport?.activityStage,
-      militaryRound: input.militaryRound ?? existingReport?.militaryRound,
-      militaryStatus: input.militaryStatus ?? existingReport?.militaryStatus,
-      militaryLeakBoxes: input.militaryLeakBoxes ?? existingReport?.militaryLeakBoxes,
-      stabilityPhase: input.stabilityPhase ?? existingReport?.stabilityPhase,
-      stabilityStatus: input.stabilityStatus ?? existingReport?.stabilityStatus,
+      activityStage: input.activityStage,
+      militaryRound:
+        input.activityStage === 'MILITARY' ? input.militaryRound : undefined,
+      militaryStatus:
+        input.activityStage === 'MILITARY' ? input.militaryStatus : undefined,
+      militaryLeakBoxes:
+        input.activityStage === 'MILITARY' && input.militaryStatus === 'LEAK'
+          ? input.militaryLeakBoxes
+          : undefined,
+      stabilityPhase:
+        input.activityStage === 'STABILITY' ? input.stabilityPhase : undefined,
+      stabilityStatus:
+        input.activityStage === 'STABILITY' ? input.stabilityStatus : undefined,
       createdBy: existingReport?.createdBy ?? user.id,
       createdByName: existingReport?.createdByName ?? actorName,
       updatedBy: updates.updatedBy,

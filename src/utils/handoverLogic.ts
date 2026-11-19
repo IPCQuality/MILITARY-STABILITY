@@ -36,10 +36,13 @@ function parseLocalDateParts(dateStr: string): Date | null {
   return new Date(year, month - 1, day, 0, 0, 0, 0);
 }
 
-// Hari operasional pabrik dimulai pukul 06:00 (Shift 1) sampai pukul 05:59 besok (akhir Shift 3)
+// Hari operasional pabrik dimulai pukul 06:00 (Shift 1) sampai pukul 05:59 besok (akhir Shift 3).
+// Catatan: Hanya Shift 3 Senin–Jumat yang berlanjut hingga 06:00 keesokan paginya (Selasa–Sabtu).
+// Pada Minggu & Senin dini hari (00:00–05:59), tidak ada Shift 3 yang berjalan dari malam sebelumnya.
 export function getOperationalDateString(now: Date = new Date()): string {
   const shifted = new Date(now);
-  if (shifted.getHours() < 6) {
+  const day = shifted.getDay(); // 0 = Minggu, 1 = Senin, ..., 6 = Sabtu
+  if (shifted.getHours() < 6 && day >= 2 && day <= 6) {
     shifted.setDate(shifted.getDate() - 1);
   }
   return getTodayDateString(shifted);
@@ -75,10 +78,81 @@ export function validateHandoverInput(input: HandoverFormInput): ValidationResul
 
   if (categoryRequiresMachine(input.category) && !sanitizedMachine) {
     errors.machine = 'Mesin wajib dipilih.';
+  } else if (sanitizedMachine && sanitizedMachine.length > 64) {
+    errors.machine = 'Nama mesin maksimal 64 karakter.';
   }
 
-  if (!input.information || input.information.trim().length === 0) {
+  const trimmedInfo = (input.information ?? '').trim();
+  if (trimmedInfo.length === 0) {
     errors.information = 'Hasil / keterangan shift wajib diisi.';
+  } else if (trimmedInfo.length > 2000) {
+    errors.information = 'Keterangan maksimal 2000 karakter.';
+  }
+
+  const trimmedFollowUp = (input.followUp ?? '').trim();
+  if (trimmedFollowUp.length > 2000) {
+    errors.followUp = 'Tindak lanjut maksimal 2000 karakter.';
+  }
+
+  const trimmedPallet = (input.palletLocation ?? '').trim();
+  if (trimmedPallet.length > 200) {
+    errors.palletLocation = 'Lokasi palet maksimal 200 karakter.';
+  }
+
+  if (input.isCompleted) {
+    if (input.activityStage === 'OH') {
+      errors.isCompleted =
+        'Tahap OH (belum mulai perbaikan) tidak dapat langsung ditandai Selesai.';
+    } else if (input.activityStage === 'MILITARY') {
+      errors.isCompleted =
+        'Tahap Military belum selesai; harus dilanjutkan ke tahap Stability sebelum mesin siap produksi.';
+    } else if (input.activityStage === 'STABILITY') {
+      if (input.stabilityStatus === 'LEAK' || input.stabilityStatus === 'PENDING') {
+        errors.isCompleted =
+          'Tidak dapat menandai Selesai saat hasil uji Stability masih Belum Diuji atau Bocor.';
+      } else if (input.category === 'OVERHAUL' && input.stabilityPhase === '4_HOURS') {
+        errors.isCompleted =
+          'Pada Overhaul, Stability 4 Jam harus dilanjutkan ke 8 Jam sebelum dapat ditandai Selesai.';
+      }
+    } else if (input.category === 'OVERHAUL' && input.activityStage === 'REPAIR') {
+      errors.isCompleted =
+        'Kasus Overhaul wajib melalui tahap Military dan Stability 8 Jam sebelum dapat ditandai Selesai.';
+    }
+  }
+
+  if (input.activityStage === 'MILITARY') {
+    if (!trimmedPallet) {
+      errors.palletLocation =
+        'Lokasi palet wajib diisi saat mengambil military atau stability.';
+    }
+    if (
+      typeof input.militaryRound === 'number' &&
+      (!Number.isInteger(input.militaryRound) ||
+        input.militaryRound < 1 ||
+        input.militaryRound > 50)
+    ) {
+      errors.militaryRound = 'Nomor pengambilan Military harus antara 1 sampai 50.';
+    }
+    if (input.militaryStatus === 'LEAK') {
+      if (
+        typeof input.militaryLeakBoxes !== 'number' ||
+        !Number.isInteger(input.militaryLeakBoxes) ||
+        input.militaryLeakBoxes < 1 ||
+        input.militaryLeakBoxes > 500
+      ) {
+        errors.militaryLeakBoxes =
+          'Jumlah bocor wajib diisi antara 1 sampai 500 box.';
+      }
+    }
+  } else if (input.activityStage === 'STABILITY') {
+    if (!trimmedPallet) {
+      errors.palletLocation =
+        'Lokasi palet wajib diisi saat mengambil military atau stability.';
+    }
+    if (input.category !== 'OVERHAUL' && input.stabilityPhase === '4_HOURS') {
+      errors.stabilityPhase =
+        'Stability 4 Jam hanya berlaku untuk kategori OVERHAUL.';
+    }
   }
 
   return {
@@ -196,6 +270,8 @@ export interface MachineShiftGroup {
   machineName: string;
   rawMachine: string | null;
   isCompleted: boolean;
+  hasStartedRepair: boolean;
+  durationShifts: number;
   rows: DashboardShiftRow[];
 }
 
@@ -214,8 +290,15 @@ export function groupActiveDashboardCases(
   const activeShift = liveStatus.primaryShift;
   const activeShiftIdx = SHIFTS.indexOf(activeShift);
   const hasActiveWindow = liveStatus.activeShifts.length > 0;
-  const isPreDawnShift3 = now.getHours() < 6;
+  const isPreDawnShift3 = now.getHours() < 6 && today !== calendarToday;
   const fullAccess = hasFullShiftAccess(user);
+
+  const durationByReportId = new Map<string, CaseDurationItem>();
+  for (const dur of computeCaseDurations(reports, now)) {
+    for (const repId of dur.reportIds) {
+      durationByReportId.set(repId, dur);
+    }
+  }
 
   const result = {} as Record<CategoryType, MachineShiftGroup[]>;
   for (const category of CATEGORIES) {
@@ -246,11 +329,21 @@ export function groupActiveDashboardCases(
     }
 
     for (const bucket of byMachine.values()) {
-      const todayItems = bucket.items.filter(
-        (r) =>
-          r.reportDate === today ||
-          (isPreDawnShift3 && r.reportDate === calendarToday)
-      );
+      const todayItems = bucket.items
+        .filter(
+          (r) =>
+            r.reportDate === today ||
+            (isPreDawnShift3 && r.reportDate === calendarToday)
+        )
+        .sort((a, b) => {
+          if (a.reportDate !== b.reportDate) {
+            return a.reportDate.localeCompare(b.reportDate);
+          }
+          const shiftDiff = SHIFTS.indexOf(a.shift) - SHIFTS.indexOf(b.shift);
+          if (shiftDiff !== 0) return shiftDiff;
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        });
+
       const prevItems = bucket.items
         .filter(
           (r) =>
@@ -267,15 +360,23 @@ export function groupActiveDashboardCases(
         });
 
       const latestPrev = prevItems[0] ?? null;
+      const latestPrevShiftReports = latestPrev
+        ? prevItems
+            .filter(
+              (r) =>
+                r.reportDate === latestPrev.reportDate &&
+                r.shift === latestPrev.shift
+            )
+            .sort(
+              (a, b) =>
+                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            )
+        : [];
+
       // Case dianggap tuntas hanya jika laporan pada shift terakhir sebelumnya sudah dicentang selesai (isCompleted)
       const finishedPrev =
         latestPrev !== null &&
-        prevItems.some(
-          (r) =>
-            r.reportDate === latestPrev.reportDate &&
-            r.shift === latestPrev.shift &&
-            Boolean(r.isCompleted)
-        );
+        latestPrevShiftReports.some((r) => Boolean(r.isCompleted));
 
       // Selama belum ditandai selesai, case tetap dibawa ke Dashboard walaupun sudah berganti hari (>1 hari)
       const hasCarryOver = latestPrev !== null && !finishedPrev;
@@ -285,25 +386,39 @@ export function groupActiveDashboardCases(
         continue;
       }
 
-      const todayCompleted = todayItems.some((r) => r.isCompleted);
+      // Status selesai hari ini ditentukan dari shift TERAKHIR yang memiliki laporan hari ini.
+      // Jika Shift 1 selesai (OK) lalu Shift 2 muncul masalah baru (belum selesai), case kembali aktif!
+      const latestTodayRep = todayItems[todayItems.length - 1] ?? null;
+      const todayCompleted =
+        latestTodayRep !== null &&
+        todayItems
+          .filter(
+            (r) =>
+              r.reportDate === latestTodayRep.reportDate &&
+              r.shift === latestTodayRep.shift
+          )
+          .some((r) => Boolean(r.isCompleted));
+
       const rows: DashboardShiftRow[] = [];
 
-      // 1. Jika masih ada case belum selesai dari hari sebelumnya, tampilkan catatan shift terakhirnya
-      if (hasCarryOver && latestPrev) {
+      // 1. Jika masih ada case belum selesai dari hari sebelumnya, tampilkan seluruh catatan shift terakhirnya
+      if (hasCarryOver && latestPrev && latestPrevShiftReports.length > 0) {
         const prevDateObj = parseLocalDateParts(latestPrev.reportDate) ?? yesterdayDate;
         const prevSchedule = getShiftScheduleForDate(prevDateObj);
         rows.push({
-          key: `carryover-${latestPrev.id}`,
+          key: `carryover-${latestPrev.reportDate}-${latestPrev.shift}`,
           shift: latestPrev.shift,
           reportDate: latestPrev.reportDate,
           isCarryOver: true,
           carryOverLabel:
-            latestPrev.reportDate === yesterday ? 'Kemarin' : latestPrev.reportDate,
+            latestPrev.reportDate === yesterday
+              ? 'Kemarin'
+              : formatDisplayDate(latestPrev.reportDate),
           hours: prevSchedule[latestPrev.shift],
-          reports: [latestPrev],
+          reports: latestPrevShiftReports,
           isRunningShift: false,
           canFill: false,
-          isOk: isShiftResultOk([latestPrev]),
+          isOk: isShiftResultOk(latestPrevShiftReports),
         });
       }
 
@@ -325,15 +440,9 @@ export function groupActiveDashboardCases(
         const sReports = todayItems.filter((r) => r.shift === s);
         const isRunning = hasActiveWindow
           ? liveStatus.activeShifts.includes(s)
-          : s === activeShift;
+          : false;
 
-        // Tampilkan baris shift jika: (a) ada laporan pada shift itu hari ini,
-        // (b) itu adalah shift berjalan saat ini (kecuali case sudah ditandai selesai di shift sebelumnya hari ini),
-        // atau (c) shift antara awal case hari ini dan shift berjalan
-        if (sReports.length === 0 && todayCompleted && !isRunning) {
-          continue;
-        }
-        if (sReports.length === 0 && todayCompleted && isRunning) {
+        if (sReports.length === 0 && todayCompleted) {
           continue;
         }
 
@@ -356,11 +465,17 @@ export function groupActiveDashboardCases(
 
       // Maksimal 4 baris/kolom shift untuk case berkelanjutan (1 carry-over + max 3 shift hari ini)
       const cappedRows = rows.slice(-4);
+      const latestRelevantReport = latestTodayRep ?? latestPrev;
+      const matchedDuration = latestRelevantReport
+        ? durationByReportId.get(latestRelevantReport.id)
+        : undefined;
 
       result[category].push({
         machineName: bucket.displayName,
         rawMachine: bucket.rawMachine,
         isCompleted: todayCompleted,
+        hasStartedRepair: matchedDuration ? matchedDuration.hasStartedRepair : false,
+        durationShifts: matchedDuration ? matchedDuration.durationShifts : 0,
         rows: cappedRows,
       });
     }
@@ -380,10 +495,22 @@ export function filterAndSortReports(
       if (filters.date && item.reportDate !== filters.date) {
         return false;
       }
+      if (filters.startDate && item.reportDate < filters.startDate) {
+        return false;
+      }
+      if (filters.endDate && item.reportDate > filters.endDate) {
+        return false;
+      }
       if (filters.shift !== 'ALL' && item.shift !== filters.shift) {
         return false;
       }
       if (filters.category !== 'ALL' && item.category !== filters.category) {
+        return false;
+      }
+      if (filters.status === 'OPEN' && item.isCompleted) {
+        return false;
+      }
+      if (filters.status === 'COMPLETED' && !item.isCompleted) {
         return false;
       }
       if (kw) {
@@ -415,6 +542,65 @@ export function filterAndSortReports(
       }
       return a.shift.localeCompare(b.shift);
     });
+}
+
+export function getActiveMachinesForCategory(
+  reports: HandoverReport[],
+  category: CategoryType
+): string[] {
+  const byMachine = new Map<string, { label: string; latestTime: number; reports: HandoverReport[] }>();
+
+  for (const rep of reports) {
+    if (rep.category !== category) continue;
+    const raw = (rep.machine ?? '').trim();
+    if (!raw) continue;
+    const key = raw.toUpperCase();
+    const t = new Date(rep.updatedAt || rep.createdAt).getTime() || 0;
+    const existing = byMachine.get(key);
+    if (!existing) {
+      byMachine.set(key, { label: raw, latestTime: t, reports: [rep] });
+    } else {
+      existing.reports.push(rep);
+      if (t >= existing.latestTime) {
+        existing.latestTime = t;
+        existing.label = raw;
+      }
+    }
+  }
+
+  const active: { label: string; latestTime: number }[] = [];
+  for (const [, entry] of byMachine) {
+    const sorted = [...entry.reports].sort((a, b) => {
+      if (a.reportDate !== b.reportDate) {
+        return a.reportDate.localeCompare(b.reportDate);
+      }
+      const shiftDiff = SHIFTS.indexOf(a.shift) - SHIFTS.indexOf(b.shift);
+      if (shiftDiff !== 0) return shiftDiff;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+    let currentEp: HandoverReport[] = [];
+    let completedRank: number | null = null;
+    for (const r of sorted) {
+      const rank = getShiftSlotRank(r.reportDate, r.shift);
+      if (completedRank !== null && rank > completedRank) {
+        currentEp = [];
+        completedRank = null;
+      }
+      currentEp.push(r);
+      if (isReportResultOk(r)) {
+        completedRank = rank;
+      }
+    }
+
+    if (completedRank === null && currentEp.length > 0) {
+      active.push({ label: entry.label, latestTime: entry.latestTime });
+    }
+  }
+
+  return active
+    .sort((a, b) => b.latestTime - a.latestTime || a.label.localeCompare(b.label))
+    .map((item) => item.label);
 }
 
 export function hasFullShiftAccess(user: UserProfile | null | undefined): boolean {
@@ -675,6 +861,32 @@ export function formatIndonesianDate(date: Date): string {
   return `${dayName}, ${dayNum} ${monthName} ${year}`;
 }
 
+export const MONTH_SHORT_ID = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'Mei',
+  'Jun',
+  'Jul',
+  'Agu',
+  'Sep',
+  'Okt',
+  'Nov',
+  'Des',
+] as const;
+
+export function formatDisplayDate(dateStr: string): string {
+  if (!dateStr || !dateStr.includes('-')) return dateStr || '—';
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  const monthIdx = parseInt(m, 10) - 1;
+  if (monthIdx < 0 || monthIdx > 11) return dateStr;
+  const dayNum = parseInt(d, 10);
+  return `${dayNum} ${MONTH_SHORT_ID[monthIdx]} ${y}`;
+}
+
 export function getShiftScheduleForDate(date: Date): Record<ShiftType, string> {
   if (date.getDay() === 6) {
     return SATURDAY_SHIFT_HOURS;
@@ -690,11 +902,29 @@ export function getCurrentShiftStatus(now: Date = new Date()): ActiveShiftStatus
   const currentTimeFormatted = `${hh}:${mm}`;
   const dateFormatted = formatIndonesianDate(now);
 
-  // Sabtu: Shift 1 06:00-11:00, Shift 2 11:00-16:00, Shift 3 16:00-21:00
+  // Sabtu: 00:00-05:59 adalah kelanjutan Shift 3 Jumat (22:00-06:00).
+  // Shift Sabtu reguler: Shift 1 06:00-11:00, Shift 2 11:00-16:00, Shift 3 16:00-21:00.
   if (day === 6) {
+    if (minutes < 360) {
+      const friDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+      const friFormatted = formatIndonesianDate(friDate);
+      return {
+        dayTypeLabel: 'Jumat (Shift 3 Dini Hari)',
+        dateFormatted: `${friFormatted} (Shift 3 Dini Hari)`,
+        currentTimeFormatted,
+        activeShifts: ['Shift 3'],
+        primaryShift: 'Shift 3',
+        schedule: WEEKDAY_SHIFT_HOURS,
+        statusText: `Shift 3 (${WEEKDAY_SHIFT_HOURS['Shift 3']})`,
+      };
+    }
+
     let activeShifts: ShiftType[] = [];
-    let primaryShift: ShiftType = 'Shift 1';
-    let statusText = 'Di luar jam shift Sabtu (21:00 - 06:00)';
+    let primaryShift: ShiftType = 'Shift 3';
+    let statusText =
+      minutes >= 1260
+        ? 'Shift 3 Selesai (Masa input s/d 01:00)'
+        : 'Di luar jam shift Sabtu (21:00 - 06:00)';
 
     if (minutes >= 360 && minutes < 660) {
       activeShifts = ['Shift 1'];
@@ -721,19 +951,8 @@ export function getCurrentShiftStatus(now: Date = new Date()): ActiveShiftStatus
     };
   }
 
-  // Minggu: cek sisa Shift 3 (00:00 - 06:00) atau di luar jam reguler
+  // Minggu: Sabtu Shift 3 selesai 21:00, sehingga seluruh hari Minggu di luar jam shift reguler
   if (day === 0) {
-    if (minutes < 360) {
-      return {
-        dayTypeLabel: 'Minggu (Dini Hari)',
-        dateFormatted,
-        currentTimeFormatted,
-        activeShifts: ['Shift 3'],
-        primaryShift: 'Shift 3',
-        schedule: WEEKDAY_SHIFT_HOURS,
-        statusText: `Shift 3 (${WEEKDAY_SHIFT_HOURS['Shift 3']})`,
-      };
-    }
     return {
       dayTypeLabel: 'Minggu',
       dateFormatted,
@@ -741,7 +960,20 @@ export function getCurrentShiftStatus(now: Date = new Date()): ActiveShiftStatus
       activeShifts: [],
       primaryShift: 'Shift 1',
       schedule: WEEKDAY_SHIFT_HOURS,
-      statusText: 'Hari Minggu (Di luar jam shift reguler)',
+      statusText: 'Hari Minggu (Libur Operasional)',
+    };
+  }
+
+  // Senin 00:00 - 05:59: Minggu malam tidak ada Shift 3 reguler
+  if (day === 1 && minutes < 360) {
+    return {
+      dayTypeLabel: 'Senin (Dini Hari)',
+      dateFormatted,
+      currentTimeFormatted,
+      activeShifts: [],
+      primaryShift: 'Shift 1',
+      schedule: WEEKDAY_SHIFT_HOURS,
+      statusText: 'Di luar jam shift reguler (mulai 06:00)',
     };
   }
 
@@ -1033,6 +1265,10 @@ export interface CaseWorkflowContext {
   allowedStabilityPhases: StabilityPhase[];
   suggestedStabilityPhase: StabilityPhase;
   lastPalletLocation: string;
+  hasPendingMilitary: boolean;
+  hasPendingStability: boolean;
+  lastReport: HandoverReport | null;
+  hasActiveEpisode: boolean;
 }
 
 export function getCaseWorkflowContext(
@@ -1060,6 +1296,10 @@ export function getCaseWorkflowContext(
       allowedStabilityPhases,
       suggestedStabilityPhase: isOverhaul ? '4_HOURS' : '8_HOURS',
       lastPalletLocation: '',
+      hasPendingMilitary: false,
+      hasPendingStability: false,
+      lastReport: null,
+      hasActiveEpisode: false,
     };
   }
 
@@ -1127,9 +1367,58 @@ export function getCaseWorkflowContext(
       ? (lastMilitaryReport?.militaryRound ?? militaryCount + 1)
       : militaryCount + 1;
 
-  const hasPassedMilitary = lastMilitaryStatus === 'OK';
+  // Temukan titik reset siklus terakhir (saat Military atau Stability dinyatakan LEAK / bocor).
+  // Sesuai SOP: jika bocor di Military / Stability 4j / Stability 8j, siklus uji diulang dari Perbaikan -> Military -> Stability 4j (Overhaul) -> 8j.
+  let lastLeakIdx = -1;
+  for (let i = currentEp.length - 1; i >= 0; i -= 1) {
+    const r = currentEp[i];
+    const isMilitaryLeak =
+      r.activityStage === 'MILITARY' && r.militaryStatus === 'LEAK';
+    const isStabilityLeak =
+      r.activityStage === 'STABILITY' && r.stabilityStatus === 'LEAK';
+    const isLegacyLeak =
+      !r.activityStage &&
+      /\b(military|stability)\b/i.test(r.information) &&
+      /(bocor|gagal)/i.test(r.information);
+    if (isMilitaryLeak || isStabilityLeak || isLegacyLeak) {
+      lastLeakIdx = i;
+      break;
+    }
+  }
 
-  const stabilityReports = currentEp.filter((r) => {
+  const cycleReports =
+    lastLeakIdx >= 0 ? currentEp.slice(lastLeakIdx + 1) : currentEp;
+
+  const cycleMilitaryReports = cycleReports.filter((r) => {
+    if (r.activityStage === 'MILITARY') return true;
+    if (!r.activityStage) return /\bmilitary\b/i.test(r.information);
+    return false;
+  });
+
+  let lastCycleMilitaryOkIdx = -1;
+  for (let i = cycleReports.length - 1; i >= 0; i -= 1) {
+    const r = cycleReports[i];
+    if (r.activityStage === 'MILITARY' && r.militaryStatus === 'OK') {
+      lastCycleMilitaryOkIdx = i;
+      break;
+    }
+    if (!r.activityStage && /\bmilitary\b/i.test(r.information)) {
+      const lower = r.information.toLowerCase();
+      if (!lower.includes('bocor') && !lower.includes('gagal')) {
+        lastCycleMilitaryOkIdx = i;
+        break;
+      }
+    }
+  }
+
+  const hasPassedMilitary = lastCycleMilitaryOkIdx >= 0;
+
+  const cycleStabilityScope =
+    lastCycleMilitaryOkIdx >= 0
+      ? cycleReports.slice(lastCycleMilitaryOkIdx + 1)
+      : cycleReports;
+
+  const cycleStabilityReports = cycleStabilityScope.filter((r) => {
     if (r.activityStage === 'STABILITY') return true;
     if (!r.activityStage) {
       return /\bstability\b/i.test(r.information) || r.category === 'STABILITY TINGGI';
@@ -1137,9 +1426,10 @@ export function getCaseWorkflowContext(
     return false;
   });
 
-  const lastStabilityReport = stabilityReports[stabilityReports.length - 1] ?? null;
+  const lastCycleStabilityReport =
+    cycleStabilityReports[cycleStabilityReports.length - 1] ?? null;
 
-  const hasPassedStability4h = stabilityReports.some((r) => {
+  const hasPassedStability4h = cycleStabilityReports.some((r) => {
     if (r.stabilityPhase === '4_HOURS' && r.stabilityStatus === 'OK') return true;
     if (!r.stabilityPhase && isOverhaul) {
       const lower = r.information.toLowerCase();
@@ -1187,31 +1477,36 @@ export function getCaseWorkflowContext(
       suggestedStage = 'REPAIR';
     } else if (
       hasPassedMilitary &&
-      (!stabilityReports.length ||
-        (latestReport.activityStage === 'MILITARY' && latestReport.militaryStatus === 'OK'))
+      (cycleStabilityReports.length === 0 ||
+        (latestReport.activityStage === 'MILITARY' &&
+          latestReport.militaryStatus === 'OK'))
     ) {
       suggestedStage = 'STABILITY';
     } else if (
       isOverhaul &&
       hasPassedStability4h &&
-      !stabilityReports.some(
+      !cycleStabilityReports.some(
         (r) => r.stabilityPhase === '8_HOURS' && r.stabilityStatus !== 'PENDING'
       )
     ) {
       suggestedStage = 'STABILITY';
     } else if (hasStartedRepair && !hasPassedMilitary) {
-      suggestedStage = 'MILITARY';
+      // Setelah Perbaikan (termasuk perbaikan ulang pasca bocor), lanjut ambil Military
+      const hasPendingCycleMil = cycleMilitaryReports.some(
+        (r) => r.militaryStatus === 'PENDING'
+      );
+      suggestedStage = hasPendingCycleMil ? 'MILITARY' : 'MILITARY';
     }
   }
 
   let suggestedStabilityPhase: StabilityPhase = '8_HOURS';
   if (isOverhaul) {
     if (
-      lastStabilityReport &&
-      lastStabilityReport.stabilityStatus === 'PENDING' &&
-      lastStabilityReport.stabilityPhase
+      lastCycleStabilityReport &&
+      lastCycleStabilityReport.stabilityStatus === 'PENDING' &&
+      lastCycleStabilityReport.stabilityPhase
     ) {
-      suggestedStabilityPhase = lastStabilityReport.stabilityPhase;
+      suggestedStabilityPhase = lastCycleStabilityReport.stabilityPhase;
     } else {
       suggestedStabilityPhase = hasPassedStability4h ? '8_HOURS' : '4_HOURS';
     }
@@ -1232,6 +1527,10 @@ export function getCaseWorkflowContext(
     allowedStabilityPhases,
     suggestedStabilityPhase,
     lastPalletLocation,
+    hasPendingMilitary: lastMilitaryStatus === 'PENDING',
+    hasPendingStability: lastCycleStabilityReport?.stabilityStatus === 'PENDING',
+    lastReport: latestReport,
+    hasActiveEpisode: currentEp.length > 0,
   };
 }
 
@@ -1355,8 +1654,21 @@ export function computeCaseDurations(
   }
 
   const nowDateStr = getOperationalDateString(now);
-  const nowShift = getCurrentShiftStatus(now).primaryShift;
-  const nowRank = getShiftSlotRank(nowDateStr, nowShift);
+  const nowStatus = getCurrentShiftStatus(now);
+  const isInactiveSlot =
+    nowStatus.activeShifts.length === 0 && !(now.getDay() === 6 && now.getHours() >= 21);
+
+  let effectiveNowDateStr = nowDateStr;
+  let effectiveNowShift: ShiftType = nowStatus.primaryShift;
+  if (isInactiveSlot) {
+    // Pada hari Minggu (libur) atau Senin 00:00–05:59 (sebelum Shift 1 Senin dimulai),
+    // mundurkan batas waktu berjalan ke Shift 3 hari sebelumnya agar shift hari Sabtu yang
+    // sudah lewat tetap dihitung, tanpa menghitung Shift 1 Senin sebelum jam 06:00.
+    const prevCal = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    effectiveNowDateStr = getTodayDateString(prevCal);
+    effectiveNowShift = 'Shift 3';
+  }
+  const nowRank = getShiftSlotRank(effectiveNowDateStr, effectiveNowShift);
 
   const durations: CaseDurationItem[] = [];
 
@@ -1415,8 +1727,8 @@ export function computeCaseDurations(
         if (!isCompleted) {
           const lastRank = getShiftSlotRank(lastRep.reportDate, lastRep.shift);
           if (nowRank > lastRank) {
-            effectiveEndDate = nowDateStr;
-            effectiveEndShift = nowShift;
+            effectiveEndDate = effectiveNowDateStr;
+            effectiveEndShift = effectiveNowShift;
           }
         }
         durationShifts = calculateShiftSpan(

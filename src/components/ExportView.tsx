@@ -17,6 +17,7 @@ import {
   countMilitaryInReport,
   countStabilityInReport,
   filterAndSortReports,
+  formatDisplayDate,
   formatWorkflowBadge,
   getOperationalDateString,
 } from '../utils/handoverLogic';
@@ -27,25 +28,46 @@ interface ExportViewProps {
 }
 
 export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
-  const [exportDate, setExportDate] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [exportShift, setExportShift] = useState<ShiftType | 'ALL'>('ALL');
   const [exportCategory, setExportCategory] = useState<CategoryType | 'ALL'>('ALL');
   const [exporting, setExporting] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const allDurations = useMemo(() => computeCaseDurations(reports), [reports]);
+
+  const durationByReportId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of allDurations) {
+      for (const reportId of item.reportIds) {
+        map.set(
+          reportId,
+          item.countedReportIds.includes(reportId) ? item.durationShifts : 0
+        );
+      }
+    }
+    return map;
+  }, [allDurations]);
+
   const previewRows = useMemo(
     () =>
       filterAndSortReports(reports, {
-        date: exportDate,
+        date: '',
+        startDate,
+        endDate,
         shift: exportShift,
         category: exportCategory,
         keyword: '',
       }),
-    [reports, exportDate, exportShift, exportCategory]
+    [reports, startDate, endDate, exportShift, exportCategory]
   );
 
   const exportMetrics = useMemo(() => {
-    const cases = computeCaseDurations(previewRows);
+    const previewIdSet = new Set(previewRows.map((r) => r.id));
+    const totalCases = allDurations.filter((item) =>
+      item.reportIds.some((id) => previewIdSet.has(id))
+    ).length;
     const totalMilitary = previewRows.reduce(
       (sum, rep) => sum + countMilitaryInReport(rep),
       0
@@ -56,14 +78,40 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
     );
     return {
       totalReports: previewRows.length,
-      totalCases: cases.length,
+      totalCases,
       totalMilitary,
       totalStability,
     };
-  }, [previewRows]);
+  }, [previewRows, allDurations]);
 
   const operationalToday = getOperationalDateString();
+  const [opYear, opMonth, opDay] = operationalToday.split('-').map(Number);
+  const past7DateStr = useMemo(() => {
+    const d = new Date(opYear, opMonth - 1, opDay - 6, 12, 0);
+    return getOperationalDateString(d);
+  }, [opYear, opMonth, opDay]);
+  const monthStartStr = useMemo(() => {
+    const d = new Date(opYear, opMonth - 1, 1, 12, 0);
+    return getOperationalDateString(d);
+  }, [opYear, opMonth]);
+
   const targetFilename = buildHandoverFilename();
+
+  function applyPreset(preset: 'all' | 'today' | '7days' | 'month') {
+    if (preset === 'all') {
+      setStartDate('');
+      setEndDate('');
+    } else if (preset === 'today') {
+      setStartDate(operationalToday);
+      setEndDate(operationalToday);
+    } else if (preset === '7days') {
+      setStartDate(past7DateStr);
+      setEndDate(operationalToday);
+    } else if (preset === 'month') {
+      setStartDate(monthStartStr);
+      setEndDate(operationalToday);
+    }
+  }
 
   async function handleExportExcel() {
     setStatusMsg(null);
@@ -81,7 +129,9 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
       onRefreshReports(fresh.reports);
 
       const filteredForExport = filterAndSortReports(fresh.reports, {
-        date: exportDate,
+        date: '',
+        startDate,
+        endDate,
         shift: exportShift,
         category: exportCategory,
         keyword: '',
@@ -95,7 +145,11 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
         return;
       }
 
-      const result = downloadHandoverExcel(filteredForExport, targetFilename);
+      const result = downloadHandoverExcel(
+        filteredForExport,
+        targetFilename,
+        fresh.reports
+      );
       setStatusMsg({
         ok: true,
         text: `Berhasil mengunduh ${result.filename} (${result.rowCount} laporan).`,
@@ -112,43 +166,78 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
         <div className="p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-sm font-semibold text-slate-900">Filter Data Ekspor</span>
-            <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-100">
+            <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100">
               <button
                 type="button"
-                onClick={() => setExportDate('')}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  exportDate === ''
-                    ? 'bg-white text-[#0F294A] shadow-sm'
+                onClick={() => applyPreset('all')}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                  startDate === '' && endDate === ''
+                    ? 'bg-white text-[#0F294A] shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                Semua Tanggal
+                Semua
               </button>
               <button
                 type="button"
-                onClick={() => setExportDate(operationalToday)}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  exportDate === operationalToday
-                    ? 'bg-white text-[#0F294A] shadow-sm'
+                onClick={() => applyPreset('today')}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                  startDate === operationalToday && endDate === operationalToday
+                    ? 'bg-white text-[#0F294A] shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 Hari Ini
               </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('7days')}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                  startDate === past7DateStr && endDate === operationalToday
+                    ? 'bg-white text-[#0F294A] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                7 Hari Terakhir
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('month')}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                  startDate === monthStartStr && endDate === operationalToday
+                    ? 'bg-white text-[#0F294A] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Bulan Ini
+              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
-              <label htmlFor="export-date" className="block text-xs font-semibold text-slate-600 mb-1">
-                Tanggal
+              <label htmlFor="export-start-date" className="block text-xs font-semibold text-slate-600 mb-1">
+                Dari Tanggal
               </label>
               <input
-                id="export-date"
+                id="export-start-date"
                 type="date"
-                value={exportDate}
-                onChange={(e) => setExportDate(e.target.value)}
-                className="w-full min-h-[42px] px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="export-end-date" className="block text-xs font-semibold text-slate-600 mb-1">
+                Sampai Tanggal
+              </label>
+              <input
+                id="export-end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               />
             </div>
 
@@ -160,7 +249,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 id="export-shift"
                 value={exportShift}
                 onChange={(e) => setExportShift(e.target.value as ShiftType | 'ALL')}
-                className="w-full min-h-[42px] px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               >
                 <option value="ALL">Semua Shift</option>
                 {SHIFTS.map((s) => (
@@ -179,7 +268,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 id="export-category"
                 value={exportCategory}
                 onChange={(e) => setExportCategory(e.target.value as CategoryType | 'ALL')}
-                className="w-full min-h-[42px] px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
               >
                 <option value="ALL">Semua Kategori</option>
                 {CATEGORIES.map((c) => (
@@ -270,24 +359,27 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left border-collapse text-xs sm:text-sm">
+            <table className="w-full min-w-[760px] text-left border-collapse text-xs sm:text-sm">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
                   <th className="py-2.5 px-4">Tanggal &amp; Shift</th>
                   <th className="py-2.5 px-4">Mesin</th>
                   <th className="py-2.5 px-4">Tahap &amp; Hasil</th>
                   <th className="py-2.5 px-4">Lokasi Palet</th>
+                  <th className="py-2.5 px-4">Total Durasi</th>
+                  <th className="py-2.5 px-4">PIC</th>
                   <th className="py-2.5 px-4">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {previewRows.slice(0, 5).map((rep) => {
                   const badge = formatWorkflowBadge(rep);
+                  const durShifts = durationByReportId.get(rep.id);
                   return (
                     <tr key={rep.id} className="align-top">
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span className="font-mono text-xs tabular-nums text-slate-900">
-                          {rep.reportDate}
+                          {formatDisplayDate(rep.reportDate)}
                         </span>
                         <span className="text-slate-400"> · </span>
                         <span className="text-xs text-slate-600">{rep.shift}</span>
@@ -307,6 +399,12 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                       </td>
                       <td className="py-3 px-4 font-mono text-xs text-slate-600 whitespace-nowrap">
                         {rep.palletLocation || '—'}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-xs text-slate-800 whitespace-nowrap">
+                        {durShifts !== undefined ? `${durShifts} Shift` : '—'}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-slate-800 whitespace-nowrap">
+                        {rep.createdByName}
                       </td>
                       <td className="py-3 px-4 text-xs whitespace-nowrap">
                         <span

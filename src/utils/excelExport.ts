@@ -85,9 +85,12 @@ export function buildHandoverFilename(): string {
   return 'Data Military & Stability.xlsx';
 }
 
-export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
+export function buildHandoverWorkbook(
+  reports: HandoverReport[],
+  allReportsForDuration?: HandoverReport[]
+): WorkBook {
   const wb = XLSX.utils.book_new();
-  const durations = computeCaseDurations(reports);
+  const durations = computeCaseDurations(allReportsForDuration ?? reports);
   const durationByCountedReportId = new Map<string, CaseDurationItem>();
   for (const item of durations) {
     for (const repId of item.countedReportIds) {
@@ -363,9 +366,10 @@ export function buildHandoverWorkbook(reports: HandoverReport[]): WorkBook {
 
 export function downloadHandoverExcel(
   reports: HandoverReport[],
-  filename: string = buildHandoverFilename()
+  filename: string = buildHandoverFilename(),
+  allReportsForDuration?: HandoverReport[]
 ): { filename: string; rowCount: number } {
-  const wb = buildHandoverWorkbook(reports);
+  const wb = buildHandoverWorkbook(reports, allReportsForDuration);
   XLSX.writeFile(wb, filename);
   return { filename, rowCount: reports.length };
 }

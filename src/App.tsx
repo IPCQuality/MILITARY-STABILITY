@@ -70,8 +70,11 @@ export default function App() {
 
   const [historyFilters, setHistoryFilters] = useState<HistoryFilters>({
     date: '',
+    startDate: '',
+    endDate: '',
     shift: 'ALL',
     category: 'ALL',
+    status: 'ALL',
     keyword: '',
   });
 
@@ -489,7 +492,11 @@ export default function App() {
   const headerShiftLabel =
     headerShiftStatus.activeShifts.length > 0
       ? headerShiftStatus.primaryShift
-      : 'Di luar jam shift';
+      : headerShiftStatus.statusText.includes('Masa input')
+        ? 'Shift 3 (Tenggang s/d 01:00)'
+        : headerShiftStatus.statusText.includes('Minggu')
+          ? 'Libur Operasional'
+          : 'Di luar jam shift';
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col md:flex-row">
@@ -572,13 +579,17 @@ export default function App() {
               <BrandLogo size={26} className="md:hidden" />
             )}
             <div className="min-w-0 leading-tight">
-              <h1 className="text-[13px] sm:text-sm font-bold tracking-tight truncate">
+              <h1 className="text-xs sm:text-sm font-bold tracking-tight truncate">
                 <span className="text-[#0F294A]">MILITARY &amp; STABILITY</span>
                 <span className="text-slate-400 font-normal">/</span>
                 <span className="text-slate-800">{activeLabel}</span>
               </h1>
               <p className="text-[11px] sm:text-xs text-slate-500 truncate mt-0.5">
-                {headerShiftStatus.dateFormatted}
+                <span>{headerShiftStatus.dateFormatted}</span>
+                <span className="sm:hidden font-semibold text-[#0F294A]">
+                  {' '}
+                  · {headerShiftLabel}
+                </span>
               </p>
             </div>
           </div>
@@ -684,8 +695,8 @@ export default function App() {
         </main>
       </div>
 
-      {/* Floating Input Button */}
-      {!isSubPage && !selectedReport && (
+      {/* Floating Input Button (Dashboard only so it never overlaps Settings/Report/History controls) */}
+      {activeNav === 'dashboard' && !selectedReport && (
         <button
           type="button"
           onClick={openFloatingInput}
@@ -733,6 +744,7 @@ export default function App() {
       <ReportDetailModal
         report={selectedReport}
         currentUser={currentUser}
+        reports={reports}
         onClose={() => setSelectedReport(null)}
         onEdit={handleStartEdit}
       />

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
 import type { UserProfile } from '../types/handover';
 import {
+  resetPasswordFirebase,
   signInFirebase,
   signInWithGoogleFirebase,
   signUpFirebase,
@@ -44,8 +45,31 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [infoMsg, setInfoMsg] = useState<string | null>(null);
+
+  async function handleForgotPassword() {
+    setErrorMsg(null);
+    setInfoMsg(null);
+    if (!email.trim()) {
+      setErrorMsg('Masukkan email akun Anda pada kolom Email Pengguna terlebih dahulu untuk reset kata sandi.');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      const res = await resetPasswordFirebase(email);
+      if (!res.ok) {
+        setErrorMsg(res.error || 'Gagal mengirim tautan reset kata sandi.');
+        return;
+      }
+      setInfoMsg(
+        `Tautan reset kata sandi telah dikirim ke ${email.trim()}. Periksa inbox atau folder spam Anda.`
+      );
+    } finally {
+      setResettingPassword(false);
+    }
+  }
 
   async function handleGoogleAuth() {
     setErrorMsg(null);
@@ -277,12 +301,24 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             </div>
 
             <div>
-              <label
-                htmlFor="auth-password"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
-              >
-                Kata Sandi
-              </label>
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <label
+                  htmlFor="auth-password"
+                  className="block text-sm font-medium text-slate-700"
+                >
+                  Kata Sandi
+                </label>
+                {tab === 'login' && (
+                  <button
+                    type="button"
+                    disabled={resettingPassword || loading || googleLoading}
+                    onClick={handleForgotPassword}
+                    className="text-xs font-semibold text-[#0F294A] hover:text-[#163864] hover:underline disabled:opacity-50"
+                  >
+                    {resettingPassword ? 'Mengirim...' : 'Lupa kata sandi?'}
+                  </button>
+                )}
+              </div>
               <div className="relative">
                 <input
                   id="auth-password"

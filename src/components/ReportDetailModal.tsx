@@ -1,10 +1,20 @@
+import { useEffect, useMemo } from 'react';
 import { X, Pencil } from 'lucide-react';
 import type { HandoverReport, UserProfile } from '../types/handover';
-import { canEditReport, formatDateTimeId, formatWorkflowBadge } from '../utils/handoverLogic';
+import {
+  canEditReport,
+  computeCaseDurations,
+  countMilitaryInReport,
+  countStabilityInReport,
+  formatDateTimeId,
+  formatDisplayDate,
+  formatWorkflowBadge,
+} from '../utils/handoverLogic';
 
 interface ReportDetailModalProps {
   report: HandoverReport | null;
   currentUser: UserProfile;
+  reports?: HandoverReport[];
   onClose: () => void;
   onEdit: (report: HandoverReport) => void;
 }
@@ -12,9 +22,38 @@ interface ReportDetailModalProps {
 export function ReportDetailModal({
   report,
   currentUser,
+  reports = [],
   onClose,
   onEdit,
 }: ReportDetailModalProps) {
+  useEffect(() => {
+    if (!report) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [report, onClose]);
+
+  const caseMetrics = useMemo(() => {
+    if (!report || reports.length === 0) return null;
+    const allDurations = computeCaseDurations(reports);
+    const matched = allDurations.find(
+      (d) => d.reportIds.includes(report.id)
+    );
+    if (!matched) return null;
+    const epReports = reports.filter((r) => matched.reportIds.includes(r.id));
+    const totalMil = epReports.reduce((sum, r) => sum + countMilitaryInReport(r), 0);
+    const totalStab = epReports.reduce((sum, r) => sum + countStabilityInReport(r), 0);
+    return {
+      durationShifts: matched.durationShifts,
+      isCompleted: matched.isCompleted,
+      totalMilitary: totalMil,
+      totalStability: totalStab,
+      reportCount: matched.reportCount,
+    };
+  }, [report, reports]);
+
   if (!report) return null;
 
   const editable = canEditReport(report, currentUser);
@@ -26,8 +65,12 @@ export function ReportDetailModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="detail-modal-title"
+      onClick={onClose}
     >
-      <div className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-xl border border-slate-200 shadow-xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div
+        className="bg-white w-full sm:max-w-xl rounded-t-2xl sm:rounded-xl border border-slate-200 shadow-xl max-h-[90vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200">
           <div className="min-w-0">
@@ -36,7 +79,7 @@ export function ReportDetailModal({
               <span aria-hidden="true">·</span>
               <span>{report.category}</span>
               <span aria-hidden="true">·</span>
-              <span className="font-mono tabular-nums">{report.reportDate}</span>
+              <span className="font-mono tabular-nums">{formatDisplayDate(report.reportDate)}</span>
             </div>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
@@ -69,9 +112,34 @@ export function ReportDetailModal({
         </div>
 
         {/* Body */}
-        <div className="p-5 overflow-y-auto divide-y divide-slate-100 text-sm">
+        <div className="p-5 overflow-y-auto text-sm space-y-4">
+          {caseMetrics && (
+            <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 border border-slate-200 text-center">
+              <div>
+                <span className="text-[10px] sm:text-xs text-slate-500 block">Total Durasi Kasus</span>
+                <span className="font-mono text-xs sm:text-sm font-bold text-[#0F294A]">
+                  {caseMetrics.durationShifts} Shift
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] sm:text-xs text-slate-500 block">Total Military</span>
+                <span className="font-mono text-xs sm:text-sm font-bold text-slate-900">
+                  {caseMetrics.totalMilitary}x
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] sm:text-xs text-slate-500 block">Total Stability</span>
+                <span className="font-mono text-xs sm:text-sm font-bold text-teal-700">
+                  {caseMetrics.totalStability}x
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="divide-y divide-slate-100">
+
           {(wfBadge || report.isRepairStart) && (
-            <div className="pb-4 flex flex-wrap items-center gap-2">
+            <div className="py-3 flex flex-wrap items-center gap-2">
               {wfBadge && (
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded border ${wfBadge.badgeClass}`}>
                   {wfBadge.badgeLabel}
@@ -116,7 +184,7 @@ export function ReportDetailModal({
 
           <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
             <div>
-              <span className="text-slate-400 block">Pembuat Laporan</span>
+              <span className="text-slate-400 block">PIC</span>
               <span className="font-medium text-slate-900">{report.createdByName}</span>
             </div>
             <div>
@@ -127,6 +195,7 @@ export function ReportDetailModal({
               </span>
             </div>
           </div>
+          </div>
         </div>
 
         {/* Footer */}
@@ -134,7 +203,7 @@ export function ReportDetailModal({
           <p className="text-xs text-slate-500">
             {editable
               ? 'Anda dapat mengedit laporan ini.'
-              : 'Hanya pembuat laporan atau Supervisor/Admin yang dapat mengedit.'}
+              : 'Hanya PIC laporan atau Supervisor/Admin yang dapat mengedit.'}
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <button
