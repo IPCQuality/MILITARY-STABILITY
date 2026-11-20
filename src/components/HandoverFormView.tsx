@@ -586,7 +586,7 @@ export function HandoverFormView({
                     }
                   }
                 }}
-                className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500 ${
+                className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500 ${
                   lockDateAndShiftOnEdit
                     ? 'bg-slate-100 dark:bg-[#121417] text-slate-500 dark:text-zinc-500 cursor-not-allowed'
                     : 'bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100'
@@ -610,7 +610,7 @@ export function HandoverFormView({
                 id="input-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value as CategoryType)}
-                className="w-full min-h-[42px] px-3.5 py-2 text-sm border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[42px] px-3.5 py-2 text-sm border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
@@ -662,7 +662,7 @@ export function HandoverFormView({
                     aria-pressed={active}
                     className={`min-h-[50px] px-2 py-2 rounded-xl border transition-all active:scale-[0.98] text-center ${
                       active
-                        ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                        ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
                         : disabled
                           ? 'bg-slate-100 dark:bg-[#101216] text-slate-400 dark:text-zinc-600 border-slate-200 dark:border-zinc-800/70 cursor-not-allowed'
                           : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
@@ -722,7 +722,7 @@ export function HandoverFormView({
                     {wfContext.lastReport.shift} ({formatDisplayDate(wfContext.lastReport.reportDate)})
                   </span>
                   {formatWorkflowBadge(wfContext.lastReport) && (
-                    <span className="font-medium text-[#0F294A] dark:text-teal-400">
+                    <span className="font-medium text-teal-700 dark:text-teal-400">
                       · {formatWorkflowBadge(wfContext.lastReport)?.badgeLabel}
                     </span>
                   )}
@@ -793,7 +793,7 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'REPAIR'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'REPAIR'
-                  ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                  ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
                   : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
               }`}
             >
@@ -812,7 +812,7 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'MILITARY'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'MILITARY'
-                  ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                  ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
                   : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
               }`}
             >
@@ -841,7 +841,7 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'STABILITY'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'STABILITY'
-                  ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                  ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
                   : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
               }`}
             >
@@ -883,7 +883,7 @@ export function HandoverFormView({
                       setMilitaryRound(nextRound);
                       setInformation(buildMilitaryAutoInfo(nextRound, militaryStatus, leakLine));
                     }}
-                    className="w-14 h-9 px-2 text-sm font-mono font-bold text-center border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60"
+                    className="w-14 h-9 px-2 text-sm font-mono font-bold text-center border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60"
                   />
                   <button
                     type="button"
@@ -1093,7 +1093,7 @@ export function HandoverFormView({
                             }}
                             className={`min-h-[42px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                               is4hActive
-                                ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                                ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
                                 : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                             }`}
                           >
@@ -1121,7 +1121,7 @@ export function HandoverFormView({
                             }}
                             className={`min-h-[42px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                               is8hActive
-                                ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                                ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
                                 : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                             }`}
                           >
@@ -1184,7 +1184,7 @@ export function HandoverFormView({
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'OK'
-                        ? 'bg-teal-700 dark:bg-emerald-500 text-white dark:text-zinc-950 border-teal-700 dark:border-emerald-400 shadow-md shadow-teal-700/25 dark:shadow-emerald-500/20'
+                        ? 'bg-emerald-700 dark:bg-emerald-500 text-white dark:text-zinc-950 border-emerald-700 dark:border-emerald-400 shadow-md shadow-emerald-700/25 dark:shadow-emerald-500/20'
                         : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                     }`}
                   >
@@ -1270,7 +1270,7 @@ export function HandoverFormView({
               value={information}
               onChange={(e) => setInformation(e.target.value)}
               placeholder={infoPlaceholder}
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             />
             {fieldErrors.information && (
               <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
@@ -1295,7 +1295,7 @@ export function HandoverFormView({
               value={followUp}
               onChange={(e) => setFollowUp(e.target.value)}
               placeholder="Rencana untuk shift berikutnya..."
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             />
             {fieldErrors.followUp && (
               <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
@@ -1322,7 +1322,7 @@ export function HandoverFormView({
                   setPalletLocation(e.target.value);
                 }}
                 placeholder="Contoh: Staging Line A / Rak 02"
-                className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
               {fieldErrors.palletLocation && (
                 <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
@@ -1379,7 +1379,7 @@ export function HandoverFormView({
           <button
             type="submit"
             disabled={submitting || operatorClosedNow}
-            className="min-h-[44px] px-7 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-950 text-sm font-semibold shadow-md shadow-[#0F294A]/25 dark:shadow-teal-500/20 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+            className="min-h-[44px] px-7 py-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-950 text-sm font-semibold shadow-md shadow-teal-700/25 dark:shadow-teal-500/20 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
           >
             {editingReport ? (
               <Pencil className="w-4 h-4" />

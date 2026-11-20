@@ -122,9 +122,9 @@ export function MachinePicker({
         aria-expanded={open}
         aria-required={required}
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border rounded-xl bg-white dark:bg-[#07080A] flex items-center justify-between gap-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 ${
+        className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border rounded-xl bg-white dark:bg-[#07080A] flex items-center justify-between gap-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 ${
           open
-            ? 'border-[#0F294A] dark:border-teal-500 ring-2 ring-[#0F294A]/20 dark:ring-teal-500/25'
+            ? 'border-teal-600 dark:border-teal-500 ring-2 ring-teal-600/20 dark:ring-teal-500/25'
             : 'border-slate-300 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-700'
         }`}
       >
@@ -167,7 +167,7 @@ export function MachinePicker({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Cari mesin (misal: AST 25, APK 19, K1)..."
                 aria-label="Cari kode mesin"
-                className="w-full min-h-[36px] pl-8 pr-8 py-1.5 text-xs sm:text-sm border border-slate-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[36px] pl-8 pr-8 py-1.5 text-xs sm:text-sm border border-slate-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
               {query && (
                 <button
@@ -213,7 +213,7 @@ export function MachinePicker({
                           onClick={() => handleSelect(item)}
                           className={`w-full px-3.5 py-2 text-left text-xs sm:text-sm font-mono flex items-center justify-between gap-2 transition-colors ${
                             selected
-                              ? 'bg-[#0F294A]/10 dark:bg-teal-500/15 text-[#0F294A] dark:text-teal-300 font-bold'
+                              ? 'bg-teal-50 dark:bg-teal-500/15 text-teal-800 dark:text-teal-300 font-bold'
                               : 'text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-[#16191F]'
                           }`}
                         >
@@ -227,7 +227,7 @@ export function MachinePicker({
                             <span className="truncate">{item}</span>
                           </span>
                           {selected && (
-                            <Check className="w-4 h-4 text-[#0F294A] dark:text-teal-400 shrink-0" />
+                            <Check className="w-4 h-4 text-teal-700 dark:text-teal-400 shrink-0" />
                           )}
                         </button>
                       );

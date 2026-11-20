@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ChevronRight, LogOut, ShieldCheck } from 'lucide-react';
 import type { UserProfile, UserRole } from '../types/handover';
 import { subscribeUsersForAdmin } from '../services/handoverService';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface SettingsViewProps {
   currentUser: UserProfile;
@@ -72,7 +73,7 @@ export function SettingsView({
         ) : (
           <div
             aria-hidden="true"
-            className="w-14 h-14 rounded-full bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 font-bold text-base flex items-center justify-center shrink-0 tracking-wide"
+            className="w-14 h-14 rounded-full bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 font-bold text-base flex items-center justify-center shrink-0 tracking-wide"
           >
             {initials}
           </div>
@@ -94,7 +95,7 @@ export function SettingsView({
           <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
             Detail Profil
           </h3>
-          <span className="text-xs font-semibold text-[#0F294A] dark:text-teal-400">
+          <span className="text-xs font-semibold text-teal-700 dark:text-teal-400">
             {formatRoleLabel(currentUser.role)}
           </span>
         </div>
@@ -129,6 +130,9 @@ export function SettingsView({
         </dl>
       </section>
 
+      {/* Instal Aplikasi Web (PWA) */}
+      <PWAInstallButton variant="settings" />
+
       {/* Tombol Menu Admin (Hanya Admin) */}
       {isAdmin && onOpenAdmin && (
         <button
@@ -137,7 +141,7 @@ export function SettingsView({
           className="w-full rounded-xl border border-slate-200 dark:border-zinc-800/90 bg-white dark:bg-[#0B0C0E] hover:bg-slate-50 dark:hover:bg-[#14171C] shadow-xs hover:shadow-sm px-5 py-4 flex items-center justify-between gap-3 text-left transition-all active:scale-[0.99]"
         >
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-[#0F294A]/10 dark:bg-teal-500/15 text-[#0F294A] dark:text-teal-400 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-500/15 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div className="min-w-0">

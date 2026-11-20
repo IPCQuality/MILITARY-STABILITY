@@ -141,7 +141,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
               onClick={() => setActiveTab('pending')}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap tabular-nums ${
                 activeTab === 'pending'
-                  ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-sm'
+                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-sm'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -152,7 +152,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
               onClick={() => setActiveTab('all')}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap tabular-nums ${
                 activeTab === 'all'
-                  ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-sm'
+                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-sm'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -225,7 +225,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                           {badge.label}
                         </span>
                         {isPrimaryAdmin && (
-                          <span className="text-[11px] font-semibold text-[#0F294A] dark:text-teal-400 inline-flex items-center gap-1">
+                          <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 inline-flex items-center gap-1">
                             <ShieldCheck className="w-3.5 h-3.5" />
                             Admin Utama
                           </span>
@@ -256,7 +256,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                               [user.id]: e.target.value as UserRole,
                             }))
                           }
-                          className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                          className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
                         >
                           <option value="pengawas">Pengawas</option>
                           <option value="supervisor">Supervisor</option>
@@ -284,7 +284,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                               onClick={() =>
                                 handleUpdateApproval(user, 'approved', selectedRole)
                               }
-                              className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 text-white dark:text-zinc-950 text-xs font-semibold shadow-sm shadow-[#0F294A]/20 dark:shadow-teal-500/15 hover:shadow-md active:scale-[0.97] transition-all whitespace-nowrap"
+                              className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 text-white dark:text-zinc-950 text-xs font-semibold shadow-sm shadow-teal-700/20 dark:shadow-teal-500/15 hover:shadow-md active:scale-[0.97] transition-all whitespace-nowrap"
                             >
                               Simpan Role
                             </button>

@@ -174,7 +174,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 onClick={() => applyPreset('all')}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                   startDate === '' && endDate === ''
-                    ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                    ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
@@ -185,7 +185,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 onClick={() => applyPreset('today')}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                   startDate === operationalToday && endDate === operationalToday
-                    ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                    ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
@@ -196,7 +196,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 onClick={() => applyPreset('7days')}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                   startDate === past7DateStr && endDate === operationalToday
-                    ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                    ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
@@ -207,7 +207,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 onClick={() => applyPreset('month')}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                   startDate === monthStartStr && endDate === operationalToday
-                    ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                    ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
                     : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
@@ -229,7 +229,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
             </div>
 
@@ -245,7 +245,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
             </div>
 
@@ -260,7 +260,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 id="export-shift"
                 value={exportShift}
                 onChange={(e) => setExportShift(e.target.value as ShiftType | 'ALL')}
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               >
                 <option value="ALL">Semua Shift</option>
                 {SHIFTS.map((s) => (
@@ -282,7 +282,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 id="export-category"
                 value={exportCategory}
                 onChange={(e) => setExportCategory(e.target.value as CategoryType | 'ALL')}
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               >
                 <option value="ALL">Semua Kategori</option>
                 {CATEGORIES.map((c) => (
@@ -324,13 +324,13 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
           </div>
           <div className="px-5 py-3.5">
             <p className="text-xs text-slate-500 dark:text-zinc-400">Total Military</p>
-            <p className="mt-0.5 text-lg font-bold text-[#0F294A] dark:text-teal-400 tabular-nums">
+            <p className="mt-0.5 text-lg font-bold text-teal-700 dark:text-teal-400 tabular-nums">
               {exportMetrics.totalMilitary}
             </p>
           </div>
           <div className="px-5 py-3.5">
             <p className="text-xs text-slate-500 dark:text-zinc-400">Total Stability</p>
-            <p className="mt-0.5 text-lg font-bold text-teal-700 dark:text-cyan-400 tabular-nums">
+            <p className="mt-0.5 text-lg font-bold text-cyan-700 dark:text-cyan-400 tabular-nums">
               {exportMetrics.totalStability}
             </p>
           </div>
@@ -349,7 +349,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
             type="button"
             disabled={exporting || previewRows.length === 0}
             onClick={handleExportExcel}
-            className="min-h-[44px] px-6 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-950 text-sm font-semibold shadow-md shadow-[#0F294A]/25 dark:shadow-teal-500/20 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all whitespace-nowrap"
+            className="min-h-[44px] px-6 py-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-950 text-sm font-semibold shadow-md shadow-teal-700/25 dark:shadow-teal-500/20 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all whitespace-nowrap"
           >
             {exporting ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -405,7 +405,7 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                           {rep.shift}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-mono text-xs font-semibold text-[#0F294A] dark:text-teal-400 whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono text-xs font-semibold text-teal-700 dark:text-teal-400 whitespace-nowrap">
                         {rep.machine || '—'}
                       </td>
                       <td className="py-3 px-4 max-w-xs space-y-1">

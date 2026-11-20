@@ -134,7 +134,7 @@ export function HistoryView({
               onClick={() => applyDatePreset('all')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 !startDate && !endDate && !filters.date
-                  ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -145,7 +145,7 @@ export function HistoryView({
               onClick={() => applyDatePreset('today')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 startDate === operationalToday && endDate === operationalToday
-                  ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -156,7 +156,7 @@ export function HistoryView({
               onClick={() => applyDatePreset('7days')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 startDate === past7DateStr && endDate === operationalToday
-                  ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -167,7 +167,7 @@ export function HistoryView({
               onClick={() => applyDatePreset('month')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 startDate === monthStartStr && endDate === operationalToday
-                  ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -192,7 +192,7 @@ export function HistoryView({
                 value={filters.keyword}
                 onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
                 placeholder="Cari mesin, palet, PIC..."
-                className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
             </div>
           </div>
@@ -211,7 +211,7 @@ export function HistoryView({
               onChange={(e) =>
                 onChangeFilters({ ...filters, date: '', startDate: e.target.value })
               }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             />
           </div>
 
@@ -229,7 +229,7 @@ export function HistoryView({
               onChange={(e) =>
                 onChangeFilters({ ...filters, date: '', endDate: e.target.value })
               }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             />
           </div>
 
@@ -246,7 +246,7 @@ export function HistoryView({
               onChange={(e) =>
                 onChangeFilters({ ...filters, shift: e.target.value as ShiftType | 'ALL' })
               }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             >
               <option value="ALL">Semua Shift</option>
               {SHIFTS.map((s) => (
@@ -273,7 +273,7 @@ export function HistoryView({
                   category: e.target.value as CategoryType | 'ALL',
                 })
               }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             >
               <option value="ALL">Semua Kategori</option>
               {CATEGORIES.map((c) => (
@@ -300,7 +300,7 @@ export function HistoryView({
                   status: e.target.value as 'ALL' | 'OPEN' | 'COMPLETED',
                 })
               }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             >
               <option value="ALL">Semua Status</option>
               <option value="OPEN">Berlanjut</option>
@@ -390,7 +390,7 @@ export function HistoryView({
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <p className="font-mono text-xs font-semibold text-[#0F294A] dark:text-teal-400 whitespace-nowrap">
+                          <p className="font-mono text-xs font-semibold text-teal-700 dark:text-teal-400 whitespace-nowrap">
                             {rep.machine || '—'}
                             {durationShifts !== undefined && (
                               <span className="text-slate-500 dark:text-zinc-400 font-medium">
@@ -463,7 +463,7 @@ export function HistoryView({
                                 type="button"
                                 onClick={() => onEditReport(rep)}
                                 aria-label={`Edit laporan ${rep.reportDate} ${rep.shift}`}
-                                className="min-h-[34px] px-3 py-1 rounded-full bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 text-xs font-semibold text-white dark:text-zinc-950 shadow-xs shadow-[#0F294A]/20 dark:shadow-teal-500/15 hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 transition-all"
+                                className="min-h-[34px] px-3 py-1 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-xs font-semibold text-white dark:text-zinc-950 shadow-xs shadow-teal-700/20 dark:shadow-teal-500/15 hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 transition-all"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                                 <span>Edit</span>
@@ -500,7 +500,7 @@ export function HistoryView({
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-mono text-sm font-bold text-[#0F294A] dark:text-teal-400">
+                      <p className="font-mono text-sm font-bold text-teal-700 dark:text-teal-400">
                         {rep.machine || 'Umum / Non-Mesin'}
                         {durationShifts !== undefined && (
                           <span className="text-slate-500 dark:text-zinc-400 font-medium text-xs">
@@ -566,7 +566,7 @@ export function HistoryView({
                           <button
                             type="button"
                             onClick={() => onEditReport(rep)}
-                            className="min-h-[38px] px-4 py-1.5 rounded-full bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 font-semibold shadow-sm shadow-[#0F294A]/20 dark:shadow-teal-500/15 active:scale-[0.97] transition-all"
+                            className="min-h-[38px] px-4 py-1.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 font-semibold shadow-sm shadow-teal-700/20 dark:shadow-teal-500/15 active:scale-[0.97] transition-all"
                           >
                             Edit
                           </button>

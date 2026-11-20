@@ -25,6 +25,10 @@ function applyThemeToDocument(mode: ThemeMode) {
     root.classList.remove('dark');
   }
   root.dataset.theme = mode;
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) {
+    themeMeta.setAttribute('content', mode === 'dark' ? '#000000' : '#0F766E');
+  }
 }
 
 export function useTheme() {

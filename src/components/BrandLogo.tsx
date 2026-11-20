@@ -29,8 +29,8 @@ export function BrandLogo({
         rx="7.5"
         className={
           isLight
-            ? 'fill-white stroke-transparent dark:fill-[#13171D] dark:stroke-teal-400/30'
-            : 'fill-[#0F294A] stroke-transparent dark:fill-[#13171D] dark:stroke-zinc-800'
+            ? 'fill-white stroke-teal-200 dark:fill-[#13171D] dark:stroke-teal-400/30'
+            : 'fill-teal-700 stroke-transparent dark:fill-[#13171D] dark:stroke-teal-500/35'
         }
         strokeWidth="1"
       />
@@ -38,7 +38,7 @@ export function BrandLogo({
         d="M8 21V11L13.5 17L19 11V21"
         className={
           isLight
-            ? 'stroke-[#0F294A] dark:stroke-zinc-100'
+            ? 'stroke-teal-700 dark:stroke-zinc-100'
             : 'stroke-white dark:stroke-zinc-100'
         }
         strokeWidth="2.4"
@@ -49,8 +49,8 @@ export function BrandLogo({
         d="M21.5 21H24.5"
         className={
           isLight
-            ? 'stroke-[#0F766E] dark:stroke-teal-400'
-            : 'stroke-[#2DD4BF] dark:stroke-teal-400'
+            ? 'stroke-teal-500 dark:stroke-teal-400'
+            : 'stroke-teal-300 dark:stroke-teal-400'
         }
         strokeWidth="2.6"
         strokeLinecap="round"

@@ -126,7 +126,7 @@ export function ReportDetailModal({
                 <span className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 block">
                   Total Durasi Kasus
                 </span>
-                <span className="font-mono text-xs sm:text-sm font-bold text-[#0F294A] dark:text-teal-400">
+                <span className="font-mono text-xs sm:text-sm font-bold text-teal-700 dark:text-teal-400">
                   {caseMetrics.durationShifts} Shift
                 </span>
               </div>
@@ -160,7 +160,7 @@ export function ReportDetailModal({
                   </span>
                 )}
                 {report.isRepairStart && (
-                  <span className="text-xs font-medium text-[#0F294A] dark:text-teal-400">
+                  <span className="text-xs font-medium text-teal-700 dark:text-teal-400">
                     · Awal Perhitungan Durasi (Shift ke-1)
                   </span>
                 )}
@@ -246,7 +246,7 @@ export function ReportDetailModal({
               <button
                 type="button"
                 onClick={() => onEdit(report)}
-                className="min-h-[40px] px-5 py-2 rounded-full bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 text-sm font-semibold shadow-sm shadow-[#0F294A]/25 dark:shadow-teal-500/20 hover:shadow-md active:scale-[0.97] inline-flex items-center gap-2 transition-all"
+                className="min-h-[40px] px-5 py-2 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 text-sm font-semibold shadow-sm shadow-teal-700/25 dark:shadow-teal-500/20 hover:shadow-md active:scale-[0.97] inline-flex items-center gap-2 transition-all"
               >
                 <Pencil className="w-4 h-4" />
                 Edit

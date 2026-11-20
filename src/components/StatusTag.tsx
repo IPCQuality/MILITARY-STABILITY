@@ -22,7 +22,7 @@ export function ShiftTag({ shift }: { shift: ShiftType }) {
 export function CategoryTag({ category }: { category: CategoryType }) {
   const styles: Record<CategoryType, string> = {
     OVERHAUL:
-      'bg-blue-50 text-[#0F294A] border-blue-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800/70',
+      'bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800/70',
     'STABILITY TINGGI':
       'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/70',
     'CASE PERBAIKAN PART':
