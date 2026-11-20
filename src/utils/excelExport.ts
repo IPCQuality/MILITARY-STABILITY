@@ -5,6 +5,7 @@ import {
   countMilitaryInReport,
   countStabilityInReport,
   formatDateTimeId,
+  formatStabilityPhaseLabel,
   type CaseDurationItem,
 } from './handoverLogic';
 
@@ -135,16 +136,16 @@ export function buildHandoverWorkbook(
         r.militaryStatus === 'PENDING'
           ? 'Belum Diuji'
           : r.militaryStatus === 'OK'
-            ? 'OK (0% Bocor)'
+            ? 'Nihil 0% (OK)'
             : `Bocor ${r.militaryLeakBoxes ?? 0} Box`;
       stageDetail = `Military${roundStr} [${statusStr}]`;
     } else if (r.activityStage === 'STABILITY') {
-      const phaseStr = r.stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam';
+      const phaseStr = formatStabilityPhaseLabel(r.stabilityPhase);
       const statusStr =
         r.stabilityStatus === 'PENDING'
           ? 'Belum Diuji'
           : r.stabilityStatus === 'OK'
-            ? 'OK (Stabil)'
+            ? 'Nihil 0% (OK)'
             : 'Bocor / Deviasi';
       stageDetail = `Stability ${phaseStr} [${statusStr}]`;
     } else if (militaryCount > 0) {

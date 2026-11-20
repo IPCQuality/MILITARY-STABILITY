@@ -144,7 +144,7 @@ export type ActivityStage = (typeof ACTIVITY_STAGES)[number];
 export const MILITARY_STATUSES = ['PENDING', 'OK', 'LEAK'] as const;
 export type MilitaryStatus = (typeof MILITARY_STATUSES)[number];
 
-export const STABILITY_PHASES = ['4_HOURS', '8_HOURS'] as const;
+export const STABILITY_PHASES = ['4_HOURS', '8_HOURS', '4_AND_8_HOURS'] as const;
 export type StabilityPhase = (typeof STABILITY_PHASES)[number];
 
 export const STABILITY_STATUSES = ['PENDING', 'OK', 'LEAK'] as const;

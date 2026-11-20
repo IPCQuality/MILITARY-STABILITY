@@ -151,7 +151,7 @@ service cloud.firestore {
         && (!('militaryRound' in data) || (data.militaryRound is int && data.militaryRound >= 1 && data.militaryRound <= 50))
         && (!('militaryStatus' in data) || (data.militaryStatus is string && data.militaryStatus in ['PENDING', 'OK', 'LEAK']))
         && (!('militaryLeakBoxes' in data) || (data.militaryLeakBoxes is int && data.militaryLeakBoxes >= 0 && data.militaryLeakBoxes <= 500))
-        && (!('stabilityPhase' in data) || (data.stabilityPhase is string && data.stabilityPhase in ['4_HOURS', '8_HOURS']))
+        && (!('stabilityPhase' in data) || (data.stabilityPhase is string && data.stabilityPhase in ['4_HOURS', '8_HOURS', '4_AND_8_HOURS']))
         && (!('stabilityStatus' in data) || (data.stabilityStatus is string && data.stabilityStatus in ['PENDING', 'OK', 'LEAK']))
         && (!('leakLine' in data) || (data.leakLine is string && data.leakLine.size() <= 200))
         && data.createdBy is string && isValidId(data.createdBy)

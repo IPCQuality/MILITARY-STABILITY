@@ -157,8 +157,8 @@
         },
         "stabilityPhase": {
           "type": "string",
-          "description": "Fase pengujian stability: 4_HOURS (khusus overhaul) atau 8_HOURS.",
-          "enum": ["4_HOURS", "8_HOURS"]
+          "description": "Fase pengujian stability: 4_HOURS (khusus overhaul), 8_HOURS, atau 4_AND_8_HOURS (khusus overhaul untuk 4 & 8 jam sekaligus).",
+          "enum": ["4_HOURS", "8_HOURS", "4_AND_8_HOURS"]
         },
         "stabilityStatus": {
           "type": "string",
