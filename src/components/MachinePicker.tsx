@@ -122,18 +122,31 @@ export function MachinePicker({
         aria-expanded={open}
         aria-required={required}
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border rounded-xl bg-white flex items-center justify-between gap-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#0F294A] ${
-          open ? 'border-[#0F294A] ring-2 ring-[#0F294A]/20' : 'border-slate-300 hover:border-slate-400'
+        className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border rounded-xl bg-white dark:bg-[#07080A] flex items-center justify-between gap-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 ${
+          open
+            ? 'border-[#0F294A] dark:border-teal-500 ring-2 ring-[#0F294A]/20 dark:ring-teal-500/25'
+            : 'border-slate-300 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-700'
         }`}
       >
-        <span className={`truncate flex items-center gap-2 ${value ? 'text-slate-900 font-semibold' : 'text-slate-400 font-sans font-normal'}`}>
+        <span
+          className={`truncate flex items-center gap-2 ${
+            value
+              ? 'text-slate-900 dark:text-zinc-100 font-semibold'
+              : 'text-slate-400 dark:text-zinc-500 font-sans font-normal'
+          }`}
+        >
           {value && activeSet.has(value.toUpperCase()) && (
-            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" aria-hidden="true" />
+            <span
+              className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 shrink-0"
+              aria-hidden="true"
+            />
           )}
           <span>{value || 'Pilih atau cari mesin...'}</span>
         </span>
         <ChevronDown
-          className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-slate-500 dark:text-zinc-400 shrink-0 transition-transform ${
+            open ? 'rotate-180' : ''
+          }`}
         />
       </button>
 
@@ -141,12 +154,12 @@ export function MachinePicker({
         <div
           role="listbox"
           aria-label="Daftar Pilihan Mesin"
-          className="absolute left-0 right-0 mt-1.5 z-40 bg-white rounded-xl border border-slate-200 shadow-lg shadow-slate-900/10 overflow-hidden"
+          className="absolute left-0 right-0 mt-1.5 z-40 bg-white dark:bg-[#0D0F12] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-lg shadow-slate-900/10 dark:shadow-black/80 overflow-hidden"
         >
           {/* Search Input */}
-          <div className="p-2 border-b border-slate-100 bg-slate-50/70">
+          <div className="p-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-[#121417]">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -154,14 +167,14 @@ export function MachinePicker({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Cari mesin (misal: AST 25, APK 19, K1)..."
                 aria-label="Cari kode mesin"
-                className="w-full min-h-[36px] pl-8 pr-8 py-1.5 text-xs sm:text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[36px] pl-8 pr-8 py-1.5 text-xs sm:text-sm border border-slate-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
                   aria-label="Hapus pencarian mesin"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1C2027] flex items-center justify-center"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -170,9 +183,9 @@ export function MachinePicker({
           </div>
 
           {/* Options List */}
-          <div className="max-h-64 overflow-y-auto overscroll-contain divide-y divide-slate-100">
+          <div className="max-h-64 overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-zinc-800/70">
             {filteredGroups.length === 0 ? (
-              <div className="px-4 py-6 text-center text-xs text-slate-500">
+              <div className="px-4 py-6 text-center text-xs text-slate-500 dark:text-zinc-400">
                 Mesin &ldquo;{query}&rdquo; tidak ditemukan.
               </div>
             ) : (
@@ -181,8 +194,8 @@ export function MachinePicker({
                   <div
                     className={`px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider ${
                       group.isActiveGroup
-                        ? 'text-amber-700 bg-amber-50/70'
-                        : 'text-slate-500 bg-slate-50/60'
+                        ? 'text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/35'
+                        : 'text-slate-500 dark:text-zinc-400 bg-slate-50/60 dark:bg-[#121417]'
                     }`}
                   >
                     {group.label}
@@ -200,20 +213,22 @@ export function MachinePicker({
                           onClick={() => handleSelect(item)}
                           className={`w-full px-3.5 py-2 text-left text-xs sm:text-sm font-mono flex items-center justify-between gap-2 transition-colors ${
                             selected
-                              ? 'bg-[#0F294A]/10 text-[#0F294A] font-bold'
-                              : 'text-slate-800 hover:bg-slate-50'
+                              ? 'bg-[#0F294A]/10 dark:bg-teal-500/15 text-[#0F294A] dark:text-teal-300 font-bold'
+                              : 'text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-[#16191F]'
                           }`}
                         >
                           <span className="flex items-center gap-2 min-w-0 truncate">
                             {isActive && (
                               <span
-                                className="w-2 h-2 rounded-full bg-amber-500 shrink-0"
+                                className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 shrink-0"
                                 aria-hidden="true"
                               />
                             )}
                             <span className="truncate">{item}</span>
                           </span>
-                          {selected && <Check className="w-4 h-4 text-[#0F294A] shrink-0" />}
+                          {selected && (
+                            <Check className="w-4 h-4 text-[#0F294A] dark:text-teal-400 shrink-0" />
+                          )}
                         </button>
                       );
                     })}

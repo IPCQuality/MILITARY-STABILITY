@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, LogIn, Moon, Sun, UserPlus } from 'lucide-react';
 import type { UserProfile } from '../types/handover';
 import {
   resetPasswordFirebase,
@@ -8,6 +8,7 @@ import {
   signUpFirebase,
 } from '../services/handoverService';
 import { BrandLogo } from './BrandLogo';
+import { useTheme } from '../hooks/useTheme';
 
 interface AuthViewProps {
   onAuthenticated: (user: UserProfile) => void;
@@ -38,6 +39,7 @@ function GoogleIcon() {
 }
 
 export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
+  const { isDark, toggleTheme } = useTheme();
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -141,49 +143,61 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 flex flex-col justify-center py-8 px-4 sm:px-6">
+    <div className="min-h-screen bg-slate-100 dark:bg-black text-slate-900 dark:text-zinc-100 flex flex-col justify-center py-8 px-4 sm:px-6">
       <div className="max-w-md w-full mx-auto space-y-4">
         {/* Compact Brand Banner */}
-        <div className="bg-[#0F294A] text-white rounded-xl px-6 py-5 border border-slate-800 shadow-xs">
-          <div className="flex items-center gap-3.5">
-            <BrandLogo size={38} variant="light" />
-            <div className="min-w-0">
-              <p className="text-[11px] font-mono tracking-wider text-slate-300 uppercase">
-                Shift Handover Log
-              </p>
-              <h1 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight">
-                MILITARY &amp; STABILITY
-              </h1>
+        <div className="bg-[#0F294A] dark:bg-[#0B0E11] text-white rounded-xl px-6 py-5 border border-slate-800 dark:border-zinc-800 shadow-xs">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <BrandLogo size={38} variant="light" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-mono tracking-wider text-slate-300 dark:text-teal-400 uppercase">
+                  Shift Handover Log
+                </p>
+                <h1 className="mt-0.5 text-xl sm:text-2xl font-bold tracking-tight text-white dark:text-zinc-100 truncate">
+                  MILITARY &amp; STABILITY
+                </h1>
+              </div>
             </div>
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={isDark ? 'Aktifkan Tema Terang' : 'Aktifkan Tema Dark AMOLED'}
+              title={isDark ? 'Beralih ke Tema Terang' : 'Beralih ke Tema Dark AMOLED'}
+              data-testid="theme-toggle-btn"
+              className="min-h-[36px] min-w-[36px] rounded-lg border border-white/20 dark:border-zinc-700 bg-white/10 dark:bg-[#16191F] hover:bg-white/20 dark:hover:bg-[#1E222A] text-white inline-flex items-center justify-center shrink-0 transition-all active:scale-[0.96]"
+            >
+              {isDark ? <Sun className="w-4 h-4 text-teal-400" /> : <Moon className="w-4 h-4" />}
+            </button>
           </div>
-          <p className="mt-2.5 text-xs text-slate-200 leading-relaxed">
+          <p className="mt-2.5 text-xs text-slate-200 dark:text-zinc-400 leading-relaxed">
             Masuk menggunakan akun terdaftar untuk mencatat &amp; memantau handover antar-shift.
           </p>
         </div>
 
         {/* Auth Form Card */}
-        <div className="bg-white rounded-xl border border-slate-300 p-6 space-y-5 shadow-xs">
+        <div className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-300 dark:border-zinc-800 p-6 space-y-5 shadow-xs">
           {sessionNotice && (
             <div
               role="alert"
-              className="p-3.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-sm"
+              className="p-3.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-sm"
             >
               {sessionNotice}
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-4">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 dark:border-zinc-800 pb-4">
             <div>
-              <h2 className="text-base sm:text-lg font-semibold text-slate-900">
+              <h2 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-zinc-100">
                 {tab === 'login' ? 'Masuk Akun' : 'Registrasi Akun'}
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
                 {tab === 'login'
                   ? 'Gunakan akun Google atau email terdaftar.'
                   : 'Isi data akun baru untuk mulai mencatat.'}
               </p>
             </div>
-            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-full shrink-0">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-[#121417] border border-transparent dark:border-zinc-800/80 rounded-full shrink-0">
               <button
                 type="button"
                 onClick={() => {
@@ -193,8 +207,8 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                 }}
                 className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                   tab === 'login'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1E222A] text-slate-900 dark:text-zinc-100 shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
                 Login
@@ -208,8 +222,8 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                 }}
                 className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition-all whitespace-nowrap ${
                   tab === 'register'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1E222A] text-slate-900 dark:text-zinc-100 shadow-sm'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
                 Registrasi
@@ -220,7 +234,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
           {errorMsg && (
             <div
               role="alert"
-              className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm"
+              className="p-3.5 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-200 text-sm"
             >
               {errorMsg}
             </div>
@@ -229,7 +243,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
           {infoMsg && (
             <div
               role="status"
-              className="p-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm"
+              className="p-3.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-200 text-sm"
             >
               {infoMsg}
             </div>
@@ -241,7 +255,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
               type="button"
               onClick={handleGoogleAuth}
               disabled={googleLoading || loading}
-              className="w-full min-h-[44px] px-5 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-800 text-sm font-semibold flex items-center justify-center gap-2.5 shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
+              className="w-full min-h-[44px] px-5 py-2.5 rounded-full border border-slate-200 dark:border-zinc-700/90 bg-white dark:bg-[#16191F] hover:bg-slate-50 dark:hover:bg-[#1E222A] disabled:opacity-50 text-slate-800 dark:text-zinc-100 text-sm font-semibold flex items-center justify-center gap-2.5 shadow-sm hover:shadow-md active:scale-[0.98] transition-all"
             >
               <GoogleIcon />
               <span>
@@ -254,11 +268,11 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             </button>
 
             <div className="relative flex items-center py-1">
-              <div className="flex-grow border-t border-slate-200" />
-              <span className="shrink mx-3 text-[11px] font-medium uppercase tracking-wider text-slate-400">
+              <div className="flex-grow border-t border-slate-200 dark:border-zinc-800" />
+              <span className="shrink mx-3 text-[11px] font-medium uppercase tracking-wider text-slate-400 dark:text-zinc-500">
                 atau dengan email
               </span>
-              <div className="flex-grow border-t border-slate-200" />
+              <div className="flex-grow border-t border-slate-200 dark:border-zinc-800" />
             </div>
           </div>
 
@@ -267,7 +281,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
               <div>
                 <label
                   htmlFor="auth-fullname"
-                  className="block text-sm font-medium text-slate-700 mb-1.5"
+                  className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5"
                 >
                   Nama Lengkap
                 </label>
@@ -277,7 +291,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Contoh: Suryadi"
-                  className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                  className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
                 />
               </div>
             )}
@@ -285,7 +299,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             <div>
               <label
                 htmlFor="auth-email"
-                className="block text-sm font-medium text-slate-700 mb-1.5"
+                className="block text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5"
               >
                 Email Pengguna
               </label>
@@ -296,7 +310,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="nama@email.com"
-                className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[44px] px-3.5 py-2 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
             </div>
 
@@ -304,7 +318,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <label
                   htmlFor="auth-password"
-                  className="block text-sm font-medium text-slate-700"
+                  className="block text-sm font-medium text-slate-700 dark:text-zinc-300"
                 >
                   Kata Sandi
                 </label>
@@ -313,7 +327,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                     type="button"
                     disabled={resettingPassword || loading || googleLoading}
                     onClick={handleForgotPassword}
-                    className="text-xs font-semibold text-[#0F294A] hover:text-[#163864] hover:underline disabled:opacity-50"
+                    className="text-xs font-semibold text-[#0F294A] dark:text-teal-400 hover:text-[#163864] dark:hover:text-teal-300 hover:underline disabled:opacity-50"
                   >
                     {resettingPassword ? 'Mengirim...' : 'Lupa kata sandi?'}
                   </button>
@@ -327,13 +341,13 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Minimal 6 karakter"
-                  className="w-full min-h-[44px] pl-3.5 pr-11 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                  className="w-full min-h-[44px] pl-3.5 pr-11 py-2 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
                 />
                 <button
                   type="button"
                   aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-500 hover:text-slate-800"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[40px] min-h-[40px] flex items-center justify-center text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -341,17 +355,17 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
             </div>
 
             {tab === 'register' && (
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
                 Akun baru (email maupun Google) otomatis terdaftar dengan role default{' '}
-                <strong className="text-slate-700">Pengawas</strong> dan menunggu konfirmasi{' '}
-                <strong className="text-slate-700">Admin</strong> sebelum dapat mengakses data.
+                <strong className="text-slate-700 dark:text-zinc-200">Pengawas</strong> dan menunggu konfirmasi{' '}
+                <strong className="text-slate-700 dark:text-zinc-200">Admin</strong> sebelum dapat mengakses data.
               </p>
             )}
 
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="w-full min-h-[46px] px-5 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 text-white text-sm font-semibold shadow-md shadow-[#0F294A]/25 hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 transition-all"
+              className="w-full min-h-[46px] px-5 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 text-white dark:text-zinc-950 text-sm font-semibold shadow-md shadow-[#0F294A]/25 dark:shadow-teal-500/20 hover:shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 transition-all"
             >
               {tab === 'login' ? (
                 <LogIn className="w-4 h-4 shrink-0" />

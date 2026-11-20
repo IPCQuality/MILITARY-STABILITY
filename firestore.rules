@@ -128,6 +128,7 @@ service cloud.firestore {
           'militaryLeakBoxes',
           'stabilityPhase',
           'stabilityStatus',
+          'leakLine',
           'createdBy',
           'createdByName',
           'updatedBy',
@@ -152,6 +153,7 @@ service cloud.firestore {
         && (!('militaryLeakBoxes' in data) || (data.militaryLeakBoxes is int && data.militaryLeakBoxes >= 0 && data.militaryLeakBoxes <= 500))
         && (!('stabilityPhase' in data) || (data.stabilityPhase is string && data.stabilityPhase in ['4_HOURS', '8_HOURS']))
         && (!('stabilityStatus' in data) || (data.stabilityStatus is string && data.stabilityStatus in ['PENDING', 'OK', 'LEAK']))
+        && (!('leakLine' in data) || (data.leakLine is string && data.leakLine.size() <= 200))
         && data.createdBy is string && isValidId(data.createdBy)
         && data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 120
         && data.updatedBy is string && isValidId(data.updatedBy)
@@ -235,6 +237,7 @@ service cloud.firestore {
           'militaryLeakBoxes',
           'stabilityPhase',
           'stabilityStatus',
+          'leakLine',
           'updatedBy',
           'updatedByName',
           'updatedAt'

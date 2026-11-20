@@ -165,6 +165,12 @@
           "description": "Hasil uji stability: PENDING (belum diuji), OK (lolos stabil), atau LEAK (bocor/deviasi).",
           "enum": ["PENDING", "OK", "LEAK"]
         },
+        "leakLine": {
+          "type": "string",
+          "description": "Line atau nozzle yang bocor saat uji Military atau Stability (contoh: PH L1 / PV L1N2).",
+          "minLength": 0,
+          "maxLength": 200
+        },
         "createdBy": {
           "type": "string",
           "description": "UID pembuat laporan asli.",

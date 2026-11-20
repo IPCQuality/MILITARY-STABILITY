@@ -55,19 +55,19 @@ export function DashboardView({
         key={category}
         aria-label={category}
         data-testid={`category-card-${category}`}
-        className="bg-white rounded-xl border border-slate-200 overflow-hidden"
+        className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 overflow-hidden"
       >
         {/* Category Header Row */}
         <div
-          className={`px-4 py-3 sm:px-5 bg-slate-50 flex items-center justify-between gap-3 ${
-            machineGroups.length > 0 ? 'border-b border-slate-200' : ''
+          className={`px-4 py-3 sm:px-5 bg-slate-50 dark:bg-[#121417] flex items-center justify-between gap-3 ${
+            machineGroups.length > 0 ? 'border-b border-slate-200 dark:border-zinc-800/90' : ''
           }`}
         >
           <div className="flex items-center gap-2 min-w-0">
-            <h3 className="text-xs sm:text-sm font-bold tracking-wide text-slate-900 truncate">
+            <h3 className="text-xs sm:text-sm font-bold tracking-wide text-slate-900 dark:text-zinc-100 truncate">
               {category}
             </h3>
-            <span className="text-xs text-slate-500 tabular-nums shrink-0">
+            <span className="text-xs text-slate-500 dark:text-zinc-400 tabular-nums shrink-0">
               · {machineGroups.length > 0 ? `${machineGroups.length} mesin` : 'Kosong'}
             </span>
           </div>
@@ -81,7 +81,7 @@ export function DashboardView({
               })
             }
             aria-label={`Tambah mesin di ${category}`}
-            className="min-h-[34px] px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-[#0F294A] shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 whitespace-nowrap shrink-0 transition-all"
+            className="min-h-[34px] px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#191C22] hover:bg-slate-50 dark:hover:bg-[#22262E] text-xs font-semibold text-[#0F294A] dark:text-teal-400 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 whitespace-nowrap shrink-0 transition-all"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Tambah</span>
@@ -90,26 +90,28 @@ export function DashboardView({
 
         {/* Machine List */}
         {machineGroups.length > 0 && (
-          <div className="divide-y divide-slate-200">
+          <div className="divide-y divide-slate-200 dark:divide-zinc-800/90">
             {machineGroups.map((group) => (
               <div key={group.machineName}>
                 {/* Machine Sub-header Row */}
-                <div className="px-4 py-2.5 sm:px-5 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between gap-2">
+                <div className="px-4 py-2.5 sm:px-5 bg-slate-50/50 dark:bg-[#0E1013] border-b border-slate-100 dark:border-zinc-800/60 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span
                       aria-label={group.isCompleted ? 'Status OK' : 'Dalam proses'}
                       data-machine-status={group.isCompleted ? 'ok' : 'in-progress'}
                       className={`inline-block h-2.5 w-2.5 rounded-full shrink-0 ${
                         group.isCompleted
-                          ? 'bg-emerald-600'
+                          ? 'bg-emerald-600 dark:bg-emerald-400'
                           : !group.hasStartedRepair
-                            ? 'bg-slate-400'
-                            : 'bg-amber-500'
+                            ? 'bg-slate-400 dark:bg-zinc-500'
+                            : 'bg-amber-500 dark:bg-amber-400'
                       }`}
                     />
                     <span
                       className={`font-mono text-sm font-bold truncate ${
-                        group.isCompleted ? 'text-emerald-900' : 'text-slate-900'
+                        group.isCompleted
+                          ? 'text-emerald-900 dark:text-emerald-300'
+                          : 'text-slate-900 dark:text-zinc-100'
                       }`}
                     >
                       {group.machineName}
@@ -118,10 +120,10 @@ export function DashboardView({
                   <span
                     className={`text-xs font-semibold tabular-nums shrink-0 ${
                       group.isCompleted
-                        ? 'text-emerald-700'
+                        ? 'text-emerald-700 dark:text-emerald-400'
                         : !group.hasStartedRepair
-                          ? 'text-slate-600'
-                          : 'text-amber-700'
+                          ? 'text-slate-600 dark:text-zinc-400'
+                          : 'text-amber-700 dark:text-amber-400'
                     }`}
                   >
                     {group.isCompleted
@@ -135,19 +137,19 @@ export function DashboardView({
                 </div>
 
                 {/* Shift Rows */}
-                <div className="divide-y divide-slate-100">
+                <div className="divide-y divide-slate-100 dark:divide-zinc-800/60">
                   {group.rows.map((row) => {
                     const rowBgClass = row.isOk
-                      ? 'bg-emerald-50/70'
+                      ? 'bg-emerald-50/70 dark:bg-emerald-950/25'
                       : row.isRunningShift
-                        ? 'bg-blue-50/25'
+                        ? 'bg-blue-50/25 dark:bg-teal-950/20'
                         : row.isCarryOver
-                          ? 'bg-amber-50/25'
-                          : 'bg-white';
+                          ? 'bg-amber-50/25 dark:bg-amber-950/15'
+                          : 'bg-white dark:bg-[#0B0C0E]';
 
                     const reportHoverClass = row.isOk
-                      ? 'hover:bg-emerald-50'
-                      : 'hover:bg-slate-50';
+                      ? 'hover:bg-emerald-50 dark:hover:bg-emerald-950/40'
+                      : 'hover:bg-slate-50 dark:hover:bg-[#13161B]';
 
                     return (
                       <div
@@ -156,14 +158,14 @@ export function DashboardView({
                         className={`grid grid-cols-12 items-stretch transition-colors ${rowBgClass}`}
                       >
                         {/* Shift Label Column */}
-                        <div className="col-span-4 sm:col-span-3 px-3.5 sm:px-4 py-3 border-r border-slate-100 flex flex-col justify-center gap-0.5">
+                        <div className="col-span-4 sm:col-span-3 px-3.5 sm:px-4 py-3 border-r border-slate-100 dark:border-zinc-800/60 flex flex-col justify-center gap-0.5">
                           <span
                             className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
                               row.isOk
-                                ? 'text-emerald-950'
+                                ? 'text-emerald-950 dark:text-emerald-300'
                                 : row.isRunningShift
-                                  ? 'text-[#0F294A]'
-                                  : 'text-slate-800'
+                                  ? 'text-[#0F294A] dark:text-teal-400'
+                                  : 'text-slate-800 dark:text-zinc-200'
                             }`}
                           >
                             {row.shift}
@@ -172,10 +174,10 @@ export function DashboardView({
                             <span
                               className={`text-[11px] font-medium ${
                                 row.isOk
-                                  ? 'text-emerald-700'
+                                  ? 'text-emerald-700 dark:text-emerald-400'
                                   : row.isRunningShift
-                                    ? 'text-[#0F294A]'
-                                    : 'text-amber-700'
+                                    ? 'text-[#0F294A] dark:text-teal-400'
+                                    : 'text-amber-700 dark:text-amber-400'
                               }`}
                             >
                               {row.isOk
@@ -190,7 +192,7 @@ export function DashboardView({
                         {/* Shift Report Content Column */}
                         <div className="col-span-8 sm:col-span-9 flex items-stretch min-w-0">
                           {row.reports.length > 0 ? (
-                            <div className="flex-1 min-w-0 divide-y divide-slate-100">
+                            <div className="flex-1 min-w-0 divide-y divide-slate-100 dark:divide-zinc-800/60">
                               {row.reports.map((rep) => {
                                 const badge = formatWorkflowBadge(rep);
                                 return (
@@ -210,14 +212,22 @@ export function DashboardView({
                                       </div>
                                     )}
 
-                                    <p className="text-xs sm:text-sm text-slate-900 leading-snug whitespace-pre-wrap break-words">
+                                    <p className="text-xs sm:text-sm text-slate-900 dark:text-zinc-100 leading-snug whitespace-pre-wrap break-words">
                                       {rep.information}
                                     </p>
 
-                                    {(rep.followUp || rep.palletLocation) && (
-                                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+                                    {(rep.leakLine || rep.followUp || rep.palletLocation) && (
+                                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-zinc-400">
+                                        {rep.leakLine && (
+                                          <span className="font-mono font-semibold text-rose-700 dark:text-rose-400">
+                                            Line Bocor: {rep.leakLine}
+                                          </span>
+                                        )}
+                                        {rep.leakLine && (rep.followUp || rep.palletLocation) && (
+                                          <span aria-hidden="true">·</span>
+                                        )}
                                         {rep.followUp && (
-                                          <span className="text-[#0F294A] font-medium break-words">
+                                          <span className="text-[#0F294A] dark:text-teal-400 font-medium break-words">
                                             Lanjut: {rep.followUp}
                                           </span>
                                         )}
@@ -225,7 +235,7 @@ export function DashboardView({
                                           <span aria-hidden="true">·</span>
                                         )}
                                         {rep.palletLocation && (
-                                          <span className="font-mono text-slate-600">
+                                          <span className="font-mono text-slate-600 dark:text-zinc-400">
                                             Palet: {rep.palletLocation}
                                           </span>
                                         )}
@@ -245,7 +255,7 @@ export function DashboardView({
                                       machine: group.rawMachine ?? '',
                                     })
                                   }
-                                  className="w-full min-h-[36px] px-3.5 sm:px-4 py-2 text-left text-xs text-[#0F294A] font-semibold hover:bg-blue-50/50 transition-colors flex items-center gap-1.5"
+                                  className="w-full min-h-[36px] px-3.5 sm:px-4 py-2 text-left text-xs text-[#0F294A] dark:text-teal-400 font-semibold hover:bg-blue-50/50 dark:hover:bg-teal-500/10 transition-colors flex items-center gap-1.5"
                                 >
                                   <Plus className="w-3.5 h-3.5" />
                                   <span>Tambah tahap / update di {row.shift}</span>
@@ -263,12 +273,12 @@ export function DashboardView({
                                   machine: group.rawMachine ?? '',
                                 })
                               }
-                              className="w-full min-h-[44px] px-3.5 sm:px-4 py-2.5 text-left text-xs sm:text-sm text-[#0F294A] font-medium hover:bg-blue-50/40 transition-colors flex items-center"
+                              className="w-full min-h-[44px] px-3.5 sm:px-4 py-2.5 text-left text-xs sm:text-sm text-[#0F294A] dark:text-teal-400 font-medium hover:bg-blue-50/40 dark:hover:bg-teal-500/10 transition-colors flex items-center"
                             >
                               <span>+ Isi update {row.shift}</span>
                             </button>
                           ) : (
-                            <div className="w-full min-h-[44px] px-3.5 sm:px-4 py-2.5 text-left text-xs text-slate-400 flex items-center">
+                            <div className="w-full min-h-[44px] px-3.5 sm:px-4 py-2.5 text-left text-xs text-slate-400 dark:text-zinc-600 flex items-center">
                               <span>Belum ada update</span>
                             </div>
                           )}
@@ -289,7 +299,7 @@ export function DashboardView({
     <div className="space-y-4">
       {/* Category Grid */}
       {loading ? (
-        <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-sm text-slate-500">
+        <div className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 py-12 text-center text-sm text-slate-500 dark:text-zinc-400">
           Memuat catatan handover hari ini...
         </div>
       ) : (

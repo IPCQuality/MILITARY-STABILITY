@@ -62,6 +62,41 @@ function parseLocalDate(dateStr: string): Date {
   return new Date(y, m - 1, d);
 }
 
+function buildMilitaryAutoInfo(
+  round: number,
+  status: MilitaryStatus,
+  line: string
+): string {
+  if (status === 'OK') {
+    return `Ambil Military Ke-${round}: Nihil 0% (OK).`;
+  }
+  if (status === 'LEAK') {
+    const cleaned = line.trim();
+    return cleaned
+      ? `Ambil Military Ke-${round}: Ada bocor ${cleaned}`
+      : `Ambil Military Ke-${round}: Ada bocor`;
+  }
+  return `Ambil Military Ke-${round}: Palet siap, belum diuji.`;
+}
+
+function buildStabilityAutoInfo(
+  phase: StabilityPhase,
+  status: StabilityStatus,
+  line: string
+): string {
+  const label = phase === '4_HOURS' ? '4 Jam' : '8 Jam';
+  if (status === 'OK') {
+    return `Uji Stability ${label}: Stabil (OK).`;
+  }
+  if (status === 'LEAK') {
+    const cleaned = line.trim();
+    return cleaned
+      ? `Uji Stability ${label}: Ada bocor ${cleaned}`
+      : `Uji Stability ${label}: Ada bocor`;
+  }
+  return `Uji Stability ${label}: Palet siap, belum diuji.`;
+}
+
 export function HandoverFormView({
   currentUser,
   reports = [],
@@ -107,6 +142,7 @@ export function HandoverFormView({
   const [militaryRound, setMilitaryRound] = useState<number>(1);
   const [militaryStatus, setMilitaryStatus] = useState<MilitaryStatus>('PENDING');
   const [militaryLeakBoxes, setMilitaryLeakBoxes] = useState<string>('1');
+  const [leakLine, setLeakLine] = useState('');
   const [stabilityPhase, setStabilityPhase] = useState<StabilityPhase>('4_HOURS');
   const [stabilityStatus, setStabilityStatus] = useState<StabilityStatus>('PENDING');
 
@@ -242,6 +278,7 @@ export function HandoverFormView({
             : 1
         )
       );
+      setLeakLine(editingReport.leakLine ?? '');
       setStabilityPhase(
         editingReport.stabilityPhase ??
           (editingReport.category === 'OVERHAUL' ? '4_HOURS' : '8_HOURS')
@@ -289,6 +326,7 @@ export function HandoverFormView({
       }
       setMilitaryStatus('PENDING');
       setMilitaryLeakBoxes('1');
+      setLeakLine(presetValues.leakLine ?? '');
       setStabilityPhase(nextCat === 'OVERHAUL' ? '4_HOURS' : '8_HOURS');
       setStabilityStatus('PENDING');
       setFieldErrors({});
@@ -313,6 +351,7 @@ export function HandoverFormView({
       setMilitaryRound(1);
       setMilitaryStatus('PENDING');
       setMilitaryLeakBoxes('1');
+      setLeakLine('');
       setStabilityPhase('4_HOURS');
       setStabilityStatus('PENDING');
       setFieldErrors({});
@@ -385,6 +424,10 @@ export function HandoverFormView({
       activityStage !== 'OH' &&
       !hasOpenEpisodeStartedRepair(otherReports, category, machine);
 
+    const hasLeakLine =
+      (activityStage === 'MILITARY' && militaryStatus === 'LEAK') ||
+      (activityStage === 'STABILITY' && stabilityStatus === 'LEAK');
+
     const payload: HandoverFormInput = {
       reportDate,
       shift,
@@ -402,6 +445,7 @@ export function HandoverFormView({
         activityStage === 'MILITARY' && militaryStatus === 'LEAK'
           ? parseInt(militaryLeakBoxes, 10) || 0
           : undefined,
+      leakLine: hasLeakLine ? leakLine.trim() : undefined,
       stabilityPhase:
         activityStage === 'STABILITY'
           ? isOverhaul
@@ -450,6 +494,7 @@ export function HandoverFormView({
         setInformation('');
         setFollowUp('');
         setPalletLocation('');
+        setLeakLine('');
         setIsCompleted(false);
         setStageManuallyPicked(false);
       }
@@ -472,7 +517,7 @@ export function HandoverFormView({
       {operatorClosedNow && (
         <div
           role="alert"
-          className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm"
+          className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs sm:text-sm"
         >
           {now.getDay() === 0
             ? 'Hari Minggu libur operasional. Pengawas dibatasi; hubungi Admin atau Supervisor jika terdapat shift lembur.'
@@ -483,7 +528,7 @@ export function HandoverFormView({
       {submitError && (
         <div
           role="alert"
-          className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-sm"
+          className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-200 text-sm"
         >
           {submitError}
         </div>
@@ -492,7 +537,7 @@ export function HandoverFormView({
       {sameSlotReports.length > 0 && (
         <div
           role="status"
-          className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs sm:text-sm"
+          className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs sm:text-sm"
         >
           Sudah ada <span className="font-semibold">{sameSlotReports.length} laporan</span> untuk{' '}
           <span className="font-mono font-semibold">{machine}</span> pada {shift} ({reportDate}).
@@ -502,7 +547,7 @@ export function HandoverFormView({
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white rounded-2xl border border-slate-200/90 shadow-xs divide-y divide-slate-200 overflow-hidden"
+        className="bg-white dark:bg-[#0B0C0E] rounded-2xl border border-slate-200/90 dark:border-zinc-800/90 shadow-xs divide-y divide-slate-200 dark:divide-zinc-800/90 overflow-hidden"
       >
         {/* 1. JADWAL & MESIN */}
         <section className="p-5 sm:p-6 space-y-4">
@@ -510,7 +555,7 @@ export function HandoverFormView({
             <div>
               <label
                 htmlFor="input-report-date"
-                className="block text-xs font-semibold text-slate-700 mb-1.5"
+                className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5"
               >
                 Tanggal
               </label>
@@ -542,19 +587,23 @@ export function HandoverFormView({
                     }
                   }
                 }}
-                className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A] ${
-                  lockDateAndShiftOnEdit ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-white'
+                className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500 ${
+                  lockDateAndShiftOnEdit
+                    ? 'bg-slate-100 dark:bg-[#121417] text-slate-500 dark:text-zinc-500 cursor-not-allowed'
+                    : 'bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100'
                 }`}
               />
               {fieldErrors.reportDate && (
-                <p className="mt-1 text-xs text-rose-600">{fieldErrors.reportDate}</p>
+                <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                  {fieldErrors.reportDate}
+                </p>
               )}
             </div>
 
             <div>
               <label
                 htmlFor="input-category"
-                className="block text-xs font-semibold text-slate-700 mb-1.5"
+                className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5"
               >
                 Kategori
               </label>
@@ -562,7 +611,7 @@ export function HandoverFormView({
                 id="input-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value as CategoryType)}
-                className="w-full min-h-[42px] px-3.5 py-2 text-sm border border-slate-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[42px] px-3.5 py-2 text-sm border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               >
                 {CATEGORIES.map((cat) => (
                   <option key={cat} value={cat}>
@@ -571,14 +620,18 @@ export function HandoverFormView({
                 ))}
               </select>
               {fieldErrors.category && (
-                <p className="mt-1 text-xs text-rose-600">{fieldErrors.category}</p>
+                <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                  {fieldErrors.category}
+                </p>
               )}
             </div>
           </div>
 
           {/* Shift Selector */}
           <div>
-            <span className="block text-xs font-semibold text-slate-700 mb-1.5">Shift</span>
+            <span className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
+              Shift
+            </span>
             <div role="group" aria-label="Pilih Shift" className="grid grid-cols-3 gap-2.5">
               {SHIFTS.map((s) => {
                 const active =
@@ -610,16 +663,20 @@ export function HandoverFormView({
                     aria-pressed={active}
                     className={`min-h-[50px] px-2 py-2 rounded-xl border transition-all active:scale-[0.98] text-center ${
                       active
-                        ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
+                        ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
                         : disabled
-                          ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
-                          : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                          ? 'bg-slate-100 dark:bg-[#101216] text-slate-400 dark:text-zinc-600 border-slate-200 dark:border-zinc-800/70 cursor-not-allowed'
+                          : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                     }`}
                   >
                     <span className="block text-xs sm:text-sm font-semibold">{s}</span>
                     <span
                       className={`block text-[10px] font-mono tabular-nums mt-0.5 ${
-                        active ? 'text-slate-200' : 'text-slate-400'
+                        active
+                          ? 'text-slate-200 dark:text-zinc-900/80 font-medium'
+                          : disabled
+                            ? 'text-slate-400 dark:text-zinc-600'
+                            : 'text-slate-400 dark:text-zinc-400'
                       }`}
                     >
                       {!fullAccess && !editingReport && openSlot
@@ -631,7 +688,7 @@ export function HandoverFormView({
               })}
             </div>
             {fieldErrors.shift && (
-              <p className="mt-1 text-xs text-rose-600">{fieldErrors.shift}</p>
+              <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{fieldErrors.shift}</p>
             )}
           </div>
 
@@ -639,9 +696,9 @@ export function HandoverFormView({
           <div>
             <label
               htmlFor="input-machine"
-              className="block text-xs font-semibold text-slate-700 mb-1.5"
+              className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5"
             >
-              Mesin {machineRequired ? <span className="text-rose-600">*</span> : ''}
+              Mesin {machineRequired ? <span className="text-rose-600 dark:text-rose-400">*</span> : ''}
             </label>
             <MachinePicker
               id="input-machine"
@@ -657,25 +714,29 @@ export function HandoverFormView({
               }}
             />
             {machine && wfContext.lastReport && (
-              <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 flex flex-wrap items-center justify-between gap-1.5">
+              <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#121417] border border-slate-200 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-300 flex flex-wrap items-center justify-between gap-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="font-semibold text-slate-900">Riwayat Terakhir:</span>
-                  <span className="font-mono text-slate-700">
+                  <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                    Riwayat Terakhir:
+                  </span>
+                  <span className="font-mono text-slate-700 dark:text-zinc-300">
                     {wfContext.lastReport.shift} ({formatDisplayDate(wfContext.lastReport.reportDate)})
                   </span>
                   {formatWorkflowBadge(wfContext.lastReport) && (
-                    <span className="font-medium text-[#0F294A]">
+                    <span className="font-medium text-[#0F294A] dark:text-teal-400">
                       · {formatWorkflowBadge(wfContext.lastReport)?.badgeLabel}
                     </span>
                   )}
                 </div>
-                <span className="text-slate-500 tabular-nums">
+                <span className="text-slate-500 dark:text-zinc-400 tabular-nums">
                   PIC: {wfContext.lastReport.createdByName}
                 </span>
               </div>
             )}
             {fieldErrors.machine && (
-              <p className="mt-1 text-xs text-rose-600">{fieldErrors.machine}</p>
+              <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                {fieldErrors.machine}
+              </p>
             )}
           </div>
         </section>
@@ -683,9 +744,11 @@ export function HandoverFormView({
         {/* 2. TAHAP & HASIL */}
         <section className="p-5 sm:p-6 space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold text-slate-700">Tahap Kerja</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+              Tahap Kerja
+            </span>
             {machine && wfContext.militaryCount > 0 && (
-              <span className="text-xs font-mono text-slate-500 tabular-nums">
+              <span className="text-xs font-mono text-slate-500 dark:text-zinc-400 tabular-nums">
                 {wfContext.militaryCount}x Military
               </span>
             )}
@@ -701,6 +764,7 @@ export function HandoverFormView({
               onClick={() => {
                 setStageManuallyPicked(true);
                 setActivityStage('OH');
+                setLeakLine('');
                 setIsCompleted(false);
                 if (!information.trim()) {
                   setInformation('OH');
@@ -709,8 +773,8 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'OH'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'OH'
-                  ? 'bg-slate-800 text-white border-slate-800 shadow-md shadow-slate-900/20'
-                  : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                  ? 'bg-slate-800 dark:bg-zinc-200 text-white dark:text-zinc-950 border-slate-800 dark:border-zinc-200 shadow-md shadow-slate-900/20'
+                  : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
               }`}
             >
               <PauseCircle className="w-4 h-4 shrink-0" />
@@ -722,6 +786,7 @@ export function HandoverFormView({
               onClick={() => {
                 setStageManuallyPicked(true);
                 setActivityStage('REPAIR');
+                setLeakLine('');
                 setIsCompleted(false);
                 if (isOhOnlyInformation(information)) {
                   setInformation('');
@@ -730,8 +795,8 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'REPAIR'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'REPAIR'
-                  ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
-                  : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                  ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                  : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
               }`}
             >
               <Wrench className="w-4 h-4 shrink-0" />
@@ -751,8 +816,8 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'MILITARY'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'MILITARY'
-                  ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
-                  : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                  ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                  : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
               }`}
             >
               <RotateCcw className="w-4 h-4 shrink-0" />
@@ -774,8 +839,8 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'STABILITY'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'STABILITY'
-                  ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
-                  : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                  ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                  : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
               }`}
             >
               <Clock className="w-4 h-4 shrink-0" />
@@ -786,13 +851,21 @@ export function HandoverFormView({
           {activityStage === 'MILITARY' && (
             <div className="pt-1 space-y-3.5">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold text-slate-700">Military Ke-</span>
+                <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                  Military Ke-
+                </span>
                 <div className="inline-flex items-center gap-2">
                   <button
                     type="button"
                     aria-label="Kurangi nomor military"
-                    onClick={() => setMilitaryRound((prev) => Math.max(1, prev - 1))}
-                    className="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 transition-all"
+                    onClick={() => {
+                      const nextRound = Math.max(1, militaryRound - 1);
+                      setMilitaryRound(nextRound);
+                      if (information.startsWith('Ambil Military')) {
+                        setInformation(buildMilitaryAutoInfo(nextRound, militaryStatus, leakLine));
+                      }
+                    }}
+                    className="w-9 h-9 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
@@ -802,33 +875,46 @@ export function HandoverFormView({
                     min={1}
                     max={50}
                     value={militaryRound}
-                    onChange={(e) =>
-                      setMilitaryRound(
-                        Math.min(50, Math.max(1, parseInt(e.target.value, 10) || 1))
-                      )
-                    }
-                    className="w-14 h-9 px-2 text-sm font-mono font-bold text-center border border-slate-300 rounded-xl bg-white"
+                    onChange={(e) => {
+                      const nextRound = Math.min(
+                        50,
+                        Math.max(1, parseInt(e.target.value, 10) || 1)
+                      );
+                      setMilitaryRound(nextRound);
+                      if (information.startsWith('Ambil Military')) {
+                        setInformation(buildMilitaryAutoInfo(nextRound, militaryStatus, leakLine));
+                      }
+                    }}
+                    className="w-14 h-9 px-2 text-sm font-mono font-bold text-center border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60"
                   />
                   <button
                     type="button"
                     aria-label="Tambah nomor military"
-                    onClick={() => setMilitaryRound((prev) => Math.min(50, prev + 1))}
-                    className="w-9 h-9 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 transition-all"
+                    onClick={() => {
+                      const nextRound = Math.min(50, militaryRound + 1);
+                      setMilitaryRound(nextRound);
+                      if (information.startsWith('Ambil Military')) {
+                        setInformation(buildMilitaryAutoInfo(nextRound, militaryStatus, leakLine));
+                      }
+                    }}
+                    className="w-9 h-9 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
               {fieldErrors.militaryRound && (
-                <p className="text-xs text-rose-600">{fieldErrors.militaryRound}</p>
+                <p className="text-xs text-rose-600 dark:text-rose-400">
+                  {fieldErrors.militaryRound}
+                </p>
               )}
 
               <div>
-                <span className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <span className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
                   Hasil Uji
                 </span>
                 {!editingReport && wfContext.hasPendingMilitary && (
-                  <div className="mb-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                  <div className="mb-2.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs">
                     Palet <strong>Military #{militaryRound}</strong> dari shift sebelumnya belum diuji. Klik <strong>OK (0%)</strong> jika lulus, atau <strong>Ada Bocor</strong> jika ada kebocoran.
                   </div>
                 )}
@@ -837,17 +923,16 @@ export function HandoverFormView({
                     type="button"
                     onClick={() => {
                       setMilitaryStatus('PENDING');
+                      setLeakLine('');
                       setIsCompleted(false);
                       if (!information.trim() || information.startsWith('Ambil Military')) {
-                        setInformation(
-                          `Ambil Military Ke-${militaryRound}: Palet siap, belum diuji.`
-                        );
+                        setInformation(buildMilitaryAutoInfo(militaryRound, 'PENDING', ''));
                       }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       militaryStatus === 'PENDING'
-                        ? 'bg-slate-800 text-white border-slate-800 shadow-md shadow-slate-900/20'
-                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                        ? 'bg-slate-800 dark:bg-zinc-200 text-white dark:text-zinc-950 border-slate-800 dark:border-zinc-200 shadow-md shadow-slate-900/20'
+                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                     }`}
                   >
                     <Hourglass className="w-3.5 h-3.5 shrink-0" />
@@ -858,16 +943,15 @@ export function HandoverFormView({
                     type="button"
                     onClick={() => {
                       setMilitaryStatus('OK');
+                      setLeakLine('');
                       if (!information.trim() || information.startsWith('Ambil Military')) {
-                        setInformation(
-                          `Ambil Military Ke-${militaryRound}: 0% Bocor (OK).`
-                        );
+                        setInformation(buildMilitaryAutoInfo(militaryRound, 'OK', ''));
                       }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       militaryStatus === 'OK'
-                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-700/25'
-                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                        ? 'bg-emerald-700 dark:bg-emerald-500 text-white dark:text-zinc-950 border-emerald-700 dark:border-emerald-400 shadow-md shadow-emerald-700/25 dark:shadow-emerald-500/20'
+                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                     }`}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -883,15 +967,13 @@ export function HandoverFormView({
                         setMilitaryLeakBoxes('1');
                       }
                       if (!information.trim() || information.startsWith('Ambil Military')) {
-                        setInformation(
-                          `Ambil Military Ke-${militaryRound}: Ada bocor.`
-                        );
+                        setInformation(buildMilitaryAutoInfo(militaryRound, 'LEAK', leakLine));
                       }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       militaryStatus === 'LEAK'
-                        ? 'bg-rose-700 text-white border-rose-700 shadow-md shadow-rose-700/25'
-                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                        ? 'bg-rose-700 dark:bg-rose-500 text-white border-rose-700 dark:border-rose-400 shadow-md shadow-rose-700/25 dark:shadow-rose-500/20'
+                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                     }`}
                   >
                     <XCircle className="w-3.5 h-3.5 shrink-0" />
@@ -902,36 +984,74 @@ export function HandoverFormView({
 
               {militaryStatus === 'LEAK' && (
                 <div className="space-y-1.5">
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3 text-xs sm:text-sm">
-                    <label htmlFor="input-leak-boxes" className="text-rose-900 font-medium">
-                      Jumlah Bocor <span className="text-rose-600">*</span>
-                    </label>
-                    <div className="flex items-center gap-2">
+                  <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/35 border border-rose-200 dark:border-rose-800/60 space-y-3 text-xs sm:text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <label
+                        htmlFor="input-leak-boxes"
+                        className="text-rose-900 dark:text-rose-200 font-medium"
+                      >
+                        Jumlah Bocor <span className="text-rose-600 dark:text-rose-400">*</span>
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="input-leak-boxes"
+                          type="number"
+                          min={1}
+                          max={500}
+                          value={militaryLeakBoxes}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              setMilitaryLeakBoxes('');
+                              return;
+                            }
+                            const parsed = parseInt(raw, 10);
+                            if (!Number.isNaN(parsed)) {
+                              setMilitaryLeakBoxes(String(Math.min(500, Math.max(1, parsed))));
+                            }
+                          }}
+                          placeholder="1"
+                          className="w-20 px-2.5 py-1.5 text-sm font-mono font-bold text-center border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#07080A] text-rose-900 dark:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                        />
+                        <span className="text-rose-800 dark:text-rose-300 text-xs font-medium">
+                          Box
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2.5 border-t border-rose-200/80 dark:border-rose-800/50 space-y-1.5">
+                      <label
+                        htmlFor="input-military-leak-line"
+                        className="block text-xs font-semibold text-rose-900 dark:text-rose-200"
+                      >
+                        Line / Nozzle Yang Bocor
+                      </label>
                       <input
-                        id="input-leak-boxes"
-                        type="number"
-                        min={1}
-                        max={500}
-                        value={militaryLeakBoxes}
+                        id="input-military-leak-line"
+                        type="text"
+                        maxLength={200}
+                        value={leakLine}
                         onChange={(e) => {
-                          const raw = e.target.value;
-                          if (raw === '') {
-                            setMilitaryLeakBoxes('');
-                            return;
-                          }
-                          const parsed = parseInt(raw, 10);
-                          if (!Number.isNaN(parsed)) {
-                            setMilitaryLeakBoxes(String(Math.min(500, Math.max(1, parsed))));
+                          const val = e.target.value;
+                          setLeakLine(val);
+                          if (!information.trim() || information.startsWith('Ambil Military')) {
+                            setInformation(buildMilitaryAutoInfo(militaryRound, 'LEAK', val));
                           }
                         }}
-                        placeholder="1"
-                        className="w-20 px-2.5 py-1.5 text-sm font-mono font-bold text-center border border-rose-300 rounded-xl bg-white text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                        placeholder="PH L1 / PV L1N2"
+                        className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#07080A] text-rose-950 dark:text-rose-100 placeholder:text-rose-400 dark:placeholder:text-rose-300/40 focus:outline-none focus:ring-2 focus:ring-rose-500"
                       />
-                      <span className="text-rose-800 text-xs font-medium">Box</span>
                     </div>
                   </div>
                   {fieldErrors.militaryLeakBoxes && (
-                    <p className="text-xs text-rose-600">{fieldErrors.militaryLeakBoxes}</p>
+                    <p className="text-xs text-rose-600 dark:text-rose-400">
+                      {fieldErrors.militaryLeakBoxes}
+                    </p>
+                  )}
+                  {fieldErrors.leakLine && (
+                    <p className="text-xs text-rose-600 dark:text-rose-400">
+                      {fieldErrors.leakLine}
+                    </p>
                   )}
                 </div>
               )}
@@ -942,9 +1062,13 @@ export function HandoverFormView({
             <div className="pt-1 space-y-3.5">
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="text-xs font-semibold text-slate-700">Durasi</span>
+                  <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
+                    Durasi
+                  </span>
                   {!isOverhaul && (
-                    <span className="text-xs font-semibold text-teal-800">8 Jam</span>
+                    <span className="text-xs font-semibold text-teal-800 dark:text-teal-400">
+                      8 Jam
+                    </span>
                   )}
                 </div>
 
@@ -956,13 +1080,15 @@ export function HandoverFormView({
                         setStabilityPhase('4_HOURS');
                         setIsCompleted(false);
                         if (!information.trim() || information.includes('Stability')) {
-                          setInformation('Uji Stability 4 Jam.');
+                          setInformation(
+                            buildStabilityAutoInfo('4_HOURS', stabilityStatus, leakLine)
+                          );
                         }
                       }}
                       className={`min-h-[42px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                         stabilityPhase === '4_HOURS'
-                          ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
-                          : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                          ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                          : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                       }`}
                     >
                       <Clock className="w-4 h-4 shrink-0" />
@@ -977,13 +1103,15 @@ export function HandoverFormView({
                           setIsCompleted(true);
                         }
                         if (!information.trim() || information.includes('Stability')) {
-                          setInformation('Uji Stability 8 Jam.');
+                          setInformation(
+                            buildStabilityAutoInfo('8_HOURS', stabilityStatus, leakLine)
+                          );
                         }
                       }}
                       className={`min-h-[42px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                         stabilityPhase === '8_HOURS'
-                          ? 'bg-[#0F294A] text-white border-[#0F294A] shadow-md shadow-[#0F294A]/20'
-                          : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                          ? 'bg-[#0F294A] dark:bg-teal-500 text-white dark:text-zinc-950 border-[#0F294A] dark:border-teal-400 shadow-md shadow-[#0F294A]/20 dark:shadow-teal-500/15'
+                          : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                       }`}
                     >
                       <Clock className="w-4 h-4 shrink-0" />
@@ -994,11 +1122,11 @@ export function HandoverFormView({
               </div>
 
               <div>
-                <span className="block text-xs font-semibold text-slate-700 mb-1.5">
+                <span className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5">
                   Hasil Uji
                 </span>
                 {!editingReport && wfContext.hasPendingStability && (
-                  <div className="mb-2.5 p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                  <div className="mb-2.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200 text-xs">
                     Uji <strong>Stability {stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}</strong> dari shift sebelumnya belum diuji. Klik <strong>OK</strong> jika stabil, atau <strong>Bocor</strong> jika ada kebocoran.
                   </div>
                 )}
@@ -1007,17 +1135,16 @@ export function HandoverFormView({
                     type="button"
                     onClick={() => {
                       setStabilityStatus('PENDING');
+                      setLeakLine('');
                       setIsCompleted(false);
                       if (!information.trim() || information.startsWith('Uji Stability')) {
-                        setInformation(
-                          `Uji Stability ${stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}: Palet siap, belum diuji.`
-                        );
+                        setInformation(buildStabilityAutoInfo(stabilityPhase, 'PENDING', ''));
                       }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'PENDING'
-                        ? 'bg-slate-800 text-white border-slate-800 shadow-md shadow-slate-900/20'
-                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                        ? 'bg-slate-800 dark:bg-zinc-200 text-white dark:text-zinc-950 border-slate-800 dark:border-zinc-200 shadow-md shadow-slate-900/20'
+                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                     }`}
                   >
                     <Hourglass className="w-3.5 h-3.5 shrink-0" />
@@ -1028,19 +1155,18 @@ export function HandoverFormView({
                     type="button"
                     onClick={() => {
                       setStabilityStatus('OK');
+                      setLeakLine('');
                       if (stabilityPhase === '8_HOURS') {
                         setIsCompleted(true);
                       }
                       if (!information.trim() || information.startsWith('Uji Stability')) {
-                        setInformation(
-                          `Uji Stability ${stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}: Stabil (OK).`
-                        );
+                        setInformation(buildStabilityAutoInfo(stabilityPhase, 'OK', ''));
                       }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'OK'
-                        ? 'bg-teal-700 text-white border-teal-700 shadow-md shadow-teal-700/25'
-                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                        ? 'bg-teal-700 dark:bg-emerald-500 text-white dark:text-zinc-950 border-teal-700 dark:border-emerald-400 shadow-md shadow-teal-700/25 dark:shadow-emerald-500/20'
+                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                     }`}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -1054,14 +1180,14 @@ export function HandoverFormView({
                       setIsCompleted(false);
                       if (!information.trim() || information.startsWith('Uji Stability')) {
                         setInformation(
-                          `Uji Stability ${stabilityPhase === '4_HOURS' ? '4 Jam' : '8 Jam'}: Ada bocor.`
+                          buildStabilityAutoInfo(stabilityPhase, 'LEAK', leakLine)
                         );
                       }
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'LEAK'
-                        ? 'bg-rose-700 text-white border-rose-700 shadow-md shadow-rose-700/25'
-                        : 'bg-white text-slate-700 border-slate-200 shadow-xs hover:shadow-sm hover:bg-slate-50'
+                        ? 'bg-rose-700 dark:bg-rose-500 text-white border-rose-700 dark:border-rose-400 shadow-md shadow-rose-700/25 dark:shadow-rose-500/20'
+                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
                     }`}
                   >
                     <XCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1069,6 +1195,39 @@ export function HandoverFormView({
                   </button>
                 </div>
               </div>
+
+              {stabilityStatus === 'LEAK' && (
+                <div className="space-y-1.5">
+                  <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/35 border border-rose-200 dark:border-rose-800/60 space-y-1.5">
+                    <label
+                      htmlFor="input-stability-leak-line"
+                      className="block text-xs font-semibold text-rose-900 dark:text-rose-200"
+                    >
+                      Line / Nozzle Yang Bocor
+                    </label>
+                    <input
+                      id="input-stability-leak-line"
+                      type="text"
+                      maxLength={200}
+                      value={leakLine}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setLeakLine(val);
+                        if (!information.trim() || information.startsWith('Uji Stability')) {
+                          setInformation(buildStabilityAutoInfo(stabilityPhase, 'LEAK', val));
+                        }
+                      }}
+                      placeholder="PH L1 / PV L1N2"
+                      className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#07080A] text-rose-950 dark:text-rose-100 placeholder:text-rose-400 dark:placeholder:text-rose-300/40 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    />
+                  </div>
+                  {fieldErrors.leakLine && (
+                    <p className="text-xs text-rose-600 dark:text-rose-400">
+                      {fieldErrors.leakLine}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </section>
@@ -1078,9 +1237,9 @@ export function HandoverFormView({
           <div>
             <label
               htmlFor="input-information"
-              className="block text-xs font-semibold text-slate-700 mb-1.5"
+              className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5"
             >
-              Keterangan <span className="text-rose-600">*</span>
+              Keterangan <span className="text-rose-600 dark:text-rose-400">*</span>
             </label>
             <textarea
               ref={infoTextareaRef}
@@ -1090,19 +1249,22 @@ export function HandoverFormView({
               value={information}
               onChange={(e) => setInformation(e.target.value)}
               placeholder={infoPlaceholder}
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             />
             {fieldErrors.information && (
-              <p className="mt-1 text-xs text-rose-600">{fieldErrors.information}</p>
+              <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                {fieldErrors.information}
+              </p>
             )}
           </div>
 
           <div>
             <label
               htmlFor="input-followup"
-              className="block text-xs font-semibold text-slate-700 mb-1.5"
+              className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5"
             >
-              Tindak Lanjut <span className="text-slate-400 font-normal">(Opsional)</span>
+              Tindak Lanjut{' '}
+              <span className="text-slate-400 dark:text-zinc-500 font-normal">(Opsional)</span>
             </label>
             <textarea
               ref={followUpTextareaRef}
@@ -1112,10 +1274,12 @@ export function HandoverFormView({
               value={followUp}
               onChange={(e) => setFollowUp(e.target.value)}
               placeholder="Rencana untuk shift berikutnya..."
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
             />
             {fieldErrors.followUp && (
-              <p className="mt-1 text-xs text-rose-600">{fieldErrors.followUp}</p>
+              <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                {fieldErrors.followUp}
+              </p>
             )}
           </div>
 
@@ -1123,9 +1287,9 @@ export function HandoverFormView({
             <div>
               <label
                 htmlFor="input-pallet-location"
-                className="block text-xs font-semibold text-slate-700 mb-1.5"
+                className="block text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-1.5"
               >
-                Lokasi Palet <span className="text-rose-600">*</span>
+                Lokasi Palet <span className="text-rose-600 dark:text-rose-400">*</span>
               </label>
               <input
                 id="input-pallet-location"
@@ -1137,10 +1301,12 @@ export function HandoverFormView({
                   setPalletLocation(e.target.value);
                 }}
                 placeholder="Contoh: Staging Line A / Rak 02"
-                className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
               {fieldErrors.palletLocation && (
-                <p className="mt-1 text-xs text-rose-600">{fieldErrors.palletLocation}</p>
+                <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                  {fieldErrors.palletLocation}
+                </p>
               )}
             </div>
           )}
@@ -1149,10 +1315,10 @@ export function HandoverFormView({
             <label
               className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all ${
                 !canMarkCompleted
-                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  ? 'bg-slate-100 dark:bg-[#101216] border-slate-200 dark:border-zinc-800/70 text-slate-400 dark:text-zinc-600 cursor-not-allowed'
                   : isCompleted
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-xs cursor-pointer'
-                    : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/70 cursor-pointer'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/45 border-emerald-300 dark:border-emerald-700/70 text-emerald-950 dark:text-emerald-200 shadow-xs cursor-pointer'
+                    : 'bg-slate-50 dark:bg-[#121417] border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100/70 dark:hover:bg-[#181B20] cursor-pointer'
               }`}
             >
               <input
@@ -1160,37 +1326,39 @@ export function HandoverFormView({
                 checked={canMarkCompleted && isCompleted}
                 disabled={!canMarkCompleted}
                 onChange={(e) => setIsCompleted(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+                className="h-4 w-4 rounded border-slate-300 dark:border-zinc-700 accent-emerald-600 dark:accent-teal-500 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
               />
               <span className="text-xs sm:text-sm font-semibold">
                 Selesai (OK / Siap Produksi)
               </span>
             </label>
             {!canMarkCompleted && completedLockReason && (
-              <p className="mt-1.5 text-xs text-slate-500 flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-zinc-600 shrink-0" />
                 <span>{completedLockReason}</span>
               </p>
             )}
             {fieldErrors.isCompleted && (
-              <p className="mt-1 text-xs text-rose-600">{fieldErrors.isCompleted}</p>
+              <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                {fieldErrors.isCompleted}
+              </p>
             )}
           </div>
         </section>
 
         {/* Footer Actions */}
-        <div className="px-5 py-4 sm:px-6 bg-slate-50/80 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
+        <div className="px-5 py-4 sm:px-6 bg-slate-50/80 dark:bg-[#121417] flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-[44px] px-6 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+            className="min-h-[44px] px-6 py-2.5 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#1A1D23] hover:bg-slate-50 dark:hover:bg-[#232730] text-slate-700 dark:text-zinc-200 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
           >
             <span>Batal</span>
           </button>
           <button
             type="submit"
             disabled={submitting || operatorClosedNow}
-            className="min-h-[44px] px-7 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-md shadow-[#0F294A]/25 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+            className="min-h-[44px] px-7 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-950 text-sm font-semibold shadow-md shadow-[#0F294A]/25 dark:shadow-teal-500/20 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
           >
             {editingReport ? (
               <Pencil className="w-4 h-4" />

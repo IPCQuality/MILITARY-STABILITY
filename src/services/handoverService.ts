@@ -215,6 +215,10 @@ function mapDocToReport(id: string, data: DocumentData): HandoverReport {
       typeof data.stabilityStatus === 'string'
         ? (data.stabilityStatus as StabilityStatus)
         : undefined,
+    leakLine:
+      typeof data.leakLine === 'string' && data.leakLine.trim()
+        ? data.leakLine.trim()
+        : undefined,
     createdBy: String(data.createdBy ?? ''),
     createdByName: String(data.createdByName ?? ''),
     updatedBy: data.updatedBy ? String(data.updatedBy) : null,
@@ -574,6 +578,10 @@ export async function createReportFirebase(
   const docPath = `handover_reports/${newDocRef.id}`;
   const actorName = (user.fullName || 'Pengawas').trim().slice(0, 120) || 'Pengawas';
   const sanitizedMachine = (validation.sanitizedMachine || '').trim().slice(0, 64);
+  const isLeakStage =
+    (input.activityStage === 'MILITARY' && input.militaryStatus === 'LEAK') ||
+    (input.activityStage === 'STABILITY' && input.stabilityStatus === 'LEAK');
+  const sanitizedLeakLine = isLeakStage ? (input.leakLine ?? '').trim().slice(0, 200) : '';
 
   const payload: DocumentData = {
     id: newDocRef.id,
@@ -595,6 +603,7 @@ export async function createReportFirebase(
       : {}),
     ...(input.stabilityPhase ? { stabilityPhase: input.stabilityPhase } : {}),
     ...(input.stabilityStatus ? { stabilityStatus: input.stabilityStatus } : {}),
+    ...(sanitizedLeakLine ? { leakLine: sanitizedLeakLine } : {}),
     createdBy: user.id,
     createdByName: actorName,
     updatedBy: user.id,
@@ -634,6 +643,7 @@ export async function createReportFirebase(
       militaryLeakBoxes: input.militaryLeakBoxes,
       stabilityPhase: input.stabilityPhase,
       stabilityStatus: input.stabilityStatus,
+      leakLine: sanitizedLeakLine || undefined,
       createdBy: payload.createdBy,
       createdByName: payload.createdByName,
       updatedBy: payload.updatedBy,
@@ -671,6 +681,10 @@ export async function updateReportFirebase(
   const reportRef = doc(db, 'handover_reports', reportId);
   const actorName = (user.fullName || 'Pengawas').trim().slice(0, 120) || 'Pengawas';
   const sanitizedMachine = (validation.sanitizedMachine || '').trim().slice(0, 64);
+  const isLeakStage =
+    (input.activityStage === 'MILITARY' && input.militaryStatus === 'LEAK') ||
+    (input.activityStage === 'STABILITY' && input.stabilityStatus === 'LEAK');
+  const sanitizedLeakLine = isLeakStage ? (input.leakLine ?? '').trim().slice(0, 200) : '';
 
   const updates: DocumentData = {
     reportDate: input.reportDate,
@@ -706,6 +720,7 @@ export async function updateReportFirebase(
       input.activityStage === 'STABILITY' && input.stabilityStatus
         ? input.stabilityStatus
         : deleteField(),
+    leakLine: sanitizedLeakLine ? sanitizedLeakLine : deleteField(),
     updatedBy: user.id,
     updatedByName: actorName,
     updatedAt: serverTimestamp(),
@@ -751,6 +766,7 @@ export async function updateReportFirebase(
         input.activityStage === 'STABILITY' ? input.stabilityPhase : undefined,
       stabilityStatus:
         input.activityStage === 'STABILITY' ? input.stabilityStatus : undefined,
+      leakLine: sanitizedLeakLine || undefined,
       createdBy: existingReport?.createdBy ?? user.id,
       createdByName: existingReport?.createdByName ?? actorName,
       updatedBy: updates.updatedBy,

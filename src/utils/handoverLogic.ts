@@ -99,6 +99,11 @@ export function validateHandoverInput(input: HandoverFormInput): ValidationResul
     errors.palletLocation = 'Lokasi palet maksimal 200 karakter.';
   }
 
+  const trimmedLeakLine = (input.leakLine ?? '').trim();
+  if (trimmedLeakLine.length > 200) {
+    errors.leakLine = 'Line / Nozzle yang bocor maksimal 200 karakter.';
+  }
+
   if (input.isCompleted) {
     if (input.activityStage === 'OH') {
       errors.isCompleted =
@@ -521,6 +526,7 @@ export function filterAndSortReports(
           item.information,
           item.followUp,
           item.palletLocation,
+          item.leakLine ?? '',
           item.createdByName,
         ]
           .join(' ')
@@ -1553,7 +1559,8 @@ export function formatWorkflowBadge(
     if (report.militaryStatus === 'PENDING') {
       return {
         badgeLabel: `Military${roundStr}: Belum Diuji`,
-        badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+        badgeClass:
+          'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700/80',
       };
     }
     const statusStr =
@@ -1564,8 +1571,8 @@ export function formatWorkflowBadge(
       badgeLabel: `Military${roundStr}: ${statusStr}`,
       badgeClass:
         report.militaryStatus === 'OK'
-          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-          : 'bg-rose-50 text-rose-800 border-rose-200',
+          ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60'
+          : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/60',
     };
   }
   if (report.activityStage === 'STABILITY') {
@@ -1573,7 +1580,8 @@ export function formatWorkflowBadge(
     if (report.stabilityStatus === 'PENDING') {
       return {
         badgeLabel: `Stability ${phaseStr}: Belum Diuji`,
-        badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+        badgeClass:
+          'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700/80',
       };
     }
     const statusStr = report.stabilityStatus === 'OK' ? 'OK' : 'Bocor';
@@ -1581,20 +1589,22 @@ export function formatWorkflowBadge(
       badgeLabel: `Stability ${phaseStr}: ${statusStr}`,
       badgeClass:
         report.stabilityStatus === 'OK'
-          ? 'bg-teal-50 text-teal-800 border-teal-200'
-          : 'bg-rose-50 text-rose-800 border-rose-200',
+          ? 'bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800/60'
+          : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/60',
     };
   }
   if (report.activityStage === 'OH') {
     return {
       badgeLabel: 'OH (Belum Perbaikan)',
-      badgeClass: 'bg-slate-100 text-slate-700 border-slate-300',
+      badgeClass:
+        'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700/80',
     };
   }
   if (report.activityStage === 'REPAIR') {
     return {
       badgeLabel: 'Perbaikan / Setting',
-      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200',
+      badgeClass:
+        'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60',
     };
   }
   return null;

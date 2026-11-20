@@ -162,18 +162,20 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
   return (
     <div className="max-w-4xl mx-auto space-y-4">
       {/* Filter & Download Card */}
-      <div className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-200 overflow-hidden">
+      <div className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 divide-y divide-slate-200 dark:divide-zinc-800/90 overflow-hidden">
         <div className="p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-slate-900">Filter Data Ekspor</span>
-            <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100">
+            <span className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+              Filter Data Ekspor
+            </span>
+            <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#121417] border border-transparent dark:border-zinc-800/80">
               <button
                 type="button"
                 onClick={() => applyPreset('all')}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                   startDate === '' && endDate === ''
-                    ? 'bg-white text-[#0F294A] shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
                 Semua
@@ -183,8 +185,8 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 onClick={() => applyPreset('today')}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                   startDate === operationalToday && endDate === operationalToday
-                    ? 'bg-white text-[#0F294A] shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
                 Hari Ini
@@ -194,8 +196,8 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 onClick={() => applyPreset('7days')}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                   startDate === past7DateStr && endDate === operationalToday
-                    ? 'bg-white text-[#0F294A] shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
                 7 Hari Terakhir
@@ -205,8 +207,8 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 onClick={() => applyPreset('month')}
                 className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                   startDate === monthStartStr && endDate === operationalToday
-                    ? 'bg-white text-[#0F294A] shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-white dark:bg-[#1E222A] text-[#0F294A] dark:text-teal-400 shadow-xs'
+                    : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
                 }`}
               >
                 Bulan Ini
@@ -216,7 +218,10 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div>
-              <label htmlFor="export-start-date" className="block text-xs font-semibold text-slate-600 mb-1">
+              <label
+                htmlFor="export-start-date"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
                 Dari Tanggal
               </label>
               <input
@@ -224,12 +229,15 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
             </div>
 
             <div>
-              <label htmlFor="export-end-date" className="block text-xs font-semibold text-slate-600 mb-1">
+              <label
+                htmlFor="export-end-date"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
                 Sampai Tanggal
               </label>
               <input
@@ -237,19 +245,22 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               />
             </div>
 
             <div>
-              <label htmlFor="export-shift" className="block text-xs font-semibold text-slate-600 mb-1">
+              <label
+                htmlFor="export-shift"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
                 Shift
               </label>
               <select
                 id="export-shift"
                 value={exportShift}
                 onChange={(e) => setExportShift(e.target.value as ShiftType | 'ALL')}
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               >
                 <option value="ALL">Semua Shift</option>
                 {SHIFTS.map((s) => (
@@ -261,14 +272,17 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
             </div>
 
             <div>
-              <label htmlFor="export-category" className="block text-xs font-semibold text-slate-600 mb-1">
+              <label
+                htmlFor="export-category"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
                 Kategori
               </label>
               <select
                 id="export-category"
                 value={exportCategory}
                 onChange={(e) => setExportCategory(e.target.value as CategoryType | 'ALL')}
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#0F294A]"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-[#0F294A] dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
               >
                 <option value="ALL">Semua Kategori</option>
                 {CATEGORIES.map((c) => (
@@ -285,8 +299,8 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
               role="status"
               className={`p-3.5 rounded-lg border text-sm ${
                 statusMsg.ok
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border-rose-200 text-rose-800'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/60 dark:border-emerald-800/60 dark:text-emerald-200'
+                  : 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/60 dark:border-rose-800/60 dark:text-rose-200'
               }`}
             >
               {statusMsg.text}
@@ -295,28 +309,28 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
         </div>
 
         {/* Summary Metrics Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 bg-slate-50/60">
+        <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-zinc-800/90 bg-slate-50/60 dark:bg-[#121417]">
           <div className="px-5 py-3.5">
-            <p className="text-xs text-slate-500">Baris Laporan</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-900 tabular-nums">
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Baris Laporan</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-900 dark:text-zinc-100 tabular-nums">
               {exportMetrics.totalReports}
             </p>
           </div>
           <div className="px-5 py-3.5">
-            <p className="text-xs text-slate-500">Total Case</p>
-            <p className="mt-0.5 text-lg font-bold text-slate-900 tabular-nums">
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Total Case</p>
+            <p className="mt-0.5 text-lg font-bold text-slate-900 dark:text-zinc-100 tabular-nums">
               {exportMetrics.totalCases}
             </p>
           </div>
           <div className="px-5 py-3.5">
-            <p className="text-xs text-slate-500">Total Military</p>
-            <p className="mt-0.5 text-lg font-bold text-[#0F294A] tabular-nums">
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Total Military</p>
+            <p className="mt-0.5 text-lg font-bold text-[#0F294A] dark:text-teal-400 tabular-nums">
               {exportMetrics.totalMilitary}
             </p>
           </div>
           <div className="px-5 py-3.5">
-            <p className="text-xs text-slate-500">Total Stability</p>
-            <p className="mt-0.5 text-lg font-bold text-teal-700 tabular-nums">
+            <p className="text-xs text-slate-500 dark:text-zinc-400">Total Stability</p>
+            <p className="mt-0.5 text-lg font-bold text-teal-700 dark:text-cyan-400 tabular-nums">
               {exportMetrics.totalStability}
             </p>
           </div>
@@ -324,16 +338,18 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
 
         {/* Download Footer */}
         <div className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-slate-500 dark:text-zinc-400">
             Nama file:{' '}
-            <span className="font-mono font-semibold text-slate-900">{targetFilename}</span>
+            <span className="font-mono font-semibold text-slate-900 dark:text-zinc-100">
+              {targetFilename}
+            </span>
           </div>
 
           <button
             type="button"
             disabled={exporting || previewRows.length === 0}
             onClick={handleExportExcel}
-            className="min-h-[44px] px-6 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-md shadow-[#0F294A]/25 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all whitespace-nowrap"
+            className="min-h-[44px] px-6 py-2.5 rounded-full bg-[#0F294A] hover:bg-[#163864] dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-950 text-sm font-semibold shadow-md shadow-[#0F294A]/25 dark:shadow-teal-500/20 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all whitespace-nowrap"
           >
             {exporting ? (
               <RefreshCw className="w-4 h-4 animate-spin" />
@@ -346,22 +362,22 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
       </div>
 
       {/* Preview Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3.5 border-b border-slate-200 flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-slate-900">
+      <div className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-slate-200 dark:border-zinc-800/90 flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
             Pratinjau Data ({Math.min(5, previewRows.length)} terbaru dari {previewRows.length})
           </h3>
         </div>
 
         {previewRows.length === 0 ? (
-          <div className="py-10 px-4 text-center text-sm text-slate-500">
+          <div className="py-10 px-4 text-center text-sm text-slate-500 dark:text-zinc-400">
             Tidak ada data yang sesuai filter saat ini.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left border-collapse text-xs sm:text-sm">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-600">
+                <tr className="bg-slate-50 dark:bg-[#121417] border-b border-slate-200 dark:border-zinc-800 text-xs font-semibold text-slate-600 dark:text-zinc-400">
                   <th className="py-2.5 px-4">Tanggal &amp; Shift</th>
                   <th className="py-2.5 px-4">Mesin</th>
                   <th className="py-2.5 px-4">Tahap &amp; Hasil</th>
@@ -371,20 +387,25 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                   <th className="py-2.5 px-4">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/70">
                 {previewRows.slice(0, 5).map((rep) => {
                   const badge = formatWorkflowBadge(rep);
                   const durShifts = durationByReportId.get(rep.id);
                   return (
-                    <tr key={rep.id} className="align-top">
+                    <tr
+                      key={rep.id}
+                      className="align-top hover:bg-slate-50/70 dark:hover:bg-[#13161B] transition-colors"
+                    >
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <span className="font-mono text-xs tabular-nums text-slate-900">
+                        <span className="font-mono text-xs tabular-nums text-slate-900 dark:text-zinc-100">
                           {formatDisplayDate(rep.reportDate)}
                         </span>
-                        <span className="text-slate-400"> · </span>
-                        <span className="text-xs text-slate-600">{rep.shift}</span>
+                        <span className="text-slate-400 dark:text-zinc-600"> · </span>
+                        <span className="text-xs text-slate-600 dark:text-zinc-400">
+                          {rep.shift}
+                        </span>
                       </td>
-                      <td className="py-3 px-4 font-mono text-xs font-semibold text-[#0F294A] whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono text-xs font-semibold text-[#0F294A] dark:text-teal-400 whitespace-nowrap">
                         {rep.machine || '—'}
                       </td>
                       <td className="py-3 px-4 max-w-xs space-y-1">
@@ -395,23 +416,25 @@ export function ExportView({ reports, onRefreshReports }: ExportViewProps) {
                             {badge.badgeLabel}
                           </span>
                         )}
-                        <p className="text-xs text-slate-700 line-clamp-1">{rep.information}</p>
+                        <p className="text-xs text-slate-700 dark:text-zinc-300 line-clamp-1">
+                          {rep.information}
+                        </p>
                       </td>
-                      <td className="py-3 px-4 font-mono text-xs text-slate-600 whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono text-xs text-slate-600 dark:text-zinc-400 whitespace-nowrap">
                         {rep.palletLocation || '—'}
                       </td>
-                      <td className="py-3 px-4 font-mono text-xs text-slate-800 whitespace-nowrap">
+                      <td className="py-3 px-4 font-mono text-xs text-slate-800 dark:text-zinc-200 whitespace-nowrap">
                         {durShifts !== undefined ? `${durShifts} Shift` : '—'}
                       </td>
-                      <td className="py-3 px-4 text-xs text-slate-800 whitespace-nowrap">
+                      <td className="py-3 px-4 text-xs text-slate-800 dark:text-zinc-200 whitespace-nowrap">
                         {rep.createdByName}
                       </td>
                       <td className="py-3 px-4 text-xs whitespace-nowrap">
                         <span
                           className={
                             rep.isCompleted
-                              ? 'font-semibold text-emerald-700'
-                              : 'text-slate-600'
+                              ? 'font-semibold text-emerald-700 dark:text-emerald-400'
+                              : 'text-slate-600 dark:text-zinc-400'
                           }
                         >
                           {rep.isCompleted ? 'Selesai (OK)' : 'Berlanjut'}

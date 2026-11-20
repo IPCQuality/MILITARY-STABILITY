@@ -293,6 +293,7 @@ test('buildHandoverWorkbook menghasilkan 1 worksheet DETAIL DATA modern berwarna
     'Mesin',
     'Kategori',
     'Tahap & Hasil Uji',
+    'LINE BOCOR',
     'Update Shift / Keterangan',
     'Tindak Lanjut',
     'Lokasi Palet',
@@ -309,19 +310,19 @@ test('buildHandoverWorkbook menghasilkan 1 worksheet DETAIL DATA modern berwarna
   assert.equal(detailJson[2][3], 'AST 9-16L');
   assert.equal(detailJson[2][4], 'OVERHAUL');
   assert.equal(detailJson[5][0], 4);
-  assert.equal(detailSheet['!autofilter']?.ref, 'A2:O6');
+  assert.equal(detailSheet['!autofilter']?.ref, 'A2:P6');
   assert.ok(Array.isArray(detailSheet['!merges']) && detailSheet['!merges'].length === 1);
-  assert.ok(Array.isArray(detailSheet['!cols']) && detailSheet['!cols'].length === 15);
+  assert.ok(Array.isArray(detailSheet['!cols']) && detailSheet['!cols'].length === 16);
 
   // Verifikasi header teal baru & nilai cell data
   assert.equal(detailSheet['A1'].s?.fill?.fgColor?.rgb, '115E59');
   assert.equal(detailSheet['A2'].s?.fill?.fgColor?.rgb, '0F766E');
   assert.equal(detailSheet['A2'].s?.font?.bold, true);
-  assert.equal(detailSheet['J6'].v, 'OK (Selesai)');
-  assert.equal(detailSheet['J6'].s?.fill?.fgColor?.rgb, 'BBF7D0');
-  assert.equal(detailSheet['K6'].v, '1 Shift');
-  assert.equal(detailSheet['K6'].s?.fill?.fgColor?.rgb, 'DCFCE7');
-  assert.equal(detailSheet['M4'].v, 1); // rep-2 kategori STABILITY TINGGI
+  assert.equal(detailSheet['K6'].v, 'OK (Selesai)');
+  assert.equal(detailSheet['K6'].s?.fill?.fgColor?.rgb, 'BBF7D0');
+  assert.equal(detailSheet['L6'].v, '1 Shift');
+  assert.equal(detailSheet['L6'].s?.fill?.fgColor?.rgb, 'DCFCE7');
+  assert.equal(detailSheet['N4'].v, 1); // rep-2 kategori STABILITY TINGGI
 
   assert.equal(buildHandoverFilename(), 'Data Military & Stability.xlsx');
 
@@ -965,18 +966,18 @@ test('countMilitaryInReport, countStabilityInReport, dan ekspor kolom Total Mili
   const wb = buildHandoverWorkbook([repMultiMilitary, repStabilityText, repStabilityCat]);
   const ws = wb.Sheets['DETAIL DATA'];
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
-  // Baris 3 (idx 2) -> repMultiMilitary: Military = 2, Stability = 0 (kolom 11 & 12)
+  // Baris 3 (idx 2) -> repMultiMilitary: Military = 2, Stability = 0 (kolom 12 & 13)
   assert.equal(rows[2][0], 1);
-  assert.equal(rows[2][11], 2);
-  assert.equal(rows[2][12], 0);
+  assert.equal(rows[2][12], 2);
+  assert.equal(rows[2][13], 0);
   // Baris 4 (idx 3) -> repStabilityText: Military = 1, Stability = 1
   assert.equal(rows[3][0], 2);
-  assert.equal(rows[3][11], 1);
   assert.equal(rows[3][12], 1);
+  assert.equal(rows[3][13], 1);
   // Baris 5 (idx 4) -> repStabilityCat: Military = 0, Stability = 1
   assert.equal(rows[4][0], 3);
-  assert.equal(rows[4][11], 0);
-  assert.equal(rows[4][12], 1);
+  assert.equal(rows[4][12], 0);
+  assert.equal(rows[4][13], 1);
   // Tanpa baris TOTAL KESELURUHAN -> total 5 baris (2 header + 3 data)
   assert.equal(rows.length, 5);
 });
@@ -1298,11 +1299,11 @@ test('status PENDING (Belum Diuji) pada Military dan Stability tidak dihitung ga
   const ws = wb.Sheets['DETAIL DATA'];
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
   assert.equal(rows[2][5], 'Military #1 [Belum Diuji]');
-  assert.equal(rows[2][11], 0);
-  assert.equal(rows[3][11], 1);
+  assert.equal(rows[2][12], 0);
+  assert.equal(rows[3][12], 1);
   assert.equal(rows[4][5], 'Stability 4 Jam [Belum Diuji]');
-  assert.equal(rows[4][12], 0);
-  assert.equal(rows[5][12], 1);
+  assert.equal(rows[4][13], 0);
+  assert.equal(rows[5][13], 1);
   assert.equal(rows.length, 6);
 });
 
@@ -1379,14 +1380,14 @@ test('Opsi A: tahap OH (belum mulai perbaikan) tidak menghitung durasi, tidak me
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
   assert.equal(rows[2][0], 1);
   assert.equal(rows[2][5], 'OH (Belum Perbaikan)');
-  assert.equal(rows[2][10], '0 Shift');
+  assert.equal(rows[2][11], '0 Shift');
   assert.equal(ws['F3'].s?.fill?.fgColor?.rgb, 'F1F5F9');
   assert.equal(rows[3][0], 2);
   assert.equal(rows[3][5], 'Perbaikan / Setting');
-  assert.equal(rows[3][10], '2 Shift');
+  assert.equal(rows[3][11], '2 Shift');
   assert.equal(rows[4][0], 3);
   assert.equal(rows[4][5], 'Stability 8 Jam [OK (Stabil)]');
-  assert.equal(rows[4][10], '2 Shift');
+  assert.equal(rows[4][11], '2 Shift');
 });
 
 test('Opsi 1 - Siklus ulang SOP Overhaul: Stability 8 Jam Bocor mereset hasPassedMilitary dan hasPassedStability4h', () => {
@@ -1538,7 +1539,7 @@ test('Opsi 1 - Ekspor Excel terfilter Hari Ini tetap memakai durasi riil multi-h
     header: 1,
   });
   assert.equal(rows.length, 3);
-  assert.equal(rows[2][10], '9 Shift');
+  assert.equal(rows[2][11], '9 Shift');
 });
 
 test('Opsi 1 - Validasi input ekstrem sinkron dengan Firestore Rules & SOP', () => {
@@ -1838,3 +1839,96 @@ test('Rilis UI - Filter status (Berlanjut / Selesai OK) di History dan daftar me
   const activePart = getActiveMachinesForCategory(all, 'CASE PERBAIKAN PART');
   assert.deepEqual(activePart, ['APK 19']);
 });
+
+test('Line/Nozzle Yang Bocor: validasi, pencarian keyword, dan kolom LINE BOCOR pada ekspor Excel', () => {
+  // Validasi leakLine valid vs melebihi 200 karakter
+  const validLeak = validateHandoverInput({
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 9-16L',
+    information: 'Ambil Military Ke-1: Ada bocor PV L1N2',
+    followUp: 'Setting ulang nozzle L1N2',
+    palletLocation: 'Staging Line A',
+    isCompleted: false,
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'LEAK',
+    militaryLeakBoxes: 2,
+    leakLine: 'PV L1N2',
+  });
+  assert.equal(validLeak.valid, true);
+
+  const tooLongLeak = validateHandoverInput({
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 9-16L',
+    information: 'Ambil Military Ke-1: Ada bocor',
+    followUp: '',
+    palletLocation: 'Staging Line A',
+    isCompleted: false,
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'LEAK',
+    militaryLeakBoxes: 1,
+    leakLine: 'X'.repeat(201),
+  });
+  assert.equal(tooLongLeak.valid, false);
+  assert.ok(tooLongLeak.errors.leakLine);
+
+  // Pencarian keyword & kolom LINE BOCOR pada Excel
+  const repMilLeak: HandoverReport = {
+    ...sampleReports[0],
+    id: 'leak-1',
+    reportDate: '2026-11-19',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 9-16L',
+    activityStage: 'MILITARY',
+    militaryRound: 1,
+    militaryStatus: 'LEAK',
+    militaryLeakBoxes: 2,
+    leakLine: 'PV L1N2',
+    information: 'Ambil Military Ke-1: Ada bocor PV L1N2',
+    palletLocation: 'Staging Line A',
+    isCompleted: false,
+  };
+  const repMilOk: HandoverReport = {
+    ...sampleReports[0],
+    id: 'leak-2',
+    reportDate: '2026-11-19',
+    shift: 'Shift 2',
+    category: 'OVERHAUL',
+    machine: 'AST 9-16L',
+    activityStage: 'MILITARY',
+    militaryRound: 2,
+    militaryStatus: 'OK',
+    militaryLeakBoxes: 0,
+    information: 'Ambil Military Ke-2: Nihil 0% (OK).',
+    palletLocation: 'Staging Line A',
+    isCompleted: false,
+  };
+
+  const foundByLeakLine = filterAndSortReports([repMilLeak, repMilOk], {
+    date: '',
+    shift: 'ALL',
+    category: 'ALL',
+    keyword: 'PV L1N2',
+  });
+  assert.equal(foundByLeakLine.length, 1);
+  assert.equal(foundByLeakLine[0].id, 'leak-1');
+
+  const wb = buildHandoverWorkbook([repMilLeak, repMilOk]);
+  const ws = wb.Sheets['DETAIL DATA'];
+  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1 });
+  assert.equal(rows[1][6], 'LINE BOCOR');
+  assert.equal(rows[2][6], 'PV L1N2');
+  assert.equal(rows[2][7], 'Ambil Military Ke-1: Ada bocor PV L1N2');
+  assert.equal(ws['G3'].s?.fill?.fgColor?.rgb, 'FFE4E6');
+  assert.equal(ws['G3'].s?.font?.color?.rgb, '9F1239');
+  assert.equal(ws['G3'].s?.font?.bold, true);
+  assert.equal(rows[3][6], '-');
+  assert.equal(rows[3][7], 'Ambil Military Ke-2: Nihil 0% (OK).');
+});
+

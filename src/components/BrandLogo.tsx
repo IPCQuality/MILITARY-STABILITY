@@ -22,21 +22,36 @@ export function BrandLogo({
       className={`shrink-0 ${className}`}
     >
       <rect
-        width="32"
-        height="32"
-        rx="8"
-        fill={isLight ? '#FFFFFF' : '#0F294A'}
+        x="0.5"
+        y="0.5"
+        width="31"
+        height="31"
+        rx="7.5"
+        className={
+          isLight
+            ? 'fill-white stroke-transparent dark:fill-[#13171D] dark:stroke-teal-400/30'
+            : 'fill-[#0F294A] stroke-transparent dark:fill-[#13171D] dark:stroke-zinc-800'
+        }
+        strokeWidth="1"
       />
       <path
         d="M8 21V11L13.5 17L19 11V21"
-        stroke={isLight ? '#0F294A' : '#FFFFFF'}
+        className={
+          isLight
+            ? 'stroke-[#0F294A] dark:stroke-zinc-100'
+            : 'stroke-white dark:stroke-zinc-100'
+        }
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <path
         d="M21.5 21H24.5"
-        stroke={isLight ? '#0F766E' : '#2DD4BF'}
+        className={
+          isLight
+            ? 'stroke-[#0F766E] dark:stroke-teal-400'
+            : 'stroke-[#2DD4BF] dark:stroke-teal-400'
+        }
         strokeWidth="2.6"
         strokeLinecap="round"
       />

@@ -107,6 +107,7 @@ export function buildHandoverWorkbook(
     'Mesin',
     'Kategori',
     'Tahap & Hasil Uji',
+    'LINE BOCOR',
     'Update Shift / Keterangan',
     'Tindak Lanjut',
     'Lokasi Palet',
@@ -159,6 +160,7 @@ export function buildHandoverWorkbook(
       r.machine ?? '-',
       r.category,
       stageDetail,
+      r.leakLine?.trim() || '-',
       r.information,
       r.followUp || '-',
       r.palletLocation || '-',
@@ -186,15 +188,16 @@ export function buildHandoverWorkbook(
     { min: 14, max: 20 }, // 3: Mesin
     { min: 24, max: 34 }, // 4: Kategori
     { min: 20, max: 32 }, // 5: Tahap & Hasil Uji
-    { min: 32, max: 48 }, // 6: Update Shift / Keterangan
-    { min: 22, max: 38 }, // 7: Tindak Lanjut
-    { min: 18, max: 28 }, // 8: Lokasi Palet
-    { min: 14, max: 16 }, // 9: Status
-    { min: 14, max: 16 }, // 10: Total Durasi
-    { min: 14, max: 16 }, // 11: Total Military
-    { min: 14, max: 16 }, // 12: Total Stability
-    { min: 16, max: 24 }, // 13: PIC
-    { min: 18, max: 22 }, // 14: Waktu Dibuat
+    { min: 16, max: 28 }, // 6: LINE BOCOR
+    { min: 32, max: 48 }, // 7: Update Shift / Keterangan
+    { min: 22, max: 38 }, // 8: Tindak Lanjut
+    { min: 18, max: 28 }, // 9: Lokasi Palet
+    { min: 14, max: 16 }, // 10: Status
+    { min: 14, max: 16 }, // 11: Total Durasi
+    { min: 14, max: 16 }, // 12: Total Military
+    { min: 14, max: 16 }, // 13: Total Stability
+    { min: 16, max: 24 }, // 14: PIC
+    { min: 18, max: 22 }, // 15: Waktu Dibuat
   ]);
   ws['!cols'] = colWidths;
 
@@ -213,7 +216,7 @@ export function buildHandoverWorkbook(
     ensureStyledCell(ws, 0, c, titleStyle);
   }
 
-  const centeredCols = new Set([0, 1, 2, 5, 9, 10, 11, 12]);
+  const centeredCols = new Set([0, 1, 2, 5, 6, 10, 11, 12, 13]);
   for (let c = 0; c < colCount; c += 1) {
     ensureStyledCell(ws, 1, c, {
       font: { name: 'Calibri', sz: 10, bold: true, color: { rgb: 'FFFFFF' } },
@@ -295,7 +298,14 @@ export function buildHandoverWorkbook(
           fillRgb = 'FEF3C7';
           fontColor = '92400E';
         }
-      } else if (c === 9) {
+      } else if (c === 6) {
+        horizontal = 'center';
+        if (!isMutedDash) {
+          fillRgb = 'FFE4E6';
+          fontColor = '9F1239';
+          bold = true;
+        }
+      } else if (c === 10) {
         horizontal = 'center';
         bold = true;
         if (isCompleted) {
@@ -305,7 +315,7 @@ export function buildHandoverWorkbook(
           fillRgb = 'FEF3C7';
           fontColor = '92400E';
         }
-      } else if (c === 10) {
+      } else if (c === 11) {
         horizontal = 'center';
         bold = hasStartedDur;
         if (!hasStartedDur) {
@@ -315,17 +325,17 @@ export function buildHandoverWorkbook(
           fillRgb = caseCompleted ? 'DCFCE7' : 'CCFBF1';
           fontColor = caseCompleted ? '14532D' : '115E59';
         }
-      } else if (c === 11) {
+      } else if (c === 12) {
         horizontal = 'center';
         bold = numVal > 0;
         fillRgb = numVal > 0 ? 'E0E7FF' : baseBg;
         fontColor = numVal > 0 ? '3730A3' : '94A3B8';
-      } else if (c === 12) {
+      } else if (c === 13) {
         horizontal = 'center';
         bold = numVal > 0;
         fillRgb = numVal > 0 ? 'CCFBF1' : baseBg;
         fontColor = numVal > 0 ? '115E59' : '94A3B8';
-      } else if (c === 14) {
+      } else if (c === 15) {
         fontColor = '475569';
       }
 

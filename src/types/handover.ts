@@ -177,6 +177,7 @@ export interface HandoverReport {
   militaryLeakBoxes?: number;
   stabilityPhase?: StabilityPhase;
   stabilityStatus?: StabilityStatus;
+  leakLine?: string;
   createdBy: string;
   createdByName: string;
   updatedBy: string | null;
@@ -201,6 +202,7 @@ export interface HandoverFormInput {
   militaryLeakBoxes?: number;
   stabilityPhase?: StabilityPhase;
   stabilityStatus?: StabilityStatus;
+  leakLine?: string;
 }
 
 export interface HistoryFilters {
