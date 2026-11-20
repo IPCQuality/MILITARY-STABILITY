@@ -14,6 +14,7 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocFromCache,
   getDocs,
   onSnapshot,
   query,
@@ -66,6 +67,63 @@ const LEGACY_LOCAL_KEYS = [
   'ms_handover_demo_session_v1',
   'ms_handover_supabase_config_v1',
 ];
+
+const USER_PROFILE_CACHE_KEY = 'ms_user_profile_cache_v1';
+
+function isFirestoreOfflineError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  const code =
+    typeof err === 'object' && err !== null && 'code' in err
+      ? String((err as { code?: unknown }).code ?? '').toLowerCase()
+      : '';
+  return (
+    code === 'unavailable' ||
+    msg.includes('the client is offline') ||
+    msg.includes('could not reach cloud firestore') ||
+    msg.includes('unavailable')
+  );
+}
+
+function saveCachedUserProfile(profile: UserProfile): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(USER_PROFILE_CACHE_KEY, JSON.stringify(profile));
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+function readCachedUserProfile(uid: string): UserProfile | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(USER_PROFILE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<UserProfile>;
+    if (parsed && parsed.id === uid && typeof parsed.email === 'string') {
+      return {
+        id: parsed.id,
+        email: parsed.email,
+        fullName: String(parsed.fullName || 'Pengawas'),
+        role: normalizeUserRole(parsed.role),
+        canEditAll: Boolean(parsed.canEditAll),
+        approvalStatus: normalizeApprovalStatus(parsed.approvalStatus),
+        photoURL: typeof parsed.photoURL === 'string' ? parsed.photoURL : null,
+      };
+    }
+  } catch {
+    // ignore invalid cache
+  }
+  return null;
+}
+
+function clearCachedUserProfile(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(USER_PROFILE_CACHE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -267,7 +325,41 @@ export async function ensureFirebaseUserProfile(
     const snap = await getDoc(userRef);
     snapData = snap.exists() ? snap.data() : undefined;
   } catch (err) {
-    handleFirestoreError(err, OperationType.GET, userPath);
+    if (isFirestoreOfflineError(err)) {
+      try {
+        const cachedSnap = await getDocFromCache(userRef);
+        if (cachedSnap.exists()) {
+          snapData = cachedSnap.data();
+        }
+      } catch {
+        // Not in Firestore IndexedDB cache yet
+      }
+
+      if (!snapData) {
+        const cachedProfile = readCachedUserProfile(firebaseUser.uid);
+        if (cachedProfile) {
+          return {
+            ...cachedProfile,
+            photoURL: firebaseUser.photoURL ?? cachedProfile.photoURL ?? null,
+          };
+        }
+        if (isPrimaryAdmin) {
+          return {
+            id: firebaseUser.uid,
+            email: userEmail,
+            fullName: fallbackName,
+            role: 'admin',
+            canEditAll: true,
+            approvalStatus: 'approved',
+            photoURL: firebaseUser.photoURL ?? null,
+          };
+        }
+      }
+    }
+
+    if (!snapData) {
+      handleFirestoreError(err, OperationType.GET, userPath);
+    }
   }
 
   if (snapData) {
@@ -277,7 +369,7 @@ export async function ensureFirebaseUserProfile(
       typeof snapData.approvalStatus === 'string' ? snapData.approvalStatus : undefined,
       isPrimaryAdmin
     );
-    return {
+    const resolvedProfile: UserProfile = {
       id: firebaseUser.uid,
       email: String(snapData.email || userEmail),
       fullName: String(snapData.fullName || fallbackName),
@@ -286,6 +378,8 @@ export async function ensureFirebaseUserProfile(
       approvalStatus,
       photoURL: firebaseUser.photoURL ?? null,
     };
+    saveCachedUserProfile(resolvedProfile);
+    return resolvedProfile;
   }
 
   // Setiap akun baru otomatis terdaftar dengan role default 'pengawas'
@@ -309,7 +403,7 @@ export async function ensureFirebaseUserProfile(
     handleFirestoreError(err, OperationType.CREATE, userPath);
   }
 
-  return {
+  const createdProfile: UserProfile = {
     id: firebaseUser.uid,
     email: userEmail,
     fullName: fallbackName,
@@ -318,6 +412,8 @@ export async function ensureFirebaseUserProfile(
     approvalStatus: initialApprovalStatus,
     photoURL: firebaseUser.photoURL ?? null,
   };
+  saveCachedUserProfile(createdProfile);
+  return createdProfile;
 }
 
 export interface AdminManagedUser extends UserProfile {
@@ -496,6 +592,7 @@ export async function resetPasswordFirebase(
 }
 
 export async function signOutFirebase(): Promise<void> {
+  clearCachedUserProfile();
   await signOut(auth);
 }
 

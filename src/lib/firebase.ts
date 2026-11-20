@@ -1,15 +1,65 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { doc, getDocFromServer, getFirestore } from 'firebase/firestore';
+import {
+  doc,
+  getDocFromServer,
+  getFirestore,
+  initializeFirestore,
+  memoryLocalCache,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+function initDb(): Firestore {
+  const isBrowser = typeof window !== 'undefined';
+
+  if (!isBrowser) {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+
+  try {
+    return initializeFirestore(
+      app,
+      {
+        experimentalForceLongPolling: true,
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      },
+      firebaseConfig.firestoreDatabaseId
+    );
+  } catch {
+    try {
+      return initializeFirestore(
+        app,
+        {
+          experimentalForceLongPolling: true,
+          localCache: memoryLocalCache(),
+        },
+        firebaseConfig.firestoreDatabaseId
+      );
+    } catch {
+      return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    }
+  }
+}
+
+export const db = initDb();
 export const auth = getAuth(app);
 export const firebaseProjectConfig = firebaseConfig;
 
 export async function testFirestoreConnection(): Promise<{ ok: boolean; message: string }> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return {
+      ok: false,
+      message: 'Perangkat sedang offline. Aplikasi berjalan menggunakan cache lokal.',
+    };
+  }
+
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
     return {
