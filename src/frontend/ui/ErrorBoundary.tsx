@@ -28,18 +28,25 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   handleRecover = async () => {
     try {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((reg) => reg.unregister()));
+      const win = window as unknown as { __msPurgePwaCaches?: () => Promise<unknown> };
+      if (typeof win.__msPurgePwaCaches === 'function') {
+        await win.__msPurgePwaCaches();
+      } else {
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.allSettled(regs.map((reg) => reg.unregister()));
+        }
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.allSettled(keys.map((k) => caches.delete(k)));
+        }
       }
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((k) => caches.delete(k)));
-      }
+      sessionStorage.removeItem('ms_sw_purged_v1');
+      sessionStorage.removeItem('ms_sw_purged_v2');
     } catch {
       // Abaikan jika pembersihan storage gagal
     }
-    window.location.reload();
+    window.location.replace(`${window.location.pathname}?_fresh=${Date.now()}`);
   };
 
   render() {

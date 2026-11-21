@@ -122,8 +122,15 @@ export default function App() {
     let active = true;
     clearLegacyDemoStorage();
 
+    const initFallbackTimer = window.setTimeout(() => {
+      if (!active) return;
+      setAuthReady(true);
+      setInitializing(false);
+    }, 10000);
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!active) return;
+      window.clearTimeout(initFallbackTimer);
 
       if (!firebaseUser) {
         setCurrentUser(null);
@@ -167,6 +174,7 @@ export default function App() {
 
     return () => {
       active = false;
+      window.clearTimeout(initFallbackTimer);
       unsubscribe();
     };
   }, []);

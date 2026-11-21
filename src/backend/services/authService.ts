@@ -57,26 +57,59 @@ export async function ensureFirebaseUserProfile(
   const userRef = doc(db, 'users', firebaseUser.uid);
 
   let snapData: DocumentData | undefined;
+  let cachedSnapData: DocumentData | undefined;
   try {
-    const snap = await getDoc(userRef);
-    snapData = snap.exists() ? snap.data() : undefined;
+    const cachedSnap = await getDocFromCache(userRef);
+    if (cachedSnap.exists()) {
+      cachedSnapData = cachedSnap.data();
+    }
+  } catch {
+    // Not in Firestore IndexedDB cache yet
+  }
+
+  const cachedLocalProfile = readCachedUserProfile(firebaseUser.uid);
+  const hasFastFallback = Boolean(cachedSnapData || cachedLocalProfile || isPrimaryAdmin);
+
+  try {
+    const getPromise = getDoc(userRef);
+    const snap = hasFastFallback
+      ? await Promise.race([
+          getPromise,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+        ])
+      : await getPromise;
+
+    if (snap) {
+      snapData = snap.exists() ? snap.data() : undefined;
+    } else if (cachedSnapData) {
+      snapData = cachedSnapData;
+    } else if (cachedLocalProfile) {
+      return {
+        ...cachedLocalProfile,
+        photoURL: firebaseUser.photoURL ?? cachedLocalProfile.photoURL ?? null,
+      };
+    } else if (isPrimaryAdmin) {
+      return {
+        id: firebaseUser.uid,
+        email: userEmail,
+        fullName: fallbackName,
+        role: 'admin',
+        canEditAll: true,
+        approvalStatus: 'approved',
+        photoURL: firebaseUser.photoURL ?? null,
+      };
+    }
   } catch (err) {
     if (isFirestoreOfflineError(err)) {
-      try {
-        const cachedSnap = await getDocFromCache(userRef);
-        if (cachedSnap.exists()) {
-          snapData = cachedSnap.data();
-        }
-      } catch {
-        // Not in Firestore IndexedDB cache yet
+      if (cachedSnapData) {
+        snapData = cachedSnapData;
       }
 
       if (!snapData) {
-        const cachedProfile = readCachedUserProfile(firebaseUser.uid);
-        if (cachedProfile) {
+        if (cachedLocalProfile) {
           return {
-            ...cachedProfile,
-            photoURL: firebaseUser.photoURL ?? cachedProfile.photoURL ?? null,
+            ...cachedLocalProfile,
+            photoURL: firebaseUser.photoURL ?? cachedLocalProfile.photoURL ?? null,
           };
         }
         if (isPrimaryAdmin) {

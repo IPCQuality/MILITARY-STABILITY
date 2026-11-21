@@ -8,3 +8,5 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </ErrorBoundary>
 );
+
+(window as unknown as { __msBooted?: boolean }).__msBooted = true;

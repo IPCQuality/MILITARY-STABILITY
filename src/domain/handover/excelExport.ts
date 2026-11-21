@@ -261,7 +261,7 @@ export function buildHandoverWorkbook(
         horizontal = 'center';
         bold = true;
       } else if (c === 2) {
-        const sc = SHIFT_COLORS[report.shift];
+        const sc = SHIFT_COLORS[report.shift] ?? { bg: 'F1F5F9', fg: '334155' };
         fillRgb = sc.bg;
         fontColor = sc.fg;
         bold = true;
@@ -269,7 +269,7 @@ export function buildHandoverWorkbook(
       } else if (c === 3) {
         bold = true;
       } else if (c === 4) {
-        const cc = CATEGORY_COLORS[report.category];
+        const cc = CATEGORY_COLORS[report.category] ?? { bg: 'F1F5F9', fg: '334155' };
         fillRgb = cc.bg;
         fontColor = cc.fg;
         bold = true;
