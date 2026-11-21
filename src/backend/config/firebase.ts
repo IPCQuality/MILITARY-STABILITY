@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import {
   doc,
+  enableNetwork,
   getDocFromServer,
   getFirestore,
   initializeFirestore,
@@ -25,7 +26,7 @@ function initDb(): Firestore {
     return initializeFirestore(
       app,
       {
-        experimentalForceLongPolling: true,
+        experimentalAutoDetectLongPolling: true,
         localCache: persistentLocalCache({
           tabManager: persistentMultipleTabManager(),
         }),
@@ -37,7 +38,7 @@ function initDb(): Firestore {
       return initializeFirestore(
         app,
         {
-          experimentalForceLongPolling: true,
+          experimentalAutoDetectLongPolling: true,
           localCache: memoryLocalCache(),
         },
         firebaseConfig.firestoreDatabaseId
@@ -52,6 +53,20 @@ export const db = initDb();
 export const auth = getAuth(app);
 export const firebaseProjectConfig = firebaseConfig;
 
+function isTransientConnectionError(error: unknown): boolean {
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code?: unknown }).code ?? '').toLowerCase()
+      : '';
+  return (
+    code === 'unavailable' ||
+    msg.includes('the client is offline') ||
+    msg.includes('could not reach cloud firestore') ||
+    msg.includes('the operation could not be completed')
+  );
+}
+
 export async function testFirestoreConnection(): Promise<{ ok: boolean; message: string }> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     return {
@@ -64,15 +79,21 @@ export async function testFirestoreConnection(): Promise<{ ok: boolean; message:
     await getDocFromServer(doc(db, 'test', 'connection'));
     return {
       ok: true,
-      message: 'Koneksi Firebase Cloud Firestore dan project robust-truck-5pqwl siap digunakan.',
+      message: `Koneksi Firebase Cloud Firestore dan project ${firebaseConfig.projectId} siap digunakan.`,
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    if (msg.includes('the client is offline')) {
+    if (msg.toLowerCase().includes('the client is offline')) {
       console.error('Please check your Firebase configuration.');
       return {
         ok: false,
         message: 'Gagal terhubung ke Firebase Cloud Firestore (klien offline). Periksa koneksi internet Anda.',
+      };
+    }
+    if (isTransientConnectionError(error)) {
+      return {
+        ok: false,
+        message: 'Koneksi ke Cloud Firestore sedang tidak stabil. Aplikasi memakai cache lokal.',
       };
     }
     return {
@@ -83,5 +104,21 @@ export async function testFirestoreConnection(): Promise<{ ok: boolean; message:
 }
 
 if (typeof window !== 'undefined') {
-  void testFirestoreConnection();
+  window.addEventListener('online', () => {
+    void enableNetwork(db).catch(() => undefined);
+  });
+
+  // Tunda probe awal sesaat agar tidak berbenturan dengan reload pembersihan SW/cache saat boot
+  const runInitialCheck = () => {
+    window.setTimeout(() => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      void testFirestoreConnection();
+    }, 800);
+  };
+
+  if (document.readyState === 'complete') {
+    runInitialCheck();
+  } else {
+    window.addEventListener('load', runInitialCheck, { once: true });
+  }
 }

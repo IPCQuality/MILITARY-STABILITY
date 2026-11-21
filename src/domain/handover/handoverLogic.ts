@@ -1982,7 +1982,10 @@ export function mapAuthErrorMessage(message: string): string {
     lower.includes('auth/network-request-failed') ||
     lower.includes('failed to fetch') ||
     lower.includes('network') ||
-    lower.includes('the client is offline')
+    lower.includes('the client is offline') ||
+    lower.includes('code=unavailable') ||
+    lower.includes('could not reach cloud firestore') ||
+    lower.includes('the operation could not be completed')
   ) {
     return 'Gagal terhubung ke server Firebase. Periksa koneksi internet Anda.';
   }

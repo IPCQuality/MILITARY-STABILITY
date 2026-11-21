@@ -2,7 +2,9 @@ import {
   collection,
   deleteField,
   doc,
+  enableNetwork,
   getDocs,
+  getDocsFromCache,
   onSnapshot,
   query,
   serverTimestamp,
@@ -27,6 +29,7 @@ import { db } from '../config/firebase';
 import {
   formatCaughtError,
   handleFirestoreError,
+  isFirestoreOfflineError,
   OperationType,
   toIsoString,
   WORKSPACE_ID,
@@ -103,6 +106,10 @@ export function subscribeReportsFirebase(
       onData(sortReportsNewestFirst(mapped));
     },
     (error) => {
+      if (isFirestoreOfflineError(error)) {
+        onError('Koneksi ke server terputus. Menampilkan data tersimpan hingga koneksi pulih.');
+        return;
+      }
       try {
         handleFirestoreError(error, OperationType.LIST, reportsPath);
       } catch (thrown) {
@@ -123,10 +130,28 @@ export async function loadReportsFirebase(): Promise<{
   );
 
   try {
+    if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+      await enableNetwork(db).catch(() => undefined);
+    }
     const snapshot = await getDocs(q);
     const mapped = snapshot.docs.map((d) => mapDocToReport(d.id, d.data()));
     return { reports: sortReportsNewestFirst(mapped) };
   } catch (err) {
+    if (isFirestoreOfflineError(err)) {
+      try {
+        const cachedSnapshot = await getDocsFromCache(q);
+        const mapped = cachedSnapshot.docs.map((d) => mapDocToReport(d.id, d.data()));
+        return {
+          reports: sortReportsNewestFirst(mapped),
+          error: 'Koneksi ke server Firestore belum tersedia. Menampilkan data tersimpan lokal.',
+        };
+      } catch {
+        return {
+          reports: [],
+          error: 'Gagal terhubung ke server Firebase. Periksa koneksi internet Anda.',
+        };
+      }
+    }
     try {
       handleFirestoreError(err, OperationType.LIST, reportsPath);
     } catch (thrown) {

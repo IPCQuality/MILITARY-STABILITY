@@ -112,7 +112,9 @@ export default function App() {
       if (res.error) {
         showToast(false, res.error);
       }
-      setReports(res.reports);
+      if (!res.error || res.reports.length > 0) {
+        setReports(res.reports);
+      }
     } finally {
       setLoadingReports(false);
     }

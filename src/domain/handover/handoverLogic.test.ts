@@ -818,6 +818,16 @@ test('extractOAuthErrorFromUrl, mapAuthErrorMessage, dan default role pengawas b
     mapAuthErrorMessage('Missing or insufficient permissions.'),
     'Akses ditolak oleh Firestore Security Rules. Pastikan email akun terverifikasi dan Anda memiliki izin untuk aksi ini.'
   );
+  assert.equal(
+    mapAuthErrorMessage(
+      'FirebaseError: [code=unavailable]: The operation could not be completed'
+    ),
+    'Gagal terhubung ke server Firebase. Periksa koneksi internet Anda.'
+  );
+  assert.equal(
+    mapAuthErrorMessage('Could not reach Cloud Firestore backend. Connection failed 1 times.'),
+    'Gagal terhubung ke server Firebase. Periksa koneksi internet Anda.'
+  );
 
   assert.equal(normalizeUserRole(undefined), 'pengawas');
   assert.equal(normalizeUserRole(''), 'pengawas');
