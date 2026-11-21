@@ -16,6 +16,74 @@ import {
 
 export const SHIFT_INPUT_GRACE_HOURS = 4;
 
+export function normalizeShift(raw: unknown): ShiftType {
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if ((SHIFTS as readonly string[]).includes(trimmed)) {
+      return trimmed as ShiftType;
+    }
+    const lower = trimmed.toLowerCase();
+    if (lower === 'shift 1' || lower === 'shift1' || lower === 's1' || lower === '1') {
+      return 'Shift 1';
+    }
+    if (lower === 'shift 2' || lower === 'shift2' || lower === 's2' || lower === '2') {
+      return 'Shift 2';
+    }
+    if (lower === 'shift 3' || lower === 'shift3' || lower === 's3' || lower === '3') {
+      return 'Shift 3';
+    }
+  } else if (typeof raw === 'number') {
+    if (raw === 1) return 'Shift 1';
+    if (raw === 2) return 'Shift 2';
+    if (raw === 3) return 'Shift 3';
+  }
+  return 'Shift 1';
+}
+
+export function normalizeCategory(raw: unknown): CategoryType {
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if ((CATEGORIES as readonly string[]).includes(trimmed)) {
+      return trimmed as CategoryType;
+    }
+    const upper = trimmed.toUpperCase();
+    const matched = CATEGORIES.find((c) => c === upper);
+    if (matched) return matched;
+    if (upper.includes('STABILITY')) return 'STABILITY TINGGI';
+    if (upper.includes('PART') || upper.includes('PERBAIKAN')) return 'CASE PERBAIKAN PART';
+    if (
+      upper.includes('COMMISSIONING') ||
+      upper.includes('TRIAL') ||
+      upper.includes('CHANGE OVER')
+    ) {
+      return 'COMMISSIONING / TRIAL / CHANGE OVER';
+    }
+  }
+  return 'OVERHAUL';
+}
+
+export function normalizeReportDate(raw: unknown): string {
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const isoMatch = trimmed.match(/^(\d{4}-\d{2}-\d{2})T/);
+    if (isoMatch) return isoMatch[1];
+    return trimmed;
+  }
+  if (
+    raw &&
+    typeof raw === 'object' &&
+    'toDate' in raw &&
+    typeof (raw as { toDate: () => Date }).toDate === 'function'
+  ) {
+    return getTodayDateString((raw as { toDate: () => Date }).toDate());
+  }
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    return getTodayDateString(raw);
+  }
+  return '';
+}
+
 export function getTodayDateString(now: Date = new Date()): string {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -199,8 +267,10 @@ export function computeDashboardSummary(
   for (const report of reports) {
     if (report.reportDate === targetDate) {
       totalToday += 1;
-      byCategory[report.category] += 1;
-      byShiftToday[report.shift] += 1;
+      const safeCat = normalizeCategory(report.category);
+      const safeShift = normalizeShift(report.shift);
+      byCategory[safeCat] += 1;
+      byShiftToday[safeShift] += 1;
     }
   }
 
@@ -234,7 +304,7 @@ export function computeOverhaulMatrix(
   for (const report of reports) {
     if (
       report.reportDate === targetDate &&
-      report.category === 'OVERHAUL' &&
+      normalizeCategory(report.category) === 'OVERHAUL' &&
       report.machine
     ) {
       if (!matrix[report.machine]) {
@@ -244,7 +314,8 @@ export function computeOverhaulMatrix(
           'Shift 3': [],
         };
       }
-      matrix[report.machine][report.shift].push(report);
+      const safeShift = normalizeShift(report.shift);
+      matrix[report.machine][safeShift].push(report);
     }
   }
 
@@ -413,16 +484,17 @@ export function groupActiveDashboardCases(
       if (hasCarryOver && latestPrev && latestPrevShiftReports.length > 0) {
         const prevDateObj = parseLocalDateParts(latestPrev.reportDate) ?? yesterdayDate;
         const prevSchedule = getShiftScheduleForDate(prevDateObj);
+        const safePrevShift = normalizeShift(latestPrev.shift);
         rows.push({
-          key: `carryover-${latestPrev.reportDate}-${latestPrev.shift}`,
-          shift: latestPrev.shift,
+          key: `carryover-${latestPrev.reportDate}-${safePrevShift}`,
+          shift: safePrevShift,
           reportDate: latestPrev.reportDate,
           isCarryOver: true,
           carryOverLabel:
             latestPrev.reportDate === yesterday
               ? 'Kemarin'
               : formatDisplayDate(latestPrev.reportDate),
-          hours: prevSchedule[latestPrev.shift],
+          hours: prevSchedule[safePrevShift],
           reports: latestPrevShiftReports,
           isRunningShift: false,
           canFill: false,
@@ -431,21 +503,24 @@ export function groupActiveDashboardCases(
       }
 
       // 2. Tentukan rentang shift hari ini yang ditampilkan (hanya sampai shift berjalan, tidak mendahului shift)
-      const shiftIndicesToday = todayItems.map((r) => SHIFTS.indexOf(r.shift));
+      const shiftIndicesToday = todayItems
+        .map((r) => SHIFTS.indexOf(normalizeShift(r.shift)))
+        .filter((idx) => idx >= 0);
       const minTodayIdx = hasCarryOver
         ? 0
         : shiftIndicesToday.length > 0
           ? Math.min(...shiftIndicesToday)
-          : activeShiftIdx;
+          : Math.max(0, activeShiftIdx);
 
       const maxTodayIdx = Math.max(
-        activeShiftIdx,
+        Math.max(0, activeShiftIdx),
         shiftIndicesToday.length > 0 ? Math.max(...shiftIndicesToday) : 0
       );
 
       for (let idx = minTodayIdx; idx <= maxTodayIdx; idx += 1) {
         const s = SHIFTS[idx];
-        const sReports = todayItems.filter((r) => r.shift === s);
+        if (!s) continue;
+        const sReports = todayItems.filter((r) => normalizeShift(r.shift) === s);
         const isRunning = hasActiveWindow
           ? liveStatus.activeShifts.includes(s)
           : false;

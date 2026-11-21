@@ -32,6 +32,9 @@ import {
   isReportResultOk,
   isShiftResultOk,
   mapAuthErrorMessage,
+  normalizeCategory,
+  normalizeReportDate,
+  normalizeShift,
   formatDisplayDate,
   requiresPalletLocation,
   shouldShowRepairStartField,
@@ -2095,6 +2098,51 @@ test('getEpisodeReportsForReport memisahkan episode kasus mesin secara kronologi
   );
 
   assert.deepEqual(getEpisodeReportsForReport([], null), []);
+});
+
+test('Ketahanan terhadap data Firestore lama/malformed agar UI pasca-login tidak crash', () => {
+  assert.equal(normalizeShift('shift 2'), 'Shift 2');
+  assert.equal(normalizeShift('3'), 'Shift 3');
+  assert.equal(normalizeShift('Shift X'), 'Shift 1');
+  assert.equal(normalizeShift(null), 'Shift 1');
+
+  assert.equal(normalizeCategory('overhaul'), 'OVERHAUL');
+  assert.equal(normalizeCategory('stability tinggi'), 'STABILITY TINGGI');
+  assert.equal(normalizeCategory('UNKNOWN_CAT'), 'OVERHAUL');
+
+  assert.equal(normalizeReportDate('2026-11-20'), '2026-11-20');
+  assert.equal(normalizeReportDate('2026-11-20T08:00:00.000Z'), '2026-11-20');
+  assert.equal(normalizeReportDate({ toDate: () => new Date(2026, 10, 20, 9, 0) }), '2026-11-20');
+  assert.equal(normalizeReportDate(undefined), '');
+
+  const malformedReport = {
+    ...sampleReports[0],
+    id: 'bad-1',
+    reportDate: '2026-11-20',
+    shift: 'Shift X' as unknown as HandoverReport['shift'],
+    category: 'UNKNOWN_CAT' as unknown as HandoverReport['category'],
+    machine: 'AST 25-12L',
+    information: 'Data lama dengan shift tidak standar',
+    isCompleted: false,
+  };
+
+  const summary = computeDashboardSummary([malformedReport], '2026-11-20');
+  assert.equal(summary.totalToday, 1);
+  assert.equal(summary.byCategory.OVERHAUL, 1);
+  assert.equal(summary.byShiftToday['Shift 1'], 1);
+
+  const matrix = computeOverhaulMatrix([malformedReport], '2026-11-20');
+  assert.equal(matrix['AST 25-12L']['Shift 1'].length, 1);
+
+  const grouped = groupActiveDashboardCases([malformedReport], new Date(2026, 10, 20, 10, 0));
+  assert.ok(grouped.OVERHAUL.every((g) => g.rows.every((r) => Boolean(r.shift))));
+
+  const wb = buildHandoverWorkbook([malformedReport]);
+  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(wb.Sheets['DETAIL DATA'], {
+    header: 1,
+  });
+  assert.equal(rows.length, 3);
+  assert.equal(rows[2][3], 'AST 25-12L');
 });
 
 

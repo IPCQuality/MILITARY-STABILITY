@@ -66,7 +66,13 @@ export default defineConfig({
           cleanupOutdatedCaches: true,
           clientsClaim: true,
           skipWaiting: true,
-          navigateFallbackDenylist: [/^\/__\/auth/, /^\/api\//],
+          navigateFallbackDenylist: [
+            /^\/__\/auth/,
+            /^\/api\//,
+            /^\/_\//,
+            /^\/assets\//,
+            /\/[^/?]+\.[^/]+$/,
+          ],
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

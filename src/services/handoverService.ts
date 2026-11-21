@@ -42,6 +42,9 @@ import {
   canSubmitReport,
   extractOAuthErrorFromUrl,
   mapAuthErrorMessage,
+  normalizeCategory,
+  normalizeReportDate,
+  normalizeShift,
   validateHandoverInput,
 } from '../utils/handoverLogic';
 import {
@@ -244,9 +247,9 @@ function toIsoString(value: unknown): string {
 function mapDocToReport(id: string, data: DocumentData): HandoverReport {
   return {
     id,
-    reportDate: String(data.reportDate ?? ''),
-    shift: (data.shift as ShiftType) ?? 'Shift 1',
-    category: (data.category as CategoryType) ?? 'OVERHAUL',
+    reportDate: normalizeReportDate(data.reportDate),
+    shift: normalizeShift(data.shift),
+    category: normalizeCategory(data.category),
     machine: data.machine ? String(data.machine) : null,
     information: String(data.information ?? ''),
     followUp: String(data.followUp ?? ''),
@@ -299,7 +302,29 @@ function sortReportsNewestFirst(list: HandoverReport[]): HandoverReport[] {
 // Firebase Auth & Profile Operations
 // ============================================================================
 
+const inflightProfileLookups = new Map<string, Promise<UserProfile>>();
+
 export async function ensureFirebaseUserProfile(
+  firebaseUser: User,
+  overrideFullName?: string
+): Promise<UserProfile> {
+  const existingPromise = inflightProfileLookups.get(firebaseUser.uid);
+  if (existingPromise) {
+    return existingPromise;
+  }
+
+  const lookupPromise = resolveFirebaseUserProfileInternal(
+    firebaseUser,
+    overrideFullName
+  ).finally(() => {
+    inflightProfileLookups.delete(firebaseUser.uid);
+  });
+
+  inflightProfileLookups.set(firebaseUser.uid, lookupPromise);
+  return lookupPromise;
+}
+
+async function resolveFirebaseUserProfileInternal(
   firebaseUser: User,
   overrideFullName?: string
 ): Promise<UserProfile> {
@@ -319,6 +344,26 @@ export async function ensureFirebaseUserProfile(
 
   const userPath = `users/${firebaseUser.uid}`;
   const userRef = doc(db, 'users', firebaseUser.uid);
+
+  const buildResolvedProfile = (data: DocumentData): UserProfile => {
+    const existingRole = normalizeUserRole(String(data.role ?? 'pengawas'));
+    const effectiveRole: UserRole = isPrimaryAdmin ? 'admin' : existingRole;
+    const approvalStatus = normalizeApprovalStatus(
+      typeof data.approvalStatus === 'string' ? data.approvalStatus : undefined,
+      isPrimaryAdmin
+    );
+    const resolved: UserProfile = {
+      id: firebaseUser.uid,
+      email: String(data.email || userEmail),
+      fullName: String(data.fullName || fallbackName),
+      role: effectiveRole,
+      canEditAll: Boolean(data.canEditAll) || isPrimaryAdmin || effectiveRole !== 'pengawas',
+      approvalStatus,
+      photoURL: firebaseUser.photoURL ?? null,
+    };
+    saveCachedUserProfile(resolved);
+    return resolved;
+  };
 
   let snapData: DocumentData | undefined;
   try {
@@ -363,23 +408,7 @@ export async function ensureFirebaseUserProfile(
   }
 
   if (snapData) {
-    const existingRole = normalizeUserRole(String(snapData.role ?? 'pengawas'));
-    const effectiveRole: UserRole = isPrimaryAdmin ? 'admin' : existingRole;
-    const approvalStatus = normalizeApprovalStatus(
-      typeof snapData.approvalStatus === 'string' ? snapData.approvalStatus : undefined,
-      isPrimaryAdmin
-    );
-    const resolvedProfile: UserProfile = {
-      id: firebaseUser.uid,
-      email: String(snapData.email || userEmail),
-      fullName: String(snapData.fullName || fallbackName),
-      role: effectiveRole,
-      canEditAll: Boolean(snapData.canEditAll) || isPrimaryAdmin || effectiveRole !== 'pengawas',
-      approvalStatus,
-      photoURL: firebaseUser.photoURL ?? null,
-    };
-    saveCachedUserProfile(resolvedProfile);
-    return resolvedProfile;
+    return buildResolvedProfile(snapData);
   }
 
   // Setiap akun baru otomatis terdaftar dengan role default 'pengawas'
@@ -400,6 +429,15 @@ export async function ensureFirebaseUserProfile(
       updatedAt: serverTimestamp(),
     });
   } catch (err) {
+    // Jika ada race antar-tab saat membuat profil pertama kali, coba baca ulang dokumen
+    try {
+      const retrySnap = await getDoc(userRef);
+      if (retrySnap.exists()) {
+        return buildResolvedProfile(retrySnap.data());
+      }
+    } catch {
+      // Abaikan dan lanjutkan error utama
+    }
     handleFirestoreError(err, OperationType.CREATE, userPath);
   }
 

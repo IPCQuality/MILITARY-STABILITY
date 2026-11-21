@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import {
@@ -172,6 +172,12 @@ export default function App() {
     };
   }, []);
 
+  const userFallbackRef = useRef({ email: '', fullName: '' });
+  userFallbackRef.current = {
+    email: currentUser?.email ?? '',
+    fullName: currentUser?.fullName ?? '',
+  };
+
   // Dengarkan perubahan status persetujuan & role akun secara real-time
   useEffect(() => {
     if (!authReady || !currentUser?.id) {
@@ -184,7 +190,7 @@ export default function App() {
       (snap) => {
         if (!snap.exists()) return;
         const data = snap.data();
-        const email = String(data.email || currentUser.email || '');
+        const email = String(data.email || userFallbackRef.current.email || '');
         const isPrimaryAdmin = email.trim().toLowerCase() === PRIMARY_ADMIN_EMAIL;
         const nextRole = isPrimaryAdmin
           ? 'admin'
@@ -195,7 +201,7 @@ export default function App() {
         );
         const nextCanEditAll =
           Boolean(data.canEditAll) || isPrimaryAdmin || nextRole !== 'pengawas';
-        const nextName = String(data.fullName || currentUser.fullName);
+        const nextName = String(data.fullName || userFallbackRef.current.fullName || 'Pengawas');
 
         setCurrentUser((prev) => {
           if (!prev) return prev;
@@ -227,7 +233,7 @@ export default function App() {
     return () => {
       unsubscribe();
     };
-  }, [authReady, currentUser?.id, currentUser?.email, currentUser?.fullName]);
+  }, [authReady, currentUser?.id]);
 
   // Pasang real-time listener Firestore hanya setelah auth siap & user disetujui Admin
   useEffect(() => {
@@ -258,6 +264,7 @@ export default function App() {
     setSessionNotice(null);
     setCurrentUser(user);
     setAuthReady(true);
+    setInitializing(false);
     setActiveNav('dashboard');
   }
 
