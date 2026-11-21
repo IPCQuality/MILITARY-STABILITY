@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, LogOut, ShieldCheck } from 'lucide-react';
+import { ChevronRight, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { UserProfile, UserRole } from '../types/handover';
 import { subscribeUsersForAdmin } from '../services/handoverService';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface SettingsViewProps {
   currentUser: UserProfile;
+  refreshing?: boolean;
+  onRefreshData?: () => Promise<void> | void;
   onLogout: () => void;
   onOpenAdmin?: () => void;
 }
@@ -27,6 +29,8 @@ function getInitials(name: string, email: string): string {
 
 export function SettingsView({
   currentUser,
+  refreshing = false,
+  onRefreshData,
   onLogout,
   onOpenAdmin,
 }: SettingsViewProps) {
@@ -35,6 +39,8 @@ export function SettingsView({
 
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [syncDone, setSyncDone] = useState(false);
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   useEffect(() => {
     setAvatarFailed(false);
@@ -54,6 +60,14 @@ export function SettingsView({
       unsubscribe();
     };
   }, [isAdmin]);
+
+  async function handleManualSync() {
+    if (!onRefreshData || refreshing) return;
+    setSyncDone(false);
+    await onRefreshData();
+    setSyncDone(true);
+    window.setTimeout(() => setSyncDone(false), 3000);
+  }
 
   const showGooglePhoto = Boolean(currentUser.photoURL) && !avatarFailed;
   const initials = getInitials(currentUser.fullName, currentUser.email);
@@ -133,6 +147,35 @@ export function SettingsView({
       {/* Instal Aplikasi Web (PWA) */}
       <PWAInstallButton variant="settings" />
 
+      {/* Sinkronisasi Manual (Data otomatis tersinkron real-time) */}
+      {onRefreshData && (
+        <button
+          type="button"
+          disabled={refreshing}
+          onClick={handleManualSync}
+          className="w-full rounded-xl border border-slate-200 dark:border-zinc-800/90 bg-white dark:bg-[#0B0C0E] hover:bg-slate-50 dark:hover:bg-[#14171C] disabled:opacity-60 shadow-xs hover:shadow-sm px-5 py-4 flex items-center justify-between gap-3 text-left transition-all active:scale-[0.99]"
+        >
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-[#14171C] text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
+                {refreshing
+                  ? 'Menyinkronkan Data...'
+                  : syncDone
+                    ? 'Data Sudah Terbaru'
+                    : 'Sinkronkan Data Manual'}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
+                Laporan tersinkron otomatis · ketuk bila perlu muat ulang paksa
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-slate-400 dark:text-zinc-500 shrink-0" />
+        </button>
+      )}
+
       {/* Tombol Menu Admin (Hanya Admin) */}
       {isAdmin && onOpenAdmin && (
         <button
@@ -163,16 +206,41 @@ export function SettingsView({
         </button>
       )}
 
-      {/* Tombol Log Out (Paling Bawah) */}
+      {/* Tombol Keluar dengan Konfirmasi Inline */}
       <div className="pt-2">
-        <button
-          type="button"
-          onClick={onLogout}
-          className="w-full min-h-[46px] px-5 py-2.5 rounded-full border border-rose-200 dark:border-rose-900/70 bg-rose-50 dark:bg-rose-950/45 hover:bg-rose-100 dark:hover:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Log Out</span>
-        </button>
+        {!confirmingLogout ? (
+          <button
+            type="button"
+            onClick={() => setConfirmingLogout(true)}
+            className="w-full min-h-[46px] px-5 py-2.5 rounded-full border border-rose-200 dark:border-rose-900/70 bg-rose-50 dark:bg-rose-950/45 hover:bg-rose-100 dark:hover:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Keluar dari Akun</span>
+          </button>
+        ) : (
+          <div className="rounded-2xl border border-rose-200 dark:border-rose-900/70 bg-rose-50/70 dark:bg-rose-950/35 p-4 space-y-3">
+            <p className="text-xs sm:text-sm font-semibold text-rose-900 dark:text-rose-200 text-center">
+              Yakin ingin keluar dari akun {currentUser.fullName}?
+            </p>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setConfirmingLogout(false)}
+                className="min-h-[42px] px-4 py-2 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#16191F] hover:bg-slate-50 dark:hover:bg-[#1E222A] text-xs sm:text-sm font-semibold text-slate-700 dark:text-zinc-200 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="min-h-[42px] px-4 py-2 rounded-full bg-rose-700 hover:bg-rose-800 dark:bg-rose-600 dark:hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold shadow-sm inline-flex items-center justify-center gap-1.5 transition-all"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Ya, Keluar</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

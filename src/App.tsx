@@ -55,10 +55,10 @@ const PRIMARY_TABS: {
   label: string;
   icon: typeof LayoutDashboard;
 }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'history', label: 'History', icon: History },
-  { id: 'export', label: 'Report', icon: FileSpreadsheet },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'dashboard', label: 'Beranda', icon: LayoutDashboard },
+  { id: 'history', label: 'Riwayat', icon: History },
+  { id: 'export', label: 'Ekspor', icon: FileSpreadsheet },
+  { id: 'settings', label: 'Pengaturan', icon: Settings },
 ];
 
 export default function App() {
@@ -507,7 +507,7 @@ export default function App() {
         ? editingReport
           ? 'Edit Handover'
           : 'Input Handover'
-        : PRIMARY_TABS.find((t) => t.id === activeNav)?.label ?? 'Dashboard';
+        : PRIMARY_TABS.find((t) => t.id === activeNav)?.label ?? 'Beranda';
 
   const isSubPage = activeNav === 'input' || activeNav === 'admin';
 
@@ -614,16 +614,21 @@ export default function App() {
               <BrandLogo size={26} className="md:hidden" />
             )}
             <div className="min-w-0 leading-tight">
-              <h1 className="text-xs sm:text-sm font-bold tracking-tight truncate">
-                <span className="text-teal-700 dark:text-teal-400">
-                  MILITARY &amp; STABILITY
-                </span>
-                <span className="text-slate-400 dark:text-zinc-600 font-normal">/</span>
-                <span className="text-slate-800 dark:text-zinc-100">{activeLabel}</span>
+              <h1 className="text-sm sm:text-base font-bold tracking-tight truncate text-slate-900 dark:text-zinc-100">
+                {isSubPage ? (
+                  activeLabel
+                ) : (
+                  <>
+                    <span className="md:hidden text-teal-700 dark:text-teal-400">
+                      MILITARY &amp; STABILITY
+                    </span>
+                    <span className="hidden md:inline">{activeLabel}</span>
+                  </>
+                )}
               </h1>
               <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">
                 <span>{headerShiftStatus.dateFormatted}</span>
-                <span className="sm:hidden font-semibold text-teal-700 dark:text-teal-400">
+                <span className="font-semibold text-teal-700 dark:text-teal-400">
                   {' '}
                   · {headerShiftLabel}
                 </span>
@@ -632,9 +637,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="hidden sm:inline text-xs font-semibold text-teal-700 dark:text-teal-400 whitespace-nowrap mr-0.5">
-              {headerShiftLabel}
-            </span>
             <PWAInstallButton variant="header" />
             <button
               type="button"
@@ -642,22 +644,13 @@ export default function App() {
               aria-label={isDark ? 'Aktifkan Tema Terang' : 'Aktifkan Tema Dark AMOLED'}
               title={isDark ? 'Beralih ke Tema Terang' : 'Beralih ke Tema Dark AMOLED'}
               data-testid="theme-toggle-btn"
-              className="min-h-[36px] min-w-[36px] px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center justify-center whitespace-nowrap transition-all"
+              className="min-h-[38px] min-w-[38px] px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center justify-center whitespace-nowrap transition-all"
             >
               {isDark ? (
-                <Sun className="w-3.5 h-3.5 text-teal-400" />
+                <Sun className="w-4 h-4 text-teal-400" />
               ) : (
-                <Moon className="w-3.5 h-3.5 text-teal-700" />
+                <Moon className="w-4 h-4 text-teal-700" />
               )}
-            </button>
-            <button
-              type="button"
-              onClick={() => fetchReports()}
-              aria-label="Sinkronkan Data Terbaru"
-              className="min-h-[36px] px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1.5 whitespace-nowrap transition-all"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loadingReports ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Sinkronkan</span>
             </button>
           </div>
         </header>
@@ -755,6 +748,8 @@ export default function App() {
           {activeNav === 'settings' && (
             <SettingsView
               currentUser={currentUser}
+              refreshing={loadingReports}
+              onRefreshData={fetchReports}
               onLogout={handleLogout}
               onOpenAdmin={
                 currentUser.role === 'admin'

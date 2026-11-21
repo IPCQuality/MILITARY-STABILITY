@@ -20,6 +20,7 @@ import {
   getActiveMachinesForCategory,
   getCaseWorkflowContext,
   getCurrentShiftStatus,
+  getEpisodeReportsForReport,
   getOpenOperatorShiftSlots,
   getOperationalDateString,
   groupActiveDashboardCases,
@@ -2048,5 +2049,53 @@ test('Auto keterangan seragam Nihil 0% (OK) dan toggle Stability 4 & 8 Jam bersa
   assert.equal(rows[2][5], 'Stability 4 & 8 Jam [Nihil 0% (OK)]');
   assert.equal(rows[2][7], 'Uji Stability 4 & 8 Jam: Nihil 0% (OK).');
 });
+
+test('getEpisodeReportsForReport memisahkan episode kasus mesin secara kronologis', () => {
+  const ep1a: HandoverReport = {
+    ...sampleReports[0],
+    id: 'tl-1a',
+    reportDate: '2026-11-10',
+    shift: 'Shift 1',
+    category: 'OVERHAUL',
+    machine: 'AST 25-12L',
+    isCompleted: false,
+  };
+  const ep1b: HandoverReport = {
+    ...ep1a,
+    id: 'tl-1b',
+    reportDate: '2026-11-10',
+    shift: 'Shift 2',
+    isCompleted: true,
+  };
+  const ep2a: HandoverReport = {
+    ...ep1a,
+    id: 'tl-2a',
+    reportDate: '2026-11-12',
+    shift: 'Shift 1',
+    isCompleted: false,
+  };
+  const ep2b: HandoverReport = {
+    ...ep1a,
+    id: 'tl-2b',
+    reportDate: '2026-11-12',
+    shift: 'Shift 3',
+    isCompleted: false,
+  };
+
+  const timeline1 = getEpisodeReportsForReport([ep2b, ep1b, ep2a, ep1a], ep1a);
+  assert.deepEqual(
+    timeline1.map((r) => r.id),
+    ['tl-1a', 'tl-1b']
+  );
+
+  const timeline2 = getEpisodeReportsForReport([ep2b, ep1b, ep2a, ep1a], ep2b);
+  assert.deepEqual(
+    timeline2.map((r) => r.id),
+    ['tl-2a', 'tl-2b']
+  );
+
+  assert.deepEqual(getEpisodeReportsForReport([], null), []);
+});
+
 
 

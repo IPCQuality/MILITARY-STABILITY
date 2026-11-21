@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { Eye, Pencil, RotateCcw, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronDown, Eye, Pencil, RotateCcw, Search, SlidersHorizontal } from 'lucide-react';
 import {
   CATEGORIES,
   SHIFTS,
@@ -38,6 +38,7 @@ export function HistoryView({
   onSelectReport,
   onEditReport,
 }: HistoryViewProps) {
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const operationalToday = getOperationalDateString();
   const [opYear, opMonth, opDay] = operationalToday.split('-').map(Number);
   const past7DateStr = useMemo(() => {
@@ -71,6 +72,13 @@ export function HistoryView({
   const startDate = filters.startDate ?? '';
   const endDate = filters.endDate ?? '';
   const statusFilter = filters.status ?? 'ALL';
+
+  const activeExtraFilterCount =
+    (startDate ? 1 : 0) +
+    (endDate ? 1 : 0) +
+    (filters.shift !== 'ALL' ? 1 : 0) +
+    (filters.category !== 'ALL' ? 1 : 0) +
+    (statusFilter !== 'ALL' ? 1 : 0);
 
   const hasActiveFilters =
     Boolean(filters.date) ||
@@ -123,11 +131,60 @@ export function HistoryView({
   return (
     <div className="space-y-4">
       {/* Filter Bar */}
-      <div className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 p-4 space-y-3.5">
+      <div className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 p-4 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+          <div className="relative flex-1 min-w-0">
+            <Search className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              id="filter-keyword"
+              aria-label="Cari mesin, palet, atau PIC"
+              type="text"
+              value={filters.keyword}
+              onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
+              placeholder="Cari mesin, palet, keterangan, atau PIC..."
+              className="w-full min-h-[42px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+            />
+          </div>
+
+          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+            <button
+              type="button"
+              aria-expanded={showAdvancedFilters}
+              onClick={() => setShowAdvancedFilters((prev) => !prev)}
+              className={`min-h-[42px] px-3.5 py-1.5 rounded-xl border text-xs font-semibold inline-flex items-center gap-1.5 transition-all whitespace-nowrap ${
+                showAdvancedFilters || activeExtraFilterCount > 0
+                  ? 'border-teal-300 dark:border-teal-700/70 bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300'
+                  : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-slate-700 dark:text-zinc-200'
+              }`}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Filter</span>
+              {activeExtraFilterCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 text-[10px] font-bold tabular-nums leading-none">
+                  {activeExtraFilterCount}
+                </span>
+              )}
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${
+                  showAdvancedFilters ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="min-h-[42px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 active:scale-[0.97] inline-flex items-center gap-1.5 whitespace-nowrap transition-all"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
-            Filter Riwayat
-          </span>
           <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#121417] border border-transparent dark:border-zinc-800/80">
             <button
               type="button"
@@ -174,144 +231,8 @@ export function HistoryView({
               Bulan Ini
             </button>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div>
-            <label
-              htmlFor="filter-keyword"
-              className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
-            >
-              Cari Mesin / Kata Kunci
-            </label>
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                id="filter-keyword"
-                type="text"
-                value={filters.keyword}
-                onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
-                placeholder="Cari mesin, palet, PIC..."
-                className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="filter-start-date"
-              className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
-            >
-              Dari Tanggal
-            </label>
-            <input
-              id="filter-start-date"
-              type="date"
-              value={startDate}
-              onChange={(e) =>
-                onChangeFilters({ ...filters, date: '', startDate: e.target.value })
-              }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="filter-end-date"
-              className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
-            >
-              Sampai Tanggal
-            </label>
-            <input
-              id="filter-end-date"
-              type="date"
-              value={endDate}
-              onChange={(e) =>
-                onChangeFilters({ ...filters, date: '', endDate: e.target.value })
-              }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="filter-shift"
-              className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
-            >
-              Shift
-            </label>
-            <select
-              id="filter-shift"
-              value={filters.shift}
-              onChange={(e) =>
-                onChangeFilters({ ...filters, shift: e.target.value as ShiftType | 'ALL' })
-              }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
-            >
-              <option value="ALL">Semua Shift</option>
-              {SHIFTS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="filter-category"
-              className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
-            >
-              Kategori
-            </label>
-            <select
-              id="filter-category"
-              value={filters.category}
-              onChange={(e) =>
-                onChangeFilters({
-                  ...filters,
-                  category: e.target.value as CategoryType | 'ALL',
-                })
-              }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
-            >
-              <option value="ALL">Semua Kategori</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="filter-status"
-              className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
-            >
-              Status
-            </label>
-            <select
-              id="filter-status"
-              value={statusFilter}
-              onChange={(e) =>
-                onChangeFilters({
-                  ...filters,
-                  status: e.target.value as 'ALL' | 'OPEN' | 'COMPLETED',
-                })
-              }
-              className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
-            >
-              <option value="ALL">Semua Status</option>
-              <option value="OPEN">Berlanjut</option>
-              <option value="COMPLETED">Selesai (OK)</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="pt-2.5 border-t border-slate-100 dark:border-zinc-800/80 flex items-center justify-between gap-2">
           <p className="text-xs text-slate-500 dark:text-zinc-400 tabular-nums">
-            Menampilkan{' '}
             <span className="font-semibold text-slate-800 dark:text-zinc-100">
               {filteredReports.length}
             </span>{' '}
@@ -321,17 +242,122 @@ export function HistoryView({
             </span>{' '}
             laporan
           </p>
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="min-h-[32px] px-3 py-1 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs active:scale-[0.97] inline-flex items-center gap-1.5 whitespace-nowrap transition-all"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Filter</span>
-            </button>
-          )}
         </div>
+
+        {showAdvancedFilters && (
+          <div className="pt-3 border-t border-slate-100 dark:border-zinc-800/80 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div>
+              <label
+                htmlFor="filter-start-date"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
+                Dari Tanggal
+              </label>
+              <input
+                id="filter-start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) =>
+                  onChangeFilters({ ...filters, date: '', startDate: e.target.value })
+                }
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="filter-end-date"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
+                Sampai Tanggal
+              </label>
+              <input
+                id="filter-end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) =>
+                  onChangeFilters({ ...filters, date: '', endDate: e.target.value })
+                }
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="filter-shift"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
+                Shift
+              </label>
+              <select
+                id="filter-shift"
+                value={filters.shift}
+                onChange={(e) =>
+                  onChangeFilters({ ...filters, shift: e.target.value as ShiftType | 'ALL' })
+                }
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              >
+                <option value="ALL">Semua Shift</option>
+                {SHIFTS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="filter-category"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
+                Kategori
+              </label>
+              <select
+                id="filter-category"
+                value={filters.category}
+                onChange={(e) =>
+                  onChangeFilters({
+                    ...filters,
+                    category: e.target.value as CategoryType | 'ALL',
+                  })
+                }
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              >
+                <option value="ALL">Semua Kategori</option>
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="filter-status"
+                className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 mb-1"
+              >
+                Status
+              </label>
+              <select
+                id="filter-status"
+                value={statusFilter}
+                onChange={(e) =>
+                  onChangeFilters({
+                    ...filters,
+                    status: e.target.value as 'ALL' | 'OPEN' | 'COMPLETED',
+                  })
+                }
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              >
+                <option value="ALL">Semua Status</option>
+                <option value="OPEN">Berlanjut</option>
+                <option value="COMPLETED">Selesai (OK)</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Results */}
@@ -486,65 +512,72 @@ export function HistoryView({
                 const badge = formatWorkflowBadge(rep);
                 return (
                   <article key={rep.id} className="p-4 space-y-2.5">
-                    <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400">
-                      <div className="min-w-0 truncate">
-                        <span className="font-semibold text-slate-900 dark:text-zinc-100">
-                          {rep.shift}
+                    <button
+                      type="button"
+                      onClick={() => onSelectReport(rep)}
+                      aria-label={`Buka detail laporan ${rep.machine || 'Umum'} ${rep.shift} ${formatDisplayDate(rep.reportDate)}`}
+                      className="w-full text-left space-y-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400">
+                        <div className="min-w-0 truncate">
+                          <span className="font-semibold text-slate-900 dark:text-zinc-100">
+                            {rep.shift}
+                          </span>
+                          <span aria-hidden="true"> · </span>
+                          <span>{rep.category}</span>
+                        </div>
+                        <span className="font-mono tabular-nums shrink-0">
+                          {formatDisplayDate(rep.reportDate)}
                         </span>
-                        <span aria-hidden="true"> · </span>
-                        <span>{rep.category}</span>
                       </div>
-                      <span className="font-mono tabular-nums shrink-0">
-                        {formatDisplayDate(rep.reportDate)}
-                      </span>
-                    </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-mono text-sm font-bold text-teal-700 dark:text-teal-400">
-                        {rep.machine || 'Umum / Non-Mesin'}
-                        {durationShifts !== undefined && (
-                          <span className="text-slate-500 dark:text-zinc-400 font-medium text-xs">
-                            {' '}
-                            · Total: {durationShifts} Shift
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-mono text-sm font-bold text-teal-700 dark:text-teal-400">
+                          {rep.machine || 'Umum / Non-Mesin'}
+                          {durationShifts !== undefined && (
+                            <span className="text-slate-500 dark:text-zinc-400 font-medium text-xs">
+                              {' '}
+                              · Total: {durationShifts} Shift
+                            </span>
+                          )}
+                        </p>
+                        {rep.isCompleted && (
+                          <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                            Selesai (OK)
                           </span>
                         )}
-                      </p>
-                      {rep.isCompleted && (
-                        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                          Selesai (OK)
-                        </span>
+                      </div>
+
+                      {badge && (
+                        <div>
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded border text-[11px] font-semibold ${badge.badgeClass}`}
+                          >
+                            {badge.badgeLabel}
+                          </span>
+                        </div>
                       )}
-                    </div>
 
-                    {badge && (
-                      <div>
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded border text-[11px] font-semibold ${badge.badgeClass}`}
-                        >
-                          {badge.badgeLabel}
-                        </span>
-                      </div>
-                    )}
+                      <p className="text-sm text-slate-900 dark:text-zinc-100 leading-relaxed line-clamp-3">
+                        {rep.information}
+                      </p>
 
-                    <p className="text-sm text-slate-900 dark:text-zinc-100 leading-relaxed line-clamp-3">
-                      {rep.information}
-                    </p>
+                      {(rep.leakLine || rep.followUp || rep.palletLocation) && (
+                        <div className="text-xs text-slate-500 dark:text-zinc-400 space-y-0.5">
+                          {rep.leakLine && (
+                            <p className="font-mono font-semibold text-rose-700 dark:text-rose-400">
+                              Line Bocor: {rep.leakLine}
+                            </p>
+                          )}
+                          {rep.followUp && <p>Lanjut: {rep.followUp}</p>}
+                          {rep.palletLocation && (
+                            <p className="font-mono">Palet: {rep.palletLocation}</p>
+                          )}
+                        </div>
+                      )}
+                    </button>
 
-                    {(rep.leakLine || rep.followUp || rep.palletLocation) && (
-                      <div className="text-xs text-slate-500 dark:text-zinc-400 space-y-0.5">
-                        {rep.leakLine && (
-                          <p className="font-mono font-semibold text-rose-700 dark:text-rose-400">
-                            Line Bocor: {rep.leakLine}
-                          </p>
-                        )}
-                        {rep.followUp && <p>Lanjut: {rep.followUp}</p>}
-                        {rep.palletLocation && (
-                          <p className="font-mono">Palet: {rep.palletLocation}</p>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between gap-2 pt-2 text-xs text-slate-500 dark:text-zinc-400">
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-zinc-800/70 text-xs text-slate-500 dark:text-zinc-400">
                       <div className="min-w-0 truncate">
                         <span className="font-medium text-slate-700 dark:text-zinc-300">
                           {rep.createdByName}
@@ -555,21 +588,19 @@ export function HistoryView({
                         </span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => onSelectReport(rep)}
-                          className="min-h-[38px] px-4 py-1.5 rounded-full border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#16191F] hover:bg-slate-50 dark:hover:bg-[#1E222A] text-slate-700 dark:text-zinc-200 font-semibold shadow-xs active:scale-[0.97] transition-all"
-                        >
-                          Detail
-                        </button>
-                        {editable && (
+                        {editable ? (
                           <button
                             type="button"
                             onClick={() => onEditReport(rep)}
-                            className="min-h-[38px] px-4 py-1.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 font-semibold shadow-sm shadow-teal-700/20 dark:shadow-teal-500/15 active:scale-[0.97] transition-all"
+                            className="min-h-[36px] px-3.5 py-1 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 font-semibold shadow-sm shadow-teal-700/20 dark:shadow-teal-500/15 active:scale-[0.97] inline-flex items-center gap-1 transition-all"
                           >
-                            Edit
+                            <Pencil className="w-3 h-3" />
+                            <span>Edit</span>
                           </button>
+                        ) : (
+                          <span className="text-[11px] font-medium text-teal-700 dark:text-teal-400">
+                            Ketuk kartu →
+                          </span>
                         )}
                       </div>
                     </div>

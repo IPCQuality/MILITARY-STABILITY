@@ -9,6 +9,7 @@ import {
   formatDateTimeId,
   formatDisplayDate,
   formatWorkflowBadge,
+  getEpisodeReportsForReport,
 } from '../utils/handoverLogic';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 
@@ -55,6 +56,11 @@ export function ReportDetailModal({
       totalStability: totalStab,
       reportCount: matched.reportCount,
     };
+  }, [report, reports]);
+
+  const episodeTimeline = useMemo(() => {
+    if (!report || reports.length === 0) return [];
+    return getEpisodeReportsForReport(reports, report);
   }, [report, reports]);
 
   if (!report) return null;
@@ -224,6 +230,62 @@ export function ReportDetailModal({
                 </span>
               </div>
             </div>
+
+            {episodeTimeline.length > 0 && (
+              <div className="pt-4 space-y-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-xs font-semibold text-slate-500 dark:text-zinc-400">
+                    Kronologi Kasus ({episodeTimeline.length} Shift)
+                  </h3>
+                </div>
+                <ol className="space-y-2">
+                  {episodeTimeline.map((item, idx) => {
+                    const isCurrent = item.id === report.id;
+                    const itemBadge = formatWorkflowBadge(item);
+                    return (
+                      <li
+                        key={item.id}
+                        className={`p-3 rounded-xl border text-xs transition-colors ${
+                          isCurrent
+                            ? 'bg-teal-50/70 dark:bg-teal-950/35 border-teal-300 dark:border-teal-700/70'
+                            : 'bg-slate-50/70 dark:bg-[#121417] border-slate-200/80 dark:border-zinc-800/80'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                          <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                            <span className="font-mono text-[11px] font-bold text-slate-500 dark:text-zinc-400 tabular-nums">
+                              #{idx + 1}
+                            </span>
+                            <span className="font-mono font-semibold text-slate-800 dark:text-zinc-200 tabular-nums">
+                              {formatDisplayDate(item.reportDate)}
+                            </span>
+                            <span className="text-slate-400 dark:text-zinc-600">·</span>
+                            <span className="font-medium text-slate-700 dark:text-zinc-300">
+                              {item.shift}
+                            </span>
+                            {isCurrent && (
+                              <span className="px-1.5 py-0.5 rounded bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 text-[10px] font-semibold">
+                                Sedang dibuka
+                              </span>
+                            )}
+                          </div>
+                          {itemBadge && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${itemBadge.badgeClass}`}
+                            >
+                              {itemBadge.badgeLabel}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-slate-800 dark:text-zinc-200 line-clamp-2 leading-snug">
+                          {item.information}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            )}
           </div>
         </div>
 

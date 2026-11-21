@@ -1875,6 +1875,56 @@ export function computeCaseDurations(
   });
 }
 
+export function getEpisodeReportsForReport(
+  reports: HandoverReport[],
+  targetReport: HandoverReport | null
+): HandoverReport[] {
+  if (!targetReport) return [];
+
+  const normMachine = (targetReport.machine ?? '').trim().toUpperCase();
+  const sorted = reports
+    .filter(
+      (r) =>
+        r.category === targetReport.category &&
+        (r.machine ?? '').trim().toUpperCase() === normMachine
+    )
+    .sort((a, b) => {
+      if (a.reportDate !== b.reportDate) {
+        return a.reportDate.localeCompare(b.reportDate);
+      }
+      const shiftDiff = SHIFTS.indexOf(a.shift) - SHIFTS.indexOf(b.shift);
+      if (shiftDiff !== 0) return shiftDiff;
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    });
+
+  if (sorted.length === 0) return [];
+
+  const episodes: HandoverReport[][] = [];
+  let currentEp: HandoverReport[] = [];
+  let completedRank: number | null = null;
+
+  for (const rep of sorted) {
+    const repRank = getShiftSlotRank(rep.reportDate, rep.shift);
+    if (completedRank !== null && repRank > completedRank) {
+      if (currentEp.length > 0) {
+        episodes.push(currentEp);
+      }
+      currentEp = [];
+      completedRank = null;
+    }
+    currentEp.push(rep);
+    if (rep.isCompleted) {
+      completedRank = completedRank === null ? repRank : Math.max(completedRank, repRank);
+    }
+  }
+
+  if (currentEp.length > 0) {
+    episodes.push(currentEp);
+  }
+
+  return episodes.find((ep) => ep.some((r) => r.id === targetReport.id)) ?? [targetReport];
+}
+
 export function mapAuthErrorMessage(message: string): string {
   const lower = message.toLowerCase();
   if (
