@@ -59,8 +59,8 @@ function noCacheShellMiddleware(): Plugin {
   };
 }
 
-export default defineConfig({
-  base: '/',
+export default defineConfig(({ command }) => ({
+  base: command === 'build' ? './' : '/',
   plugins: [react(), tailwindcss(), noCacheShellMiddleware()],
   resolve: {
     alias: {
@@ -77,4 +77,4 @@ export default defineConfig({
     // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
     watch: process.env.DISABLE_HMR === 'true' ? null : {},
   },
-});
+}));
