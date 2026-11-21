@@ -28,6 +28,29 @@
             if (meta) meta.setAttribute('content', '#0F766E');
           }
         } catch (e) {}
+
+        // Hapus sisa Service Worker & cache PWA lama agar browser tidak terjebak di white screen
+        try {
+          if ('serviceWorker' in navigator) {
+            var hadController = Boolean(navigator.serviceWorker.controller);
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              if (!regs || !regs.length) return;
+              Promise.all(regs.map(function (r) { return r.unregister(); })).then(function () {
+                var purge = 'caches' in window
+                  ? caches.keys().then(function (keys) {
+                      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                    })
+                  : Promise.resolve();
+                purge.finally(function () {
+                  if (hadController && !sessionStorage.getItem('ms_sw_purged_v1')) {
+                    sessionStorage.setItem('ms_sw_purged_v1', '1');
+                    window.location.reload();
+                  }
+                });
+              });
+            }).catch(function () {});
+          }
+        } catch (e) {}
       })();
     </script>
   </head>
