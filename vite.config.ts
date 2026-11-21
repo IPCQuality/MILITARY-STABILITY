@@ -4,14 +4,14 @@ import path from 'path';
 import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa';
 
-export default defineConfig(({command}) => {
-  return {
-    base: command === 'build' ? './' : '/',
+export default defineConfig({
+  base: '/',
     plugins: [
       react(),
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        useCredentials: true,
         includeAssets: [
           'icon.svg',
           'favicon-32x32.png',
@@ -117,7 +117,6 @@ export default defineConfig(({command}) => {
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-    },
-  };
+    watch: process.env.DISABLE_HMR === 'true' ? null : {},
+  },
 });

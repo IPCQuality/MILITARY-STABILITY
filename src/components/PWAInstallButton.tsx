@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, Download, Share, Smartphone, X } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
+import { BrandLogo } from './BrandLogo';
 
 interface PWAInstallButtonProps {
   variant?: 'header' | 'auth' | 'settings';
@@ -60,11 +61,7 @@ export function PWAInstallButton({ variant = 'header' }: PWAInstallButtonProps) 
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <img
-              src="/pwa-192x192.png"
-              alt="Ikon aplikasi Military & Stability"
-              className="w-11 h-11 rounded-xl border border-slate-200 dark:border-zinc-800 shrink-0"
-            />
+            <BrandLogo size={44} className="shadow-xs rounded-xl" />
             <div>
               <h3
                 id="pwa-guide-title"
@@ -127,8 +124,8 @@ export function PWAInstallButton({ variant = 'header' }: PWAInstallButtonProps) 
                 1
               </span>
               <span>
-                Buka menu browser (ikon <strong>⋮</strong> di pojok kanan atas Chrome /
-                Edge).
+                Buka link aplikasi langsung di browser <strong>Google Chrome</strong>{' '}
+                (bukan di dalam browser bawaan WhatsApp / preview).
               </span>
             </li>
             <li className="flex items-start gap-2.5">
@@ -136,7 +133,8 @@ export function PWAInstallButton({ variant = 'header' }: PWAInstallButtonProps) 
                 2
               </span>
               <span>
-                Pilih <strong>Instal aplikasi</strong> atau{' '}
+                Ketuk ikon menu <strong>⋮</strong> di pojok kanan atas Chrome, lalu pilih{' '}
+                <strong>Instal aplikasi</strong> atau{' '}
                 <strong>Tambahkan ke layar utama</strong>.
               </span>
             </li>
@@ -145,8 +143,8 @@ export function PWAInstallButton({ variant = 'header' }: PWAInstallButtonProps) 
                 3
               </span>
               <span>
-                Aplikasi dapat dibuka layar penuh langsung dari layar utama seperti
-                aplikasi native.
+                Ketuk <strong>Instal</strong> — aplikasi akan tampil layar penuh dengan
+                ikon resmi di layar utama HP Anda.
               </span>
             </li>
           </ol>
@@ -169,11 +167,7 @@ export function PWAInstallButton({ variant = 'header' }: PWAInstallButtonProps) 
         <section className="bg-white dark:bg-[#0B0C0E] rounded-2xl border border-slate-200/90 dark:border-zinc-800/90 shadow-xs p-5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
-              <img
-                src="/pwa-192x192.png"
-                alt="Ikon Aplikasi Military & Stability"
-                className="w-11 h-11 rounded-xl border border-slate-200 dark:border-zinc-800 shrink-0 shadow-xs"
-              />
+              <BrandLogo size={44} className="shadow-xs rounded-xl" />
               <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">
                   Aplikasi Web (PWA)

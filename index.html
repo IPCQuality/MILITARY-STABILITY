@@ -34,6 +34,18 @@
             if (meta) meta.setAttribute('content', '#0F766E');
           }
         } catch (e) {}
+
+        // Tangkap event beforeinstallprompt sejak awal sebelum React selesai loading
+        window.__deferredPWAInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', function (e) {
+          e.preventDefault();
+          window.__deferredPWAInstallPrompt = e;
+          window.dispatchEvent(new CustomEvent('pwa-install-available'));
+        });
+        window.addEventListener('appinstalled', function () {
+          window.__deferredPWAInstallPrompt = null;
+          window.dispatchEvent(new CustomEvent('pwa-install-completed'));
+        });
       })();
     </script>
   </head>
