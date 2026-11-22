@@ -128,7 +128,7 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
         }
         if (res.needsEmailConfirm) {
           setInfoMsg(
-            'Akun berhasil dibuat dengan role Pengawas. Cek inbox email Anda untuk verifikasi, lalu tunggu persetujuan Admin sebelum menggunakan aplikasi.'
+            'Akun berhasil dibuat. Klik tautan verifikasi di inbox/spam email Anda, lalu login kembali sekali agar akun tercatat dan dapat disetujui Admin.'
           );
           setTab('login');
           return;

@@ -27,7 +27,6 @@ import {
   clearLegacyDemoStorage,
   createReportFirebase,
   ensureFirebaseUserProfile,
-  loadReportsFirebase,
   normalizeApprovalStatus,
   normalizeUserRole,
   PRIMARY_ADMIN_EMAIL,
@@ -104,21 +103,6 @@ export default function App() {
     const timer = window.setTimeout(() => setToast(null), 4500);
     return () => window.clearTimeout(timer);
   }, [toast]);
-
-  const fetchReports = useCallback(async () => {
-    setLoadingReports(true);
-    try {
-      const res = await loadReportsFirebase();
-      if (res.error) {
-        showToast(false, res.error);
-      }
-      if (!res.error || res.reports.length > 0) {
-        setReports(res.reports);
-      }
-    } finally {
-      setLoadingReports(false);
-    }
-  }, [showToast]);
 
   useEffect(() => {
     let active = true;
@@ -756,8 +740,6 @@ export default function App() {
           {activeNav === 'settings' && (
             <SettingsView
               currentUser={currentUser}
-              refreshing={loadingReports}
-              onRefreshData={fetchReports}
               onLogout={handleLogout}
               onOpenAdmin={
                 currentUser.role === 'admin'

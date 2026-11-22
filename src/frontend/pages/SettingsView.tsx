@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
-import { ChevronRight, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ChevronRight, LogOut, ShieldCheck } from 'lucide-react';
 import type { UserProfile, UserRole } from '../../shared/types/handover';
 import { subscribeUsersForAdmin } from '../../backend/services';
 
 interface SettingsViewProps {
   currentUser: UserProfile;
-  refreshing?: boolean;
-  onRefreshData?: () => Promise<void> | void;
   onLogout: () => void;
   onOpenAdmin?: () => void;
 }
@@ -28,8 +26,6 @@ function getInitials(name: string, email: string): string {
 
 export function SettingsView({
   currentUser,
-  refreshing = false,
-  onRefreshData,
   onLogout,
   onOpenAdmin,
 }: SettingsViewProps) {
@@ -38,7 +34,6 @@ export function SettingsView({
 
   const [avatarFailed, setAvatarFailed] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
-  const [syncDone, setSyncDone] = useState(false);
   const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   useEffect(() => {
@@ -59,14 +54,6 @@ export function SettingsView({
       unsubscribe();
     };
   }, [isAdmin]);
-
-  async function handleManualSync() {
-    if (!onRefreshData || refreshing) return;
-    setSyncDone(false);
-    await onRefreshData();
-    setSyncDone(true);
-    window.setTimeout(() => setSyncDone(false), 3000);
-  }
 
   const showGooglePhoto = Boolean(currentUser.photoURL) && !avatarFailed;
   const initials = getInitials(currentUser.fullName, currentUser.email);
@@ -142,35 +129,6 @@ export function SettingsView({
           </div>
         </dl>
       </section>
-
-      {/* Sinkronisasi Manual (Data otomatis tersinkron real-time) */}
-      {onRefreshData && (
-        <button
-          type="button"
-          disabled={refreshing}
-          onClick={handleManualSync}
-          className="w-full rounded-xl border border-slate-200 dark:border-zinc-800/90 bg-white dark:bg-[#0B0C0E] hover:bg-slate-50 dark:hover:bg-[#14171C] disabled:opacity-60 shadow-xs hover:shadow-sm px-5 py-4 flex items-center justify-between gap-3 text-left transition-all active:scale-[0.99]"
-        >
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-[#14171C] text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
-              <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
-                {refreshing
-                  ? 'Menyinkronkan Data...'
-                  : syncDone
-                    ? 'Data Sudah Terbaru'
-                    : 'Sinkronkan Data Manual'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                Laporan tersinkron otomatis · ketuk bila perlu muat ulang paksa
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-slate-400 dark:text-zinc-500 shrink-0" />
-        </button>
-      )}
 
       {/* Tombol Menu Admin (Hanya Admin) */}
       {isAdmin && onOpenAdmin && (
