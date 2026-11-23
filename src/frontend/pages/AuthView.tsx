@@ -354,14 +354,6 @@ export function AuthView({ onAuthenticated, sessionNotice }: AuthViewProps) {
               </div>
             </div>
 
-            {tab === 'register' && (
-              <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
-                Akun baru (email maupun Google) otomatis terdaftar dengan role default{' '}
-                <strong className="text-slate-700 dark:text-zinc-200">Pengawas</strong> dan menunggu konfirmasi{' '}
-                <strong className="text-slate-700 dark:text-zinc-200">Admin</strong> sebelum dapat mengakses data.
-              </p>
-            )}
-
             <button
               type="submit"
               disabled={loading || googleLoading}

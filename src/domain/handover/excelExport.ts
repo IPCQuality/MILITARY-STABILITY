@@ -5,6 +5,7 @@ import {
   countMilitaryInReport,
   countStabilityInReport,
   formatDateTimeId,
+  formatReportInformationDisplay,
   formatStabilityPhaseLabel,
   type CaseDurationItem,
 } from './handoverLogic';
@@ -162,7 +163,7 @@ export function buildHandoverWorkbook(
       r.category,
       stageDetail,
       r.leakLine?.trim() || '-',
-      r.information,
+      formatReportInformationDisplay(r.information),
       r.followUp || '-',
       r.palletLocation || '-',
       r.isCompleted ? 'OK (Selesai)' : 'Berlanjut',

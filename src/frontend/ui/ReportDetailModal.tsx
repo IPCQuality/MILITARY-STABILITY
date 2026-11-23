@@ -8,6 +8,7 @@ import {
   countStabilityInReport,
   formatDateTimeId,
   formatDisplayDate,
+  formatReportInformationDisplay,
   formatWorkflowBadge,
   getEpisodeReportsForReport,
 } from '../../domain/handover/handoverLogic';
@@ -178,7 +179,7 @@ export function ReportDetailModal({
                 Update Shift / Keterangan
               </h3>
               <p className="text-slate-900 dark:text-zinc-100 whitespace-pre-wrap leading-relaxed">
-                {report.information}
+                {formatReportInformationDisplay(report.information)}
               </p>
             </div>
 
@@ -278,7 +279,7 @@ export function ReportDetailModal({
                           )}
                         </div>
                         <p className="mt-1 text-slate-800 dark:text-zinc-200 line-clamp-2 leading-snug">
-                          {item.information}
+                          {formatReportInformationDisplay(item.information)}
                         </p>
                       </li>
                     );

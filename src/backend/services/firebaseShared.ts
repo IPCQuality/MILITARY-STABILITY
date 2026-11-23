@@ -12,7 +12,6 @@ const LEGACY_LOCAL_KEYS = [
   'ms_handover_demo_reports_v1',
   'ms_handover_demo_reports_v2',
   'ms_handover_demo_session_v1',
-  'ms_handover_supabase_config_v1',
 ];
 
 const USER_PROFILE_CACHE_KEY = 'ms_user_profile_cache_v1';

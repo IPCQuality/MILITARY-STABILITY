@@ -15,6 +15,7 @@ import {
   filterAndSortReports,
   formatDateTimeId,
   formatDisplayDate,
+  formatReportInformationDisplay,
   formatWorkflowBadge,
   getOperationalDateString,
 } from '../../domain/handover/handoverLogic';
@@ -446,7 +447,7 @@ export function HistoryView({
                             )}
                           </div>
                           <p className="text-xs sm:text-sm text-slate-900 dark:text-zinc-100 line-clamp-2 leading-snug">
-                            {rep.information}
+                            {formatReportInformationDisplay(rep.information)}
                           </p>
                           {rep.leakLine && (
                             <p className="font-mono text-xs font-semibold text-rose-700 dark:text-rose-300">
@@ -455,7 +456,7 @@ export function HistoryView({
                           )}
                           {rep.followUp && (
                             <p className="text-xs text-slate-500 dark:text-zinc-400 line-clamp-1">
-                              Lanjut: {rep.followUp}
+                              {rep.followUp}
                             </p>
                           )}
                         </td>
@@ -559,7 +560,7 @@ export function HistoryView({
                       )}
 
                       <p className="text-sm text-slate-900 dark:text-zinc-100 leading-relaxed line-clamp-3">
-                        {rep.information}
+                        {formatReportInformationDisplay(rep.information)}
                       </p>
 
                       {(rep.leakLine || rep.followUp || rep.palletLocation) && (
@@ -569,7 +570,7 @@ export function HistoryView({
                               Line Bocor: {rep.leakLine}
                             </p>
                           )}
-                          {rep.followUp && <p>Lanjut: {rep.followUp}</p>}
+                          {rep.followUp && <p>{rep.followUp}</p>}
                           {rep.palletLocation && (
                             <p className="font-mono">Palet: {rep.palletLocation}</p>
                           )}

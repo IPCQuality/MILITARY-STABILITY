@@ -8,6 +8,7 @@ import {
   type UserProfile,
 } from '../../shared/types/handover';
 import {
+  formatReportInformationDisplay,
   formatWorkflowBadge,
   getCurrentShiftStatus,
   getOperationalDateString,
@@ -229,7 +230,7 @@ export function DashboardView({
                                   )}
 
                                   <p className="text-xs sm:text-sm text-slate-900 dark:text-zinc-100 leading-snug whitespace-pre-wrap break-words">
-                                    {rep.information}
+                                    {formatReportInformationDisplay(rep.information)}
                                   </p>
 
                                   {(rep.leakLine || rep.followUp || rep.palletLocation) && (
@@ -244,7 +245,7 @@ export function DashboardView({
                                       )}
                                       {rep.followUp && (
                                         <span className="text-teal-700 dark:text-dark-accent font-medium break-words">
-                                          Lanjut: {rep.followUp}
+                                          {rep.followUp}
                                         </span>
                                       )}
                                       {rep.followUp && rep.palletLocation && (
