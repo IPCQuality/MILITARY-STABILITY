@@ -131,7 +131,7 @@ export function HistoryView({
   return (
     <div className="space-y-4">
       {/* Filter Bar */}
-      <div className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 p-4 space-y-3">
+      <div className="bg-white dark:bg-[#161920] rounded-xl border border-slate-200 dark:border-zinc-800/90 p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
           <div className="relative flex-1 min-w-0">
             <Search className="w-4 h-4 text-slate-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -142,7 +142,7 @@ export function HistoryView({
               value={filters.keyword}
               onChange={(e) => onChangeFilters({ ...filters, keyword: e.target.value })}
               placeholder="Cari mesin, palet, keterangan, atau PIC..."
-              className="w-full min-h-[42px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full min-h-[42px] pl-9 pr-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-700/80 rounded-xl bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
             />
           </div>
 
@@ -153,14 +153,14 @@ export function HistoryView({
               onClick={() => setShowAdvancedFilters((prev) => !prev)}
               className={`min-h-[42px] px-3.5 py-1.5 rounded-xl border text-xs font-semibold inline-flex items-center gap-1.5 transition-all whitespace-nowrap ${
                 showAdvancedFilters || activeExtraFilterCount > 0
-                  ? 'border-teal-300 dark:border-teal-700/70 bg-teal-50 dark:bg-teal-950/40 text-teal-800 dark:text-teal-300'
-                  : 'border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-slate-700 dark:text-zinc-200'
+                  ? 'border-teal-300 dark:border-teal-800/50 bg-teal-50 dark:bg-teal-900/25 text-teal-800 dark:text-dark-accent'
+                  : 'border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] text-slate-700 dark:text-zinc-200'
               }`}
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
               <span>Filter</span>
               {activeExtraFilterCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 text-[10px] font-bold tabular-nums leading-none">
+                <span className="px-1.5 py-0.5 rounded-full bg-teal-700 dark:bg-teal-700 text-white text-[10px] font-bold tabular-nums leading-none">
                   {activeExtraFilterCount}
                 </span>
               )}
@@ -175,7 +175,7 @@ export function HistoryView({
               <button
                 type="button"
                 onClick={resetFilters}
-                className="min-h-[42px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 active:scale-[0.97] inline-flex items-center gap-1.5 whitespace-nowrap transition-all"
+                className="min-h-[42px] px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] text-xs font-semibold text-slate-700 dark:text-zinc-200 active:scale-[0.97] inline-flex items-center gap-1.5 whitespace-nowrap transition-all"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 <span>Reset</span>
@@ -185,13 +185,13 @@ export function HistoryView({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#121417] border border-transparent dark:border-zinc-800/80">
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#11141A] border border-transparent dark:border-zinc-800/80">
             <button
               type="button"
               onClick={() => applyDatePreset('all')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 !startDate && !endDate && !filters.date
-                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#252A35] text-teal-700 dark:text-dark-accent shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -202,7 +202,7 @@ export function HistoryView({
               onClick={() => applyDatePreset('today')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 startDate === operationalToday && endDate === operationalToday
-                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#252A35] text-teal-700 dark:text-dark-accent shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -213,7 +213,7 @@ export function HistoryView({
               onClick={() => applyDatePreset('7days')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 startDate === past7DateStr && endDate === operationalToday
-                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#252A35] text-teal-700 dark:text-dark-accent shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -224,7 +224,7 @@ export function HistoryView({
               onClick={() => applyDatePreset('month')}
               className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
                 startDate === monthStartStr && endDate === operationalToday
-                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-xs'
+                  ? 'bg-white dark:bg-[#252A35] text-teal-700 dark:text-dark-accent shadow-xs'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -260,7 +260,7 @@ export function HistoryView({
                 onChange={(e) =>
                   onChangeFilters({ ...filters, date: '', startDate: e.target.value })
                 }
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-700/80 rounded-lg bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
               />
             </div>
 
@@ -278,7 +278,7 @@ export function HistoryView({
                 onChange={(e) =>
                   onChangeFilters({ ...filters, date: '', endDate: e.target.value })
                 }
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-slate-300 dark:border-zinc-700/80 rounded-lg bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
               />
             </div>
 
@@ -295,7 +295,7 @@ export function HistoryView({
                 onChange={(e) =>
                   onChangeFilters({ ...filters, shift: e.target.value as ShiftType | 'ALL' })
                 }
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-700/80 rounded-lg bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
               >
                 <option value="ALL">Semua Shift</option>
                 {SHIFTS.map((s) => (
@@ -322,7 +322,7 @@ export function HistoryView({
                     category: e.target.value as CategoryType | 'ALL',
                   })
                 }
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-700/80 rounded-lg bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
               >
                 <option value="ALL">Semua Kategori</option>
                 {CATEGORIES.map((c) => (
@@ -349,7 +349,7 @@ export function HistoryView({
                     status: e.target.value as 'ALL' | 'OPEN' | 'COMPLETED',
                   })
                 }
-                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[40px] px-3 py-1.5 text-sm border border-slate-300 dark:border-zinc-700/80 rounded-lg bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
               >
                 <option value="ALL">Semua Status</option>
                 <option value="OPEN">Berlanjut</option>
@@ -361,7 +361,7 @@ export function HistoryView({
       </div>
 
       {/* Results */}
-      <div className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 overflow-hidden">
+      <div className="bg-white dark:bg-[#161920] rounded-xl border border-slate-200 dark:border-zinc-800/90 overflow-hidden">
         {loading ? (
           <div className="py-12 text-center text-sm text-slate-500 dark:text-zinc-400">
             Memuat data laporan...
@@ -375,7 +375,7 @@ export function HistoryView({
               <button
                 type="button"
                 onClick={resetFilters}
-                className="mt-3 min-h-[40px] px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] transition-all"
+                className="mt-3 min-h-[40px] px-4 py-2 rounded-lg border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] transition-all"
               >
                 Tampilkan Semua Laporan
               </button>
@@ -387,7 +387,7 @@ export function HistoryView({
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full min-w-[780px] text-left border-collapse text-sm">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-[#121417] border-b border-slate-200 dark:border-zinc-800 text-xs font-semibold text-slate-600 dark:text-zinc-400">
+                  <tr className="bg-slate-50 dark:bg-[#1D212A] border-b border-slate-200 dark:border-zinc-800 text-xs font-semibold text-slate-600 dark:text-zinc-400">
                     <th className="py-3 px-4">Waktu &amp; Shift</th>
                     <th className="py-3 px-4">Mesin &amp; Kategori</th>
                     <th className="py-3 px-4">Tahap &amp; Keterangan</th>
@@ -404,7 +404,7 @@ export function HistoryView({
                     return (
                       <tr
                         key={rep.id}
-                        className="hover:bg-slate-50/70 dark:hover:bg-[#13161B] align-top transition-colors"
+                        className="hover:bg-slate-50/70 dark:hover:bg-[#1D212A] align-top transition-colors"
                       >
                         <td className="py-3.5 px-4 whitespace-nowrap">
                           <p className="font-mono text-xs font-semibold tabular-nums text-slate-900 dark:text-zinc-100">
@@ -416,7 +416,7 @@ export function HistoryView({
                         </td>
 
                         <td className="py-3.5 px-4">
-                          <p className="font-mono text-xs font-semibold text-teal-700 dark:text-teal-400 whitespace-nowrap">
+                          <p className="font-mono text-xs font-semibold text-teal-700 dark:text-dark-accent whitespace-nowrap">
                             {rep.machine || '—'}
                             {durationShifts !== undefined && (
                               <span className="text-slate-500 dark:text-zinc-400 font-medium">
@@ -440,7 +440,7 @@ export function HistoryView({
                               </span>
                             )}
                             {rep.isCompleted && (
-                              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300/90">
                                 · Selesai (OK)
                               </span>
                             )}
@@ -449,7 +449,7 @@ export function HistoryView({
                             {rep.information}
                           </p>
                           {rep.leakLine && (
-                            <p className="font-mono text-xs font-semibold text-rose-700 dark:text-rose-400">
+                            <p className="font-mono text-xs font-semibold text-rose-700 dark:text-rose-300">
                               Line Bocor: {rep.leakLine}
                             </p>
                           )}
@@ -479,7 +479,7 @@ export function HistoryView({
                               type="button"
                               onClick={() => onSelectReport(rep)}
                               aria-label={`Detail laporan ${rep.reportDate} ${rep.shift}`}
-                              className="min-h-[34px] px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#16191F] hover:bg-slate-50 dark:hover:bg-[#1E222A] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 transition-all"
+                              className="min-h-[34px] px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 transition-all"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               <span>Detail</span>
@@ -489,7 +489,7 @@ export function HistoryView({
                                 type="button"
                                 onClick={() => onEditReport(rep)}
                                 aria-label={`Edit laporan ${rep.reportDate} ${rep.shift}`}
-                                className="min-h-[34px] px-3 py-1 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-xs font-semibold text-white dark:text-zinc-950 shadow-xs shadow-teal-700/20 dark:shadow-teal-500/15 hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 transition-all"
+                                className="min-h-[34px] px-3 py-1 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600 text-xs font-semibold text-white shadow-xs shadow-teal-700/20 dark:shadow-none hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1 transition-all"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                                 <span>Edit</span>
@@ -516,7 +516,7 @@ export function HistoryView({
                       type="button"
                       onClick={() => onSelectReport(rep)}
                       aria-label={`Buka detail laporan ${rep.machine || 'Umum'} ${rep.shift} ${formatDisplayDate(rep.reportDate)}`}
-                      className="w-full text-left space-y-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                      className="w-full text-left space-y-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600"
                     >
                       <div className="flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400">
                         <div className="min-w-0 truncate">
@@ -532,7 +532,7 @@ export function HistoryView({
                       </div>
 
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="font-mono text-sm font-bold text-teal-700 dark:text-teal-400">
+                        <p className="font-mono text-sm font-bold text-teal-700 dark:text-dark-accent">
                           {rep.machine || 'Umum / Non-Mesin'}
                           {durationShifts !== undefined && (
                             <span className="text-slate-500 dark:text-zinc-400 font-medium text-xs">
@@ -542,7 +542,7 @@ export function HistoryView({
                           )}
                         </p>
                         {rep.isCompleted && (
-                          <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                          <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300/90">
                             Selesai (OK)
                           </span>
                         )}
@@ -565,7 +565,7 @@ export function HistoryView({
                       {(rep.leakLine || rep.followUp || rep.palletLocation) && (
                         <div className="text-xs text-slate-500 dark:text-zinc-400 space-y-0.5">
                           {rep.leakLine && (
-                            <p className="font-mono font-semibold text-rose-700 dark:text-rose-400">
+                            <p className="font-mono font-semibold text-rose-700 dark:text-rose-300">
                               Line Bocor: {rep.leakLine}
                             </p>
                           )}
@@ -592,13 +592,13 @@ export function HistoryView({
                           <button
                             type="button"
                             onClick={() => onEditReport(rep)}
-                            className="min-h-[36px] px-3.5 py-1 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 font-semibold shadow-sm shadow-teal-700/20 dark:shadow-teal-500/15 active:scale-[0.97] inline-flex items-center gap-1 transition-all"
+                            className="min-h-[36px] px-3.5 py-1 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600 text-white font-semibold shadow-sm shadow-teal-700/20 dark:shadow-none active:scale-[0.97] inline-flex items-center gap-1 transition-all"
                           >
                             <Pencil className="w-3 h-3" />
                             <span>Edit</span>
                           </button>
                         ) : (
-                          <span className="text-[11px] font-medium text-teal-700 dark:text-teal-400">
+                          <span className="text-[11px] font-medium text-teal-700 dark:text-dark-accent">
                             Ketuk kartu →
                           </span>
                         )}

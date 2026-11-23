@@ -55,10 +55,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     }
 
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0B0C0E] p-6 space-y-4 shadow-sm">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0F1115] text-slate-900 dark:text-zinc-100 flex items-center justify-center p-6">
+        <div className="max-w-md w-full rounded-2xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#161920] p-6 space-y-4 shadow-sm">
           <div className="space-y-1.5">
-            <p className="text-xs font-mono font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
+            <p className="text-xs font-mono font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-300">
               Pemulihan Aplikasi
             </p>
             <h1 className="text-lg font-bold text-slate-900 dark:text-zinc-100">
@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           </div>
 
           {this.state.errorMessage && (
-            <pre className="p-3 rounded-xl bg-slate-100 dark:bg-[#121417] border border-slate-200 dark:border-zinc-800 text-[11px] font-mono text-slate-700 dark:text-zinc-300 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+            <pre className="p-3 rounded-xl bg-slate-100 dark:bg-[#11141A] border border-slate-200 dark:border-zinc-800 text-[11px] font-mono text-slate-700 dark:text-zinc-300 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
               {this.state.errorMessage}
             </pre>
           )}
@@ -79,7 +79,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <button
             type="button"
             onClick={this.handleRecover}
-            className="w-full min-h-[44px] px-5 py-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 text-sm font-semibold shadow-sm transition-all"
+            className="w-full min-h-[44px] px-5 py-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600 text-white text-sm font-semibold shadow-sm transition-all"
           >
             Muat Ulang &amp; Bersihkan Cache
           </button>

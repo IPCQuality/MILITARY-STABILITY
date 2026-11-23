@@ -70,14 +70,14 @@ export function ReportDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/50 dark:bg-black/80 backdrop-blur-[2px] p-0 sm:p-4 overscroll-none"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/50 dark:bg-black/70 backdrop-blur-[2px] p-0 sm:p-4 overscroll-none"
       role="dialog"
       aria-modal="true"
       aria-labelledby="detail-modal-title"
       onClick={onClose}
     >
       <div
-        className="bg-white dark:bg-[#0B0C0E] w-full sm:max-w-xl rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-zinc-800 shadow-xl dark:shadow-black/80 max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-[#161920] w-full sm:max-w-xl rounded-t-2xl sm:rounded-xl border border-slate-200 dark:border-zinc-800 shadow-xl dark:shadow-black/50 max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -118,7 +118,7 @@ export function ReportDetailModal({
             type="button"
             onClick={onClose}
             aria-label="Tutup detail laporan"
-            className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-[#16191F] hover:text-slate-900 dark:hover:text-zinc-100 active:scale-[0.95] shrink-0 transition-all"
+            className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-full text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-[#252A35] hover:text-slate-900 dark:hover:text-zinc-100 active:scale-[0.95] shrink-0 transition-all"
           >
             <X className="w-5 h-5" />
           </button>
@@ -127,12 +127,12 @@ export function ReportDetailModal({
         {/* Body */}
         <div className="p-5 overflow-y-auto overscroll-contain text-sm space-y-4">
           {caseMetrics && (
-            <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 dark:bg-[#121417] border border-slate-200 dark:border-zinc-800 text-center">
+            <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 dark:bg-[#1D212A] border border-slate-200 dark:border-zinc-800 text-center">
               <div>
                 <span className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 block">
                   Total Durasi Kasus
                 </span>
-                <span className="font-mono text-xs sm:text-sm font-bold text-teal-700 dark:text-teal-400">
+                <span className="font-mono text-xs sm:text-sm font-bold text-teal-700 dark:text-dark-accent">
                   {caseMetrics.durationShifts} Shift
                 </span>
               </div>
@@ -148,7 +148,7 @@ export function ReportDetailModal({
                 <span className="text-[10px] sm:text-xs text-slate-500 dark:text-zinc-400 block">
                   Total Stability
                 </span>
-                <span className="font-mono text-xs sm:text-sm font-bold text-teal-700 dark:text-cyan-400">
+                <span className="font-mono text-xs sm:text-sm font-bold text-teal-700 dark:text-dark-accent">
                   {caseMetrics.totalStability}x
                 </span>
               </div>
@@ -166,7 +166,7 @@ export function ReportDetailModal({
                   </span>
                 )}
                 {report.isRepairStart && (
-                  <span className="text-xs font-medium text-teal-700 dark:text-teal-400">
+                  <span className="text-xs font-medium text-teal-700 dark:text-dark-accent">
                     · Awal Perhitungan Durasi (Shift ke-1)
                   </span>
                 )}
@@ -247,8 +247,8 @@ export function ReportDetailModal({
                         key={item.id}
                         className={`p-3 rounded-xl border text-xs transition-colors ${
                           isCurrent
-                            ? 'bg-teal-50/70 dark:bg-teal-950/35 border-teal-300 dark:border-teal-700/70'
-                            : 'bg-slate-50/70 dark:bg-[#121417] border-slate-200/80 dark:border-zinc-800/80'
+                            ? 'bg-teal-50/70 dark:bg-teal-900/20 border-teal-300 dark:border-teal-800/50'
+                            : 'bg-slate-50/70 dark:bg-[#1D212A] border-slate-200/80 dark:border-zinc-800/80'
                         }`}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-1.5">
@@ -264,7 +264,7 @@ export function ReportDetailModal({
                               {item.shift}
                             </span>
                             {isCurrent && (
-                              <span className="px-1.5 py-0.5 rounded bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 text-[10px] font-semibold">
+                              <span className="px-1.5 py-0.5 rounded bg-teal-700 dark:bg-teal-700 text-white text-[10px] font-semibold">
                                 Sedang dibuka
                               </span>
                             )}
@@ -290,7 +290,7 @@ export function ReportDetailModal({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 bg-slate-50 dark:bg-[#121417]">
+        <div className="px-5 py-3.5 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3 bg-slate-50 dark:bg-[#1D212A]">
           <p className="text-xs text-slate-500 dark:text-zinc-400">
             {editable
               ? 'Anda dapat mengedit laporan ini.'
@@ -300,7 +300,7 @@ export function ReportDetailModal({
             <button
               type="button"
               onClick={onClose}
-              className="min-h-[40px] px-5 py-2 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#1A1D23] hover:bg-slate-50 dark:hover:bg-[#232730] text-slate-700 dark:text-zinc-200 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.97] transition-all"
+              className="min-h-[40px] px-5 py-2 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#252A35] hover:bg-slate-50 dark:hover:bg-[#2E3442] text-slate-700 dark:text-zinc-200 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.97] transition-all"
             >
               Tutup
             </button>
@@ -308,7 +308,7 @@ export function ReportDetailModal({
               <button
                 type="button"
                 onClick={() => onEdit(report)}
-                className="min-h-[40px] px-5 py-2 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 text-white dark:text-zinc-950 text-sm font-semibold shadow-sm shadow-teal-700/25 dark:shadow-teal-500/20 hover:shadow-md active:scale-[0.97] inline-flex items-center gap-2 transition-all"
+                className="min-h-[40px] px-5 py-2 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600 text-white text-sm font-semibold shadow-sm shadow-teal-700/25 dark:shadow-none hover:shadow-md active:scale-[0.97] inline-flex items-center gap-2 transition-all"
               >
                 <Pencil className="w-4 h-4" />
                 Edit

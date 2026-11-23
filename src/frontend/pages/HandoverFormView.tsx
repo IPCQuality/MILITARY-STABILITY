@@ -559,19 +559,19 @@ export function HandoverFormView({
 
       <form
         onSubmit={handleSubmit}
-        className="bg-white dark:bg-[#0B0C0E] rounded-2xl border border-slate-200/90 dark:border-zinc-800/90 shadow-xs divide-y divide-slate-200 dark:divide-zinc-800/90 overflow-hidden"
+        className="bg-white dark:bg-[#161920] rounded-2xl border border-slate-200/90 dark:border-zinc-800/80 shadow-xs divide-y divide-slate-200 dark:divide-zinc-800/80 overflow-hidden"
       >
         {/* 1. JADWAL, KATEGORI & MESIN */}
         <section className="p-5 sm:p-6 space-y-4">
           {/* Ringkasan Jadwal (Tanggal & Shift) - Bisa Dibuka Bila Perlu Ubah */}
           <div className="space-y-3">
-            <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#121417] border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3">
+            <div className="px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1D212A] border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <span className="block text-[11px] font-medium text-slate-500 dark:text-zinc-400">
                   Jadwal Laporan
                 </span>
                 <p className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-zinc-100 truncate">
-                  <span className="text-teal-700 dark:text-teal-400">{shift}</span>
+                  <span className="text-teal-700 dark:text-dark-accent">{shift}</span>
                   <span className="text-slate-400 dark:text-zinc-600"> · </span>
                   <span className="font-mono tabular-nums">{formatDisplayDate(reportDate)}</span>
                 </p>
@@ -581,7 +581,7 @@ export function HandoverFormView({
                   type="button"
                   aria-expanded={showSchedulePicker}
                   onClick={() => setShowSchedulePicker((prev) => !prev)}
-                  className="min-h-[34px] px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#1A1D23] hover:bg-slate-100 dark:hover:bg-[#232730] text-xs font-semibold text-teal-700 dark:text-teal-400 transition-all shrink-0"
+                  className="min-h-[34px] px-3 py-1 rounded-full border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#252A35] hover:bg-slate-100 dark:hover:bg-[#2E3442] text-xs font-semibold text-teal-700 dark:text-dark-accent transition-all shrink-0"
                 >
                   {showSchedulePicker ? 'Selesai' : 'Ubah'}
                 </button>
@@ -592,7 +592,7 @@ export function HandoverFormView({
               operatorClosedNow ||
               Boolean(fieldErrors.reportDate) ||
               Boolean(fieldErrors.shift)) && (
-              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800/90 bg-slate-50/50 dark:bg-[#0E1013] space-y-3">
+              <div className="p-3.5 rounded-xl border border-slate-200 dark:border-zinc-800/90 bg-slate-50/50 dark:bg-[#191D25] space-y-3">
                 <div>
                   <label
                     htmlFor="input-report-date"
@@ -628,10 +628,10 @@ export function HandoverFormView({
                         }
                       }
                     }}
-                    className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500 ${
+                    className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-700/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600 ${
                       lockDateAndShiftOnEdit
-                        ? 'bg-slate-100 dark:bg-[#121417] text-slate-500 dark:text-zinc-500 cursor-not-allowed'
-                        : 'bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100'
+                        ? 'bg-slate-100 dark:bg-[#1D212A] text-slate-500 dark:text-zinc-500 cursor-not-allowed'
+                        : 'bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100'
                     }`}
                   />
                   {fieldErrors.reportDate && (
@@ -677,17 +677,17 @@ export function HandoverFormView({
                           aria-pressed={active}
                           className={`min-h-[48px] px-2 py-2 rounded-xl border transition-all active:scale-[0.98] text-center ${
                             active
-                              ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
+                              ? 'bg-teal-700 dark:bg-teal-700 text-white border-teal-700 dark:border-teal-600 shadow-xs dark:shadow-none'
                               : disabled
-                                ? 'bg-slate-100 dark:bg-[#101216] text-slate-400 dark:text-zinc-600 border-slate-200 dark:border-zinc-800/70 cursor-not-allowed'
-                                : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                                ? 'bg-slate-100 dark:bg-[#14171E] text-slate-400 dark:text-zinc-600 border-slate-200 dark:border-zinc-800/70 cursor-not-allowed'
+                                : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                           }`}
                         >
                           <span className="block text-xs sm:text-sm font-semibold">{s}</span>
                           <span
                             className={`block text-[10px] font-mono tabular-nums mt-0.5 ${
                               active
-                                ? 'text-slate-200 dark:text-zinc-900/80 font-medium'
+                                ? 'text-slate-200 dark:text-teal-100/90 font-medium'
                                 : disabled
                                   ? 'text-slate-400 dark:text-zinc-600'
                                   : 'text-slate-400 dark:text-zinc-400'
@@ -720,7 +720,7 @@ export function HandoverFormView({
               id="input-category"
               value={category}
               onChange={(e) => setCategory(e.target.value as CategoryType)}
-              className="w-full min-h-[42px] px-3.5 py-2 text-sm border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full min-h-[42px] px-3.5 py-2 text-sm border border-slate-300 dark:border-zinc-700/80 rounded-xl bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -757,7 +757,7 @@ export function HandoverFormView({
               }}
             />
             {machine && wfContext.lastReport && (
-              <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#121417] border border-slate-200 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-300 flex flex-wrap items-center justify-between gap-1.5">
+              <div className="mt-2.5 px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-[#1D212A] border border-slate-200 dark:border-zinc-800 text-xs text-slate-700 dark:text-zinc-300 flex flex-wrap items-center justify-between gap-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="font-semibold text-slate-900 dark:text-zinc-100">
                     Riwayat Terakhir:
@@ -766,7 +766,7 @@ export function HandoverFormView({
                     {wfContext.lastReport.shift} ({formatDisplayDate(wfContext.lastReport.reportDate)})
                   </span>
                   {formatWorkflowBadge(wfContext.lastReport) && (
-                    <span className="font-medium text-teal-700 dark:text-teal-400">
+                    <span className="font-medium text-teal-700 dark:text-dark-accent">
                       · {formatWorkflowBadge(wfContext.lastReport)?.badgeLabel}
                     </span>
                   )}
@@ -815,8 +815,8 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'OH'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'OH'
-                  ? 'bg-slate-800 dark:bg-zinc-200 text-white dark:text-zinc-950 border-slate-800 dark:border-zinc-200 shadow-md shadow-slate-900/20'
-                  : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                  ? 'bg-slate-800 dark:bg-zinc-600 text-white border-slate-800 dark:border-zinc-500 shadow-xs dark:shadow-none'
+                  : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
               }`}
             >
               <PauseCircle className="w-4 h-4 shrink-0" />
@@ -839,8 +839,8 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'REPAIR'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'REPAIR'
-                  ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
-                  : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                  ? 'bg-teal-700 dark:bg-teal-700 text-white border-teal-700 dark:border-teal-600 shadow-xs dark:shadow-none'
+                  : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
               }`}
             >
               <Wrench className="w-4 h-4 shrink-0" />
@@ -859,8 +859,8 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'MILITARY'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'MILITARY'
-                  ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
-                  : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                  ? 'bg-teal-700 dark:bg-teal-700 text-white border-teal-700 dark:border-teal-600 shadow-xs dark:shadow-none'
+                  : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
               }`}
             >
               <RotateCcw className="w-4 h-4 shrink-0" />
@@ -889,8 +889,8 @@ export function HandoverFormView({
               aria-pressed={activityStage === 'STABILITY'}
               className={`min-h-[46px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] whitespace-nowrap ${
                 activityStage === 'STABILITY'
-                  ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
-                  : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                  ? 'bg-teal-700 dark:bg-teal-700 text-white border-teal-700 dark:border-teal-600 shadow-xs dark:shadow-none'
+                  : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
               }`}
             >
               <Clock className="w-4 h-4 shrink-0" />
@@ -913,7 +913,7 @@ export function HandoverFormView({
                       setMilitaryRound(nextRound);
                       setInformation(buildMilitaryAutoInfo(nextRound, militaryStatus, leakLine));
                     }}
-                    className="w-9 h-9 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all"
+                    className="w-9 h-9 rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
@@ -931,7 +931,7 @@ export function HandoverFormView({
                       setMilitaryRound(nextRound);
                       setInformation(buildMilitaryAutoInfo(nextRound, militaryStatus, leakLine));
                     }}
-                    className="w-14 h-9 px-2 text-sm font-mono font-bold text-center border border-slate-300 dark:border-zinc-800 rounded-xl bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60"
+                    className="w-14 h-9 px-2 text-sm font-mono font-bold text-center border border-slate-300 dark:border-zinc-700/80 rounded-xl bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
                   />
                   <button
                     type="button"
@@ -941,7 +941,7 @@ export function HandoverFormView({
                       setMilitaryRound(nextRound);
                       setInformation(buildMilitaryAutoInfo(nextRound, militaryStatus, leakLine));
                     }}
-                    className="w-9 h-9 rounded-xl border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all"
+                    className="w-9 h-9 rounded-xl border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] shadow-xs hover:shadow-sm active:scale-[0.95] flex items-center justify-center text-slate-700 dark:text-zinc-200 transition-all"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -974,8 +974,8 @@ export function HandoverFormView({
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       militaryStatus === 'PENDING'
-                        ? 'bg-slate-800 dark:bg-zinc-200 text-white dark:text-zinc-950 border-slate-800 dark:border-zinc-200 shadow-md shadow-slate-900/20'
-                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                        ? 'bg-slate-800 dark:bg-zinc-600 text-white border-slate-800 dark:border-zinc-500 shadow-xs dark:shadow-none'
+                        : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                     }`}
                   >
                     <Hourglass className="w-3.5 h-3.5 shrink-0" />
@@ -992,8 +992,8 @@ export function HandoverFormView({
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       militaryStatus === 'OK'
-                        ? 'bg-emerald-700 dark:bg-emerald-500 text-white dark:text-zinc-950 border-emerald-700 dark:border-emerald-400 shadow-md shadow-emerald-700/25 dark:shadow-emerald-500/20'
-                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                        ? 'bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white border-emerald-700 dark:border-emerald-600 shadow-xs dark:shadow-none'
+                        : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                     }`}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -1013,8 +1013,8 @@ export function HandoverFormView({
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       militaryStatus === 'LEAK'
-                        ? 'bg-rose-700 dark:bg-rose-500 text-white border-rose-700 dark:border-rose-400 shadow-md shadow-rose-700/25 dark:shadow-rose-500/20'
-                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                        ? 'bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-600 text-white border-rose-700 dark:border-rose-600 shadow-xs dark:shadow-none'
+                        : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                     }`}
                   >
                     <XCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1041,7 +1041,7 @@ export function HandoverFormView({
                             const curr = parseInt(militaryLeakBoxes, 10) || 1;
                             setMilitaryLeakBoxes(String(Math.max(1, curr - 1)));
                           }}
-                          className="w-9 h-9 rounded-xl border border-rose-300 dark:border-rose-800/80 bg-white dark:bg-[#14171C] hover:bg-rose-100/70 dark:hover:bg-rose-950/60 active:scale-[0.95] flex items-center justify-center text-rose-900 dark:text-rose-200 transition-all"
+                          className="w-9 h-9 rounded-xl border border-rose-300 dark:border-rose-800/80 bg-white dark:bg-[#1D212A] hover:bg-rose-100/70 dark:hover:bg-rose-950/60 active:scale-[0.95] flex items-center justify-center text-rose-900 dark:text-rose-200 transition-all"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -1063,7 +1063,7 @@ export function HandoverFormView({
                             }
                           }}
                           placeholder="1"
-                          className="w-16 h-9 px-2 text-sm font-mono font-bold text-center border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#07080A] text-rose-900 dark:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                          className="w-16 h-9 px-2 text-sm font-mono font-bold text-center border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#11141A] text-rose-900 dark:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-500"
                         />
                         <button
                           type="button"
@@ -1072,7 +1072,7 @@ export function HandoverFormView({
                             const curr = parseInt(militaryLeakBoxes, 10) || 0;
                             setMilitaryLeakBoxes(String(Math.min(500, curr + 1)));
                           }}
-                          className="w-9 h-9 rounded-xl border border-rose-300 dark:border-rose-800/80 bg-white dark:bg-[#14171C] hover:bg-rose-100/70 dark:hover:bg-rose-950/60 active:scale-[0.95] flex items-center justify-center text-rose-900 dark:text-rose-200 transition-all"
+                          className="w-9 h-9 rounded-xl border border-rose-300 dark:border-rose-800/80 bg-white dark:bg-[#1D212A] hover:bg-rose-100/70 dark:hover:bg-rose-950/60 active:scale-[0.95] flex items-center justify-center text-rose-900 dark:text-rose-200 transition-all"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -1100,7 +1100,7 @@ export function HandoverFormView({
                           setInformation(buildMilitaryAutoInfo(militaryRound, 'LEAK', val));
                         }}
                         placeholder="PH L1 / PV L1N2"
-                        className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#07080A] text-rose-950 dark:text-rose-100 placeholder:text-rose-400 dark:placeholder:text-rose-300/40 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                        className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#11141A] text-rose-950 dark:text-rose-100 placeholder:text-rose-400 dark:placeholder:text-rose-300/40 focus:outline-none focus:ring-2 focus:ring-rose-500"
                       />
                     </div>
                   </div>
@@ -1131,7 +1131,7 @@ export function HandoverFormView({
                       Bisa pilih keduanya (min. 1)
                     </span>
                   ) : (
-                    <span className="text-xs font-semibold text-teal-800 dark:text-teal-400">
+                    <span className="text-xs font-semibold text-teal-800 dark:text-dark-accent">
                       8 Jam
                     </span>
                   )}
@@ -1167,8 +1167,8 @@ export function HandoverFormView({
                             }}
                             className={`min-h-[42px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                               is4hActive
-                                ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
-                                : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                                ? 'bg-teal-700 dark:bg-teal-700 text-white border-teal-700 dark:border-teal-600 shadow-xs dark:shadow-none'
+                                : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                             }`}
                           >
                             <Clock className="w-4 h-4 shrink-0" />
@@ -1196,8 +1196,8 @@ export function HandoverFormView({
                             }}
                             className={`min-h-[42px] px-3 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                               is8hActive
-                                ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 border-teal-700 dark:border-teal-400 shadow-md shadow-teal-700/20 dark:shadow-teal-500/15'
-                                : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                                ? 'bg-teal-700 dark:bg-teal-700 text-white border-teal-700 dark:border-teal-600 shadow-xs dark:shadow-none'
+                                : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                             }`}
                           >
                             <Clock className="w-4 h-4 shrink-0" />
@@ -1234,8 +1234,8 @@ export function HandoverFormView({
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'PENDING'
-                        ? 'bg-slate-800 dark:bg-zinc-200 text-white dark:text-zinc-950 border-slate-800 dark:border-zinc-200 shadow-md shadow-slate-900/20'
-                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                        ? 'bg-slate-800 dark:bg-zinc-600 text-white border-slate-800 dark:border-zinc-500 shadow-xs dark:shadow-none'
+                        : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                     }`}
                   >
                     <Hourglass className="w-3.5 h-3.5 shrink-0" />
@@ -1261,8 +1261,8 @@ export function HandoverFormView({
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'OK'
-                        ? 'bg-emerald-700 dark:bg-emerald-500 text-white dark:text-zinc-950 border-emerald-700 dark:border-emerald-400 shadow-md shadow-emerald-700/25 dark:shadow-emerald-500/20'
-                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                        ? 'bg-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-600 text-white border-emerald-700 dark:border-emerald-600 shadow-xs dark:shadow-none'
+                        : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                     }`}
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -1284,8 +1284,8 @@ export function HandoverFormView({
                     }}
                     className={`min-h-[42px] px-2.5 py-2 rounded-xl border text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] ${
                       stabilityStatus === 'LEAK'
-                        ? 'bg-rose-700 dark:bg-rose-500 text-white border-rose-700 dark:border-rose-400 shadow-md shadow-rose-700/25 dark:shadow-rose-500/20'
-                        : 'bg-white dark:bg-[#14171C] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-800 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#1C2027]'
+                        ? 'bg-rose-700 dark:bg-rose-700 dark:hover:bg-rose-600 text-white border-rose-700 dark:border-rose-600 shadow-xs dark:shadow-none'
+                        : 'bg-white dark:bg-[#1D212A] text-slate-700 dark:text-zinc-200 border-slate-200 dark:border-zinc-700/80 shadow-xs hover:shadow-sm hover:bg-slate-50 dark:hover:bg-[#252A35]'
                     }`}
                   >
                     <XCircle className="w-3.5 h-3.5 shrink-0" />
@@ -1317,7 +1317,7 @@ export function HandoverFormView({
                         setInformation(buildStabilityAutoInfo(effectivePhase, 'LEAK', val));
                       }}
                       placeholder="PH L1 / PV L1N2"
-                      className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#07080A] text-rose-950 dark:text-rose-100 placeholder:text-rose-400 dark:placeholder:text-rose-300/40 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                      className="w-full min-h-[40px] px-3 py-1.5 text-sm font-mono border border-rose-300 dark:border-rose-800/80 rounded-xl bg-white dark:bg-[#11141A] text-rose-950 dark:text-rose-100 placeholder:text-rose-400 dark:placeholder:text-rose-300/40 focus:outline-none focus:ring-2 focus:ring-rose-500"
                     />
                   </div>
                   {fieldErrors.leakLine && (
@@ -1340,20 +1340,20 @@ export function HandoverFormView({
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-700 dark:text-zinc-300">
                   Keterangan Laporan{' '}
-                  <span className="text-teal-700 dark:text-teal-400 font-medium">
+                  <span className="text-teal-700 dark:text-dark-accent font-medium">
                     (Terisi Otomatis)
                   </span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setManualInfoEdit(true)}
-                  className="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline inline-flex items-center gap-1"
+                  className="text-xs font-semibold text-teal-700 dark:text-dark-accent hover:underline inline-flex items-center gap-1"
                 >
                   <Pencil className="w-3 h-3" />
                   <span>Ubah Teks</span>
                 </button>
               </div>
-              <div className="px-3.5 py-3 rounded-xl bg-teal-50/60 dark:bg-teal-950/25 border border-teal-200/80 dark:border-teal-800/50 text-sm font-medium text-slate-900 dark:text-zinc-100">
+              <div className="px-3.5 py-3 rounded-xl bg-teal-50/60 dark:bg-teal-900/20 border border-teal-200/80 dark:border-teal-800/50 text-sm font-medium text-slate-900 dark:text-zinc-100">
                 {information}
               </div>
             </div>
@@ -1387,7 +1387,7 @@ export function HandoverFormView({
                         );
                       }
                     }}
-                    className="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline"
+                    className="text-xs font-semibold text-teal-700 dark:text-dark-accent hover:underline"
                   >
                     Pakai Teks Otomatis
                   </button>
@@ -1401,7 +1401,7 @@ export function HandoverFormView({
                 value={information}
                 onChange={(e) => setInformation(e.target.value)}
                 placeholder={infoPlaceholder}
-                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-700/80 bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
               />
               {fieldErrors.information && (
                 <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
@@ -1427,7 +1427,7 @@ export function HandoverFormView({
               value={followUp}
               onChange={(e) => setFollowUp(e.target.value)}
               placeholder="Rencana untuk shift berikutnya..."
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+              className="w-full px-3.5 py-2.5 text-sm border border-slate-300 dark:border-zinc-700/80 bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl resize-none overflow-hidden focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
             />
             {fieldErrors.followUp && (
               <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
@@ -1454,7 +1454,7 @@ export function HandoverFormView({
                   setPalletLocation(e.target.value);
                 }}
                 placeholder="Contoh: Staging Line A / Rak 02"
-                className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-800 bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border border-slate-300 dark:border-zinc-700/80 bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
               />
               {fieldErrors.palletLocation && (
                 <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">
@@ -1469,15 +1469,15 @@ export function HandoverFormView({
               <label
                 className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all cursor-pointer ${
                   isCompleted
-                    ? 'bg-emerald-50 dark:bg-emerald-950/45 border-emerald-300 dark:border-emerald-700/70 text-emerald-950 dark:text-emerald-200 shadow-xs'
-                    : 'bg-slate-50 dark:bg-[#121417] border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100/70 dark:hover:bg-[#181B20]'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/35 border-emerald-300 dark:border-emerald-700/60 text-emerald-950 dark:text-emerald-200 shadow-xs'
+                    : 'bg-slate-50 dark:bg-[#1D212A] border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-200 hover:bg-slate-100/70 dark:hover:bg-[#252A35]'
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={isCompleted}
                   onChange={(e) => setIsCompleted(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 dark:border-zinc-700 accent-emerald-600 dark:accent-teal-500 text-emerald-700 focus:ring-emerald-600"
+                  className="h-4 w-4 rounded border-slate-300 dark:border-zinc-700 accent-emerald-600 dark:accent-teal-600 text-emerald-700 focus:ring-emerald-600"
                 />
                 <span className="text-xs sm:text-sm font-semibold">
                   Tandai Mesin Selesai (OK / Siap Produksi)
@@ -1499,18 +1499,18 @@ export function HandoverFormView({
         </section>
 
         {/* Footer Actions */}
-        <div className="px-5 py-4 sm:px-6 bg-slate-50/80 dark:bg-[#121417] flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
+        <div className="px-5 py-4 sm:px-6 bg-slate-50/80 dark:bg-[#1D212A] flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-[44px] px-6 py-2.5 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#1A1D23] hover:bg-slate-50 dark:hover:bg-[#232730] text-slate-700 dark:text-zinc-200 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+            className="min-h-[44px] px-6 py-2.5 rounded-full border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#252A35] hover:bg-slate-50 dark:hover:bg-[#2E3442] text-slate-700 dark:text-zinc-200 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
           >
             <span>Batal</span>
           </button>
           <button
             type="submit"
             disabled={submitting || operatorClosedNow}
-            className="min-h-[44px] px-7 py-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-zinc-950 text-sm font-semibold shadow-md shadow-teal-700/25 dark:shadow-teal-500/20 hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+            className="min-h-[44px] px-7 py-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold shadow-md shadow-teal-700/25 dark:shadow-none hover:shadow-lg active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
           >
             {editingReport ? (
               <Pencil className="w-4 h-4" />

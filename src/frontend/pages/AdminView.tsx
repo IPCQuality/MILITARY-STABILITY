@@ -121,7 +121,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
 
   if (!isAdmin) {
     return (
-      <div className="max-w-3xl mx-auto bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 p-6 text-center text-sm text-slate-600 dark:text-zinc-400">
+      <div className="max-w-3xl mx-auto bg-white dark:bg-[#161920] rounded-xl border border-slate-200 dark:border-zinc-800/90 p-6 text-center text-sm text-slate-600 dark:text-zinc-400">
         Halaman ini hanya dapat diakses oleh Admin.
       </div>
     );
@@ -129,19 +129,19 @@ export function AdminView({ currentUser }: AdminViewProps) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <section className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 overflow-hidden">
+      <section className="bg-white dark:bg-[#161920] rounded-xl border border-slate-200 dark:border-zinc-800/90 overflow-hidden">
         <div className="px-5 py-3.5 border-b border-slate-200 dark:border-zinc-800/90 flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
             Persetujuan Pengguna
           </span>
 
-          <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#121417] border border-transparent dark:border-zinc-800/80">
+          <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-slate-100 dark:bg-[#11141A] border border-transparent dark:border-zinc-800/80">
             <button
               type="button"
               onClick={() => setActiveTab('pending')}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap tabular-nums ${
                 activeTab === 'pending'
-                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-sm'
+                  ? 'bg-white dark:bg-[#252A35] text-teal-700 dark:text-dark-accent shadow-sm'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -152,7 +152,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
               onClick={() => setActiveTab('all')}
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all whitespace-nowrap tabular-nums ${
                 activeTab === 'all'
-                  ? 'bg-white dark:bg-[#1E222A] text-teal-700 dark:text-teal-400 shadow-sm'
+                  ? 'bg-white dark:bg-[#252A35] text-teal-700 dark:text-dark-accent shadow-sm'
                   : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
               }`}
             >
@@ -212,7 +212,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                 return (
                   <div
                     key={user.id}
-                    className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-[#13161B] transition-colors"
+                    className="px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50/70 dark:hover:bg-[#1D212A] transition-colors"
                   >
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -225,7 +225,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                           {badge.label}
                         </span>
                         {isPrimaryAdmin && (
-                          <span className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 inline-flex items-center gap-1">
+                          <span className="text-[11px] font-semibold text-teal-700 dark:text-dark-accent inline-flex items-center gap-1">
                             <ShieldCheck className="w-3.5 h-3.5" />
                             Admin Utama
                           </span>
@@ -256,7 +256,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                               [user.id]: e.target.value as UserRole,
                             }))
                           }
-                          className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium border border-slate-300 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                          className="min-h-[38px] px-2.5 py-1.5 text-xs font-medium border border-slate-300 dark:border-zinc-700/80 rounded-lg bg-white dark:bg-[#11141A] text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
                         >
                           <option value="pengawas">Pengawas</option>
                           <option value="supervisor">Supervisor</option>
@@ -269,7 +269,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                             onClick={() =>
                               handleUpdateApproval(user, 'approved', selectedRole)
                             }
-                            className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-500 dark:hover:bg-emerald-400 disabled:opacity-50 text-white dark:text-zinc-950 text-xs font-semibold shadow-sm shadow-emerald-700/20 dark:shadow-emerald-500/15 hover:shadow-md active:scale-[0.97] inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
+                            className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 dark:bg-emerald-700 dark:hover:bg-emerald-600 disabled:opacity-50 text-white text-xs font-semibold shadow-sm shadow-emerald-700/20 dark:shadow-none hover:shadow-md active:scale-[0.97] inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
                           >
                             <Check className="w-3.5 h-3.5" />
                             Setujui
@@ -284,7 +284,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                               onClick={() =>
                                 handleUpdateApproval(user, 'approved', selectedRole)
                               }
-                              className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 text-white dark:text-zinc-950 text-xs font-semibold shadow-sm shadow-teal-700/20 dark:shadow-teal-500/15 hover:shadow-md active:scale-[0.97] transition-all whitespace-nowrap"
+                              className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600 disabled:opacity-50 text-white text-xs font-semibold shadow-sm shadow-teal-700/20 dark:shadow-none hover:shadow-md active:scale-[0.97] transition-all whitespace-nowrap"
                             >
                               Simpan Role
                             </button>
@@ -297,7 +297,7 @@ export function AdminView({ currentUser }: AdminViewProps) {
                             onClick={() =>
                               handleUpdateApproval(user, 'rejected', selectedRole)
                             }
-                            className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/70 bg-rose-50 dark:bg-rose-950/45 hover:bg-rose-100 dark:hover:bg-rose-950/80 disabled:opacity-50 text-rose-800 dark:text-rose-300 text-xs font-semibold shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
+                            className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/35 hover:bg-rose-100 dark:hover:bg-rose-950/60 disabled:opacity-50 text-rose-800 dark:text-rose-300 text-xs font-semibold shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center gap-1.5 transition-all whitespace-nowrap"
                           >
                             <X className="w-3.5 h-3.5" />
                             Tolak

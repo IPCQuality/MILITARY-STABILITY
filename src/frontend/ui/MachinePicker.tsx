@@ -122,10 +122,10 @@ export function MachinePicker({
         aria-expanded={open}
         aria-required={required}
         onClick={() => setOpen((prev) => !prev)}
-        className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border rounded-xl bg-white dark:bg-[#07080A] flex items-center justify-between gap-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 ${
+        className={`w-full min-h-[42px] px-3.5 py-2 text-sm font-mono border rounded-xl bg-white dark:bg-[#11141A] flex items-center justify-between gap-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 ${
           open
-            ? 'border-teal-600 dark:border-teal-500 ring-2 ring-teal-600/20 dark:ring-teal-500/25'
-            : 'border-slate-300 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-700'
+            ? 'border-teal-600 dark:border-teal-600 ring-2 ring-teal-600/20 dark:ring-teal-600/25'
+            : 'border-slate-300 dark:border-zinc-700/80 hover:border-slate-400 dark:hover:border-zinc-600'
         }`}
       >
         <span
@@ -137,7 +137,7 @@ export function MachinePicker({
         >
           {value && activeSet.has(value.toUpperCase()) && (
             <span
-              className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 shrink-0"
+              className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-500/80 shrink-0"
               aria-hidden="true"
             />
           )}
@@ -154,10 +154,10 @@ export function MachinePicker({
         <div
           role="listbox"
           aria-label="Daftar Pilihan Mesin"
-          className="absolute left-0 right-0 mt-1.5 z-40 bg-white dark:bg-[#0D0F12] rounded-xl border border-slate-200 dark:border-zinc-800 shadow-lg shadow-slate-900/10 dark:shadow-black/80 overflow-hidden"
+          className="absolute left-0 right-0 mt-1.5 z-40 bg-white dark:bg-[#181C24] rounded-xl border border-slate-200 dark:border-zinc-700/80 shadow-lg shadow-slate-900/10 dark:shadow-black/50 overflow-hidden"
         >
           {/* Search Input */}
-          <div className="p-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-[#121417]">
+          <div className="p-2 border-b border-slate-100 dark:border-zinc-800 bg-slate-50/70 dark:bg-[#1D212A]">
             <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -167,14 +167,14 @@ export function MachinePicker({
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Cari mesin (misal: AST 25, APK 19, K1)..."
                 aria-label="Cari kode mesin"
-                className="w-full min-h-[36px] pl-8 pr-8 py-1.5 text-xs sm:text-sm border border-slate-200 dark:border-zinc-800 rounded-lg bg-white dark:bg-[#07080A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-500/60 dark:focus:border-teal-500"
+                className="w-full min-h-[36px] pl-8 pr-8 py-1.5 text-xs sm:text-sm border border-slate-200 dark:border-zinc-700/80 rounded-lg bg-white dark:bg-[#11141A] text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-teal-600/25 focus:border-teal-600 dark:focus:ring-teal-600/30 dark:focus:border-teal-600"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
                   aria-label="Hapus pencarian mesin"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#1C2027] flex items-center justify-center"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-[#252A35] flex items-center justify-center"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -194,8 +194,8 @@ export function MachinePicker({
                   <div
                     className={`px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider ${
                       group.isActiveGroup
-                        ? 'text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/35'
-                        : 'text-slate-500 dark:text-zinc-400 bg-slate-50/60 dark:bg-[#121417]'
+                        ? 'text-amber-700 dark:text-amber-300/90 bg-amber-50/70 dark:bg-amber-900/20'
+                        : 'text-slate-500 dark:text-zinc-400 bg-slate-50/60 dark:bg-[#1D212A]'
                     }`}
                   >
                     {group.label}
@@ -213,21 +213,21 @@ export function MachinePicker({
                           onClick={() => handleSelect(item)}
                           className={`w-full px-3.5 py-2 text-left text-xs sm:text-sm font-mono flex items-center justify-between gap-2 transition-colors ${
                             selected
-                              ? 'bg-teal-50 dark:bg-teal-500/15 text-teal-800 dark:text-teal-300 font-bold'
-                              : 'text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-[#16191F]'
+                              ? 'bg-teal-50 dark:bg-teal-900/25 text-teal-800 dark:text-dark-accent font-bold'
+                              : 'text-slate-800 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-[#252A35]'
                           }`}
                         >
                           <span className="flex items-center gap-2 min-w-0 truncate">
                             {isActive && (
                               <span
-                                className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-400 shrink-0"
+                                className="w-2 h-2 rounded-full bg-amber-500 dark:bg-amber-500/80 shrink-0"
                                 aria-hidden="true"
                               />
                             )}
                             <span className="truncate">{item}</span>
                           </span>
                           {selected && (
-                            <Check className="w-4 h-4 text-teal-700 dark:text-teal-400 shrink-0" />
+                            <Check className="w-4 h-4 text-teal-700 dark:text-dark-accent shrink-0" />
                           )}
                         </button>
                       );

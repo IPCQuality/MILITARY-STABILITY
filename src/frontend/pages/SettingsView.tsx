@@ -61,7 +61,7 @@ export function SettingsView({
   return (
     <div className="max-w-xl mx-auto space-y-4">
       {/* Menu Profil Sederhana (Foto Google, Nama, Email) */}
-      <section className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 p-5 flex items-center gap-4 shadow-xs">
+      <section className="bg-white dark:bg-[#161920] rounded-xl border border-slate-200 dark:border-zinc-800/90 p-5 flex items-center gap-4 shadow-xs">
         {showGooglePhoto ? (
           <img
             src={currentUser.photoURL as string}
@@ -73,7 +73,7 @@ export function SettingsView({
         ) : (
           <div
             aria-hidden="true"
-            className="w-14 h-14 rounded-full bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 font-bold text-base flex items-center justify-center shrink-0 tracking-wide"
+            className="w-14 h-14 rounded-full bg-teal-700 dark:bg-teal-700 text-white font-bold text-base flex items-center justify-center shrink-0 tracking-wide"
           >
             {initials}
           </div>
@@ -90,12 +90,12 @@ export function SettingsView({
       </section>
 
       {/* Detail Profil */}
-      <section className="bg-white dark:bg-[#0B0C0E] rounded-xl border border-slate-200 dark:border-zinc-800/90 overflow-hidden shadow-xs">
+      <section className="bg-white dark:bg-[#161920] rounded-xl border border-slate-200 dark:border-zinc-800/90 overflow-hidden shadow-xs">
         <div className="px-5 py-3.5 border-b border-slate-200 dark:border-zinc-800/90 flex items-center justify-between gap-4">
           <h3 className="text-sm font-semibold text-slate-900 dark:text-zinc-100">
             Detail Profil
           </h3>
-          <span className="text-xs font-semibold text-teal-700 dark:text-teal-400">
+          <span className="text-xs font-semibold text-teal-700 dark:text-dark-accent">
             {formatRoleLabel(currentUser.role)}
           </span>
         </div>
@@ -135,10 +135,10 @@ export function SettingsView({
         <button
           type="button"
           onClick={onOpenAdmin}
-          className="w-full rounded-xl border border-slate-200 dark:border-zinc-800/90 bg-white dark:bg-[#0B0C0E] hover:bg-slate-50 dark:hover:bg-[#14171C] shadow-xs hover:shadow-sm px-5 py-4 flex items-center justify-between gap-3 text-left transition-all active:scale-[0.99]"
+          className="w-full rounded-xl border border-slate-200 dark:border-zinc-800/90 bg-white dark:bg-[#161920] hover:bg-slate-50 dark:hover:bg-[#1D212A] shadow-xs hover:shadow-sm px-5 py-4 flex items-center justify-between gap-3 text-left transition-all active:scale-[0.99]"
         >
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-500/15 text-teal-700 dark:text-teal-400 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-900/25 text-teal-700 dark:text-dark-accent flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -148,7 +148,7 @@ export function SettingsView({
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5 truncate">
                 Persetujuan akun &amp; peran pengguna
                 {pendingCount > 0 && (
-                  <span className="font-semibold text-amber-700 dark:text-amber-400 tabular-nums">
+                  <span className="font-semibold text-amber-700 dark:text-amber-300/90 tabular-nums">
                     {' '}
                     · {pendingCount} menunggu
                   </span>
@@ -166,13 +166,13 @@ export function SettingsView({
           <button
             type="button"
             onClick={() => setConfirmingLogout(true)}
-            className="w-full min-h-[46px] px-5 py-2.5 rounded-full border border-rose-200 dark:border-rose-900/70 bg-rose-50 dark:bg-rose-950/45 hover:bg-rose-100 dark:hover:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+            className="w-full min-h-[46px] px-5 py-2.5 rounded-full border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/35 hover:bg-rose-100 dark:hover:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
           >
             <LogOut className="w-4 h-4" />
             <span>Keluar dari Akun</span>
           </button>
         ) : (
-          <div className="rounded-2xl border border-rose-200 dark:border-rose-900/70 bg-rose-50/70 dark:bg-rose-950/35 p-4 space-y-3">
+          <div className="rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/70 dark:bg-rose-950/30 p-4 space-y-3">
             <p className="text-xs sm:text-sm font-semibold text-rose-900 dark:text-rose-200 text-center">
               Yakin ingin keluar dari akun {currentUser.fullName}?
             </p>
@@ -180,14 +180,14 @@ export function SettingsView({
               <button
                 type="button"
                 onClick={() => setConfirmingLogout(false)}
-                className="min-h-[42px] px-4 py-2 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#16191F] hover:bg-slate-50 dark:hover:bg-[#1E222A] text-xs sm:text-sm font-semibold text-slate-700 dark:text-zinc-200 transition-all"
+                className="min-h-[42px] px-4 py-2 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] text-xs sm:text-sm font-semibold text-slate-700 dark:text-zinc-200 transition-all"
               >
                 Batal
               </button>
               <button
                 type="button"
                 onClick={onLogout}
-                className="min-h-[42px] px-4 py-2 rounded-full bg-rose-700 hover:bg-rose-800 dark:bg-rose-600 dark:hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold shadow-sm inline-flex items-center justify-center gap-1.5 transition-all"
+                className="min-h-[42px] px-4 py-2 rounded-full bg-rose-700 hover:bg-rose-800 dark:bg-rose-700 dark:hover:bg-rose-600 text-white text-xs sm:text-sm font-semibold shadow-sm inline-flex items-center justify-center gap-1.5 transition-all"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Ya, Keluar</span>

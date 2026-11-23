@@ -27,7 +27,7 @@ function applyThemeToDocument(mode: ThemeMode) {
   root.dataset.theme = mode;
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) {
-    themeMeta.setAttribute('content', mode === 'dark' ? '#000000' : '#0F766E');
+    themeMeta.setAttribute('content', mode === 'dark' ? '#0F1115' : '#0F766E');
   }
 }
 

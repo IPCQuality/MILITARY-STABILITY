@@ -1639,7 +1639,7 @@ export function formatWorkflowBadge(
       return {
         badgeLabel: `Military${roundStr}: Belum Diuji`,
         badgeClass:
-          'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700/80',
+          'bg-slate-100 text-slate-700 border-slate-300 dark:bg-[#1D212A] dark:text-zinc-300 dark:border-zinc-700/80',
       };
     }
     const statusStr =
@@ -1650,8 +1650,8 @@ export function formatWorkflowBadge(
       badgeLabel: `Military${roundStr}: ${statusStr}`,
       badgeClass:
         report.militaryStatus === 'OK'
-          ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60'
-          : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/60',
+          ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-900/25 dark:text-emerald-300/90 dark:border-emerald-800/50'
+          : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-900/25 dark:text-rose-300/90 dark:border-rose-800/50',
     };
   }
   if (report.activityStage === 'STABILITY') {
@@ -1660,7 +1660,7 @@ export function formatWorkflowBadge(
       return {
         badgeLabel: `Stability ${phaseStr}: Belum Diuji`,
         badgeClass:
-          'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700/80',
+          'bg-slate-100 text-slate-700 border-slate-300 dark:bg-[#1D212A] dark:text-zinc-300 dark:border-zinc-700/80',
       };
     }
     const statusStr = report.stabilityStatus === 'OK' ? 'OK' : 'Bocor';
@@ -1668,22 +1668,22 @@ export function formatWorkflowBadge(
       badgeLabel: `Stability ${phaseStr}: ${statusStr}`,
       badgeClass:
         report.stabilityStatus === 'OK'
-          ? 'bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800/60'
-          : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800/60',
+          ? 'bg-teal-50 text-teal-800 border-teal-200 dark:bg-teal-900/25 dark:text-dark-accent dark:border-teal-800/50'
+          : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-900/25 dark:text-rose-300/90 dark:border-rose-800/50',
     };
   }
   if (report.activityStage === 'OH') {
     return {
       badgeLabel: 'OH (Belum Perbaikan)',
       badgeClass:
-        'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-900 dark:text-zinc-300 dark:border-zinc-700/80',
+        'bg-slate-100 text-slate-700 border-slate-300 dark:bg-[#1D212A] dark:text-zinc-300 dark:border-zinc-700/80',
     };
   }
   if (report.activityStage === 'REPAIR') {
     return {
       badgeLabel: 'Perbaikan / Setting',
       badgeClass:
-        'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60',
+        'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-900/25 dark:text-amber-200/90 dark:border-amber-800/50',
     };
   }
   return null;

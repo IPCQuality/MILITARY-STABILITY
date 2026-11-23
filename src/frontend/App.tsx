@@ -346,9 +346,9 @@ export default function App() {
 
   if (initializing) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-black flex items-center justify-center p-6">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0F1115] flex items-center justify-center p-6">
         <div className="text-center flex flex-col items-center gap-2.5">
-          <BrandLogo size={38} />
+          <BrandLogo size={44} />
           <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 tracking-tight">
             MILITARY &amp; STABILITY
           </p>
@@ -370,16 +370,16 @@ export default function App() {
   if (currentUser.approvalStatus !== 'approved') {
     const isRejected = currentUser.approvalStatus === 'rejected';
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 flex flex-col justify-center py-8 px-4 sm:px-6">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0F1115] text-slate-900 dark:text-zinc-100 flex flex-col justify-center py-8 px-4 sm:px-6">
         <div className="max-w-md w-full mx-auto space-y-4">
-          <div className="bg-white dark:bg-[#0B0E11] text-slate-900 dark:text-white rounded-2xl px-6 py-5 border border-slate-200/90 dark:border-zinc-800 shadow-xs flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3.5 min-w-0">
-              <BrandLogo size={38} />
+          <div className="bg-white dark:bg-[#161920] text-slate-900 dark:text-white rounded-2xl px-5 py-5 sm:px-6 border border-slate-200/90 dark:border-zinc-800 shadow-xs flex items-center justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+              <BrandLogo size={46} />
               <div className="min-w-0">
-                <p className="text-[11px] font-mono font-semibold tracking-wider text-teal-700 dark:text-teal-400 uppercase">
+                <p className="text-[11px] font-mono font-semibold tracking-wider text-teal-700 dark:text-dark-accent uppercase leading-tight">
                   Shift Handover Log
                 </p>
-                <h1 className="mt-0.5 text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 truncate">
+                <h1 className="mt-1 text-[17px] sm:text-xl font-bold tracking-tight text-slate-900 dark:text-zinc-100 leading-tight">
                   MILITARY &amp; STABILITY
                 </h1>
               </div>
@@ -387,22 +387,22 @@ export default function App() {
             <button
               type="button"
               onClick={toggleTheme}
-              aria-label={isDark ? 'Aktifkan Tema Terang' : 'Aktifkan Tema Dark AMOLED'}
-              title={isDark ? 'Beralih ke Tema Terang' : 'Beralih ke Tema Dark AMOLED'}
+              aria-label={isDark ? 'Aktifkan Tema Terang' : 'Aktifkan Tema Gelap'}
+              title={isDark ? 'Beralih ke Tema Terang' : 'Beralih ke Tema Gelap'}
               data-testid="theme-toggle-btn"
-              className="min-h-[36px] min-w-[36px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-[#16191F] hover:bg-slate-100 dark:hover:bg-[#1E222A] text-slate-700 dark:text-white inline-flex items-center justify-center shrink-0 transition-all active:scale-[0.96]"
+              className="min-h-[36px] min-w-[36px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-[#1D212A] hover:bg-slate-100 dark:hover:bg-[#252A35] text-slate-700 dark:text-zinc-200 inline-flex items-center justify-center shrink-0 transition-all active:scale-[0.96]"
             >
-              {isDark ? <Sun className="w-4 h-4 text-teal-400" /> : <Moon className="w-4 h-4 text-teal-700" />}
+              {isDark ? <Sun className="w-4 h-4 text-dark-accent" /> : <Moon className="w-4 h-4 text-teal-700" />}
             </button>
           </div>
 
-          <div className="bg-white dark:bg-[#0B0C0E] rounded-2xl border border-slate-200/90 dark:border-zinc-800 p-6 space-y-5 shadow-xs">
+          <div className="bg-white dark:bg-[#161920] rounded-2xl border border-slate-200/90 dark:border-zinc-800 p-6 space-y-5 shadow-xs">
             <div className="flex items-start gap-3">
               <div
                 className={`p-2.5 rounded-lg border shrink-0 ${
                   isRejected
-                    ? 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-950/60 dark:border-rose-800/60 dark:text-rose-300'
-                    : 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/50 dark:border-amber-800/60 dark:text-amber-300'
+                    ? 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-900/25 dark:border-rose-800/50 dark:text-rose-300'
+                    : 'bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/25 dark:border-amber-800/50 dark:text-amber-200/90'
                 }`}
               >
                 {isRejected ? (
@@ -430,15 +430,15 @@ export default function App() {
                 role="status"
                 className={`p-3 rounded-lg border text-xs sm:text-sm ${
                   toast.ok
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/50 dark:border-emerald-800/60 dark:text-emerald-200'
-                    : 'bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/50 dark:border-amber-800/60 dark:text-amber-200'
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800/50 dark:text-emerald-200'
+                    : 'bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/40 dark:border-amber-800/50 dark:text-amber-200'
                 }`}
               >
                 {toast.text}
               </div>
             )}
 
-            <dl className="p-4 rounded-lg bg-slate-50 dark:bg-[#121417] border border-slate-200 dark:border-zinc-800 space-y-2 text-xs">
+            <dl className="p-4 rounded-lg bg-slate-50 dark:bg-[#1D212A] border border-slate-200 dark:border-zinc-800 space-y-2 text-xs">
               <div className="flex items-center justify-between gap-2">
                 <dt className="text-slate-500 dark:text-zinc-400">Nama</dt>
                 <dd className="font-semibold text-slate-900 dark:text-zinc-100">
@@ -456,8 +456,8 @@ export default function App() {
                 <dd
                   className={`font-semibold ${
                     isRejected
-                      ? 'text-rose-700 dark:text-rose-400'
-                      : 'text-amber-700 dark:text-amber-400'
+                      ? 'text-rose-700 dark:text-rose-300'
+                      : 'text-amber-700 dark:text-amber-300/90'
                   }`}
                 >
                   {isRejected ? 'Ditolak Admin' : 'Menunggu Persetujuan'}
@@ -470,7 +470,7 @@ export default function App() {
                 type="button"
                 disabled={checkingApproval}
                 onClick={handleRefreshApprovalStatus}
-                className="flex-1 min-h-[44px] px-5 py-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 disabled:opacity-50 text-white dark:text-zinc-950 text-sm font-semibold shadow-sm shadow-teal-700/20 dark:shadow-teal-500/15 hover:shadow-md active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+                className="flex-1 min-h-[44px] px-5 py-2.5 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600 disabled:opacity-50 text-white text-sm font-semibold shadow-sm shadow-teal-700/20 dark:shadow-none hover:shadow-md active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
               >
                 <RefreshCw
                   className={`w-4 h-4 ${checkingApproval ? 'animate-spin' : ''}`}
@@ -480,7 +480,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="min-h-[44px] px-5 py-2.5 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#16181D] hover:bg-slate-50 dark:hover:bg-[#1E2128] text-slate-700 dark:text-zinc-200 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+                className="min-h-[44px] px-5 py-2.5 rounded-full border border-slate-200 dark:border-zinc-700 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] text-slate-700 dark:text-zinc-200 text-sm font-semibold shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
               >
                 <LogOut className="w-4 h-4" />
                 Keluar
@@ -525,13 +525,13 @@ export default function App() {
           : 'Di luar jam shift';
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-black text-slate-900 dark:text-zinc-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0F1115] text-slate-900 dark:text-zinc-100 flex flex-col md:flex-row">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-[#0B0C0E] border-r border-slate-200 dark:border-zinc-800/90 z-40">
-        <div className="h-[60px] px-4 border-b border-slate-200 dark:border-zinc-800/90 flex items-center gap-2.5 shrink-0">
-          <BrandLogo size={28} />
+      <aside className="hidden md:flex md:w-60 md:flex-col md:fixed md:inset-y-0 bg-white dark:bg-[#161920] border-r border-slate-200 dark:border-zinc-800/90 z-40">
+        <div className="h-[60px] px-4 border-b border-slate-200 dark:border-zinc-800/90 flex items-center gap-3 shrink-0">
+          <BrandLogo size={36} />
           <div className="min-w-0 leading-tight">
-            <p className="text-[10px] font-mono tracking-wider text-slate-500 dark:text-zinc-500 uppercase truncate">
+            <p className="text-[10px] font-mono tracking-wider text-slate-500 dark:text-zinc-400 uppercase truncate">
               Shift Handover
             </p>
             <span className="block text-sm font-bold tracking-tight text-slate-900 dark:text-zinc-100 truncate">
@@ -558,8 +558,8 @@ export default function App() {
                 aria-current={active ? 'page' : undefined}
                 className={`w-full min-h-[44px] px-4 py-2.5 rounded-xl text-left text-sm font-medium flex items-center gap-3 transition-all active:scale-[0.98] whitespace-nowrap ${
                   active
-                    ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 font-semibold shadow-sm shadow-teal-700/20 dark:shadow-teal-500/15'
-                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-[#14171C] hover:text-slate-900 dark:hover:text-zinc-100'
+                    ? 'bg-teal-700 dark:bg-teal-700 text-white font-semibold shadow-sm shadow-teal-700/20 dark:shadow-none'
+                    : 'text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-[#1D212A] hover:text-slate-900 dark:hover:text-zinc-100'
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
@@ -581,7 +581,7 @@ export default function App() {
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full min-h-[40px] px-4 py-2 rounded-full border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
+            className="w-full min-h-[40px] px-4 py-2 rounded-full border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.98] inline-flex items-center justify-center gap-2 transition-all"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Keluar</span>
@@ -592,19 +592,19 @@ export default function App() {
       {/* Main Content Area */}
       <div className="flex-1 md:pl-60 flex flex-col min-w-0">
         {/* Fixed Uniform Top Header (Never Scrolls) */}
-        <header className="fixed top-0 left-0 right-0 md:left-60 z-30 h-[60px] bg-white/95 dark:bg-[#090A0C]/90 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800/90 px-4 sm:px-6 flex items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5 min-w-0">
+        <header className="fixed top-0 left-0 right-0 md:left-60 z-30 h-[60px] bg-white/95 dark:bg-[#13161C]/95 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800/90 px-4 sm:px-6 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-3 min-w-0">
             {isSubPage ? (
               <button
                 type="button"
                 onClick={handleHeaderBack}
                 aria-label="Kembali"
-                className="w-9 h-9 -ml-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#16191F] active:scale-[0.96] text-slate-700 dark:text-zinc-200 flex items-center justify-center shrink-0 transition-all"
+                className="w-9 h-9 -ml-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1D212A] active:scale-[0.96] text-slate-700 dark:text-zinc-200 flex items-center justify-center shrink-0 transition-all"
               >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             ) : (
-              <BrandLogo size={26} className="md:hidden" />
+              <BrandLogo size={38} className="md:hidden" />
             )}
             <div className="min-w-0 leading-tight">
               <h1 className="text-sm sm:text-base font-bold tracking-tight truncate text-slate-900 dark:text-zinc-100">
@@ -612,7 +612,7 @@ export default function App() {
                   activeLabel
                 ) : (
                   <>
-                    <span className="md:hidden text-teal-700 dark:text-teal-400">
+                    <span className="md:hidden text-teal-700 dark:text-dark-accent">
                       MILITARY &amp; STABILITY
                     </span>
                     <span className="hidden md:inline">{activeLabel}</span>
@@ -621,7 +621,7 @@ export default function App() {
               </h1>
               <p className="text-[11px] sm:text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">
                 <span>{headerShiftStatus.dateFormatted}</span>
-                <span className="font-semibold text-teal-700 dark:text-teal-400">
+                <span className="font-semibold text-teal-700 dark:text-dark-accent">
                   {' '}
                   · {headerShiftLabel}
                 </span>
@@ -633,13 +633,13 @@ export default function App() {
             <button
               type="button"
               onClick={toggleTheme}
-              aria-label={isDark ? 'Aktifkan Tema Terang' : 'Aktifkan Tema Dark AMOLED'}
-              title={isDark ? 'Beralih ke Tema Terang' : 'Beralih ke Tema Dark AMOLED'}
+              aria-label={isDark ? 'Aktifkan Tema Terang' : 'Aktifkan Tema Gelap'}
+              title={isDark ? 'Beralih ke Tema Terang' : 'Beralih ke Tema Gelap'}
               data-testid="theme-toggle-btn"
-              className="min-h-[38px] min-w-[38px] px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#14171C] hover:bg-slate-50 dark:hover:bg-[#1C2027] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center justify-center whitespace-nowrap transition-all"
+              className="min-h-[38px] min-w-[38px] px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700/80 bg-white dark:bg-[#1D212A] hover:bg-slate-50 dark:hover:bg-[#252A35] text-xs font-semibold text-slate-700 dark:text-zinc-200 shadow-xs hover:shadow-sm active:scale-[0.97] inline-flex items-center justify-center whitespace-nowrap transition-all"
             >
               {isDark ? (
-                <Sun className="w-4 h-4 text-teal-400" />
+                <Sun className="w-4 h-4 text-dark-accent" />
               ) : (
                 <Moon className="w-4 h-4 text-teal-700" />
               )}
@@ -655,8 +655,8 @@ export default function App() {
               role="status"
               className={`mb-4 p-3 rounded-lg border text-sm flex items-center justify-between gap-3 ${
                 toast.ok
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/60 dark:border-emerald-800/60 dark:text-emerald-200'
-                  : 'bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-950/60 dark:border-rose-800/60 dark:text-rose-200'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800/50 dark:text-emerald-200'
+                  : 'bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-950/40 dark:border-rose-800/50 dark:text-rose-200'
               }`}
             >
               <span>{toast.text}</span>
@@ -681,7 +681,7 @@ export default function App() {
           )}
 
           {activeNav === 'input' && (
-            <div className="fixed inset-x-0 top-[60px] bottom-0 md:left-60 z-20 bg-slate-50 dark:bg-black overflow-y-auto overscroll-contain px-4 sm:px-6 pt-4 sm:pt-5 pb-28 md:pb-12">
+            <div className="fixed inset-x-0 top-[60px] bottom-0 md:left-60 z-20 bg-slate-50 dark:bg-[#0F1115] overflow-y-auto overscroll-contain px-4 sm:px-6 pt-4 sm:pt-5 pb-28 md:pb-12">
               <div className="max-w-6xl w-full mx-auto">
                 {toast && (
                   <div
@@ -761,7 +761,7 @@ export default function App() {
           type="button"
           onClick={openFloatingInput}
           aria-label="Input Handover Baru"
-          className="fixed bottom-[88px] right-4 md:bottom-7 md:right-7 z-30 w-14 h-14 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-500 dark:hover:bg-teal-400 hover:scale-[1.03] active:scale-[0.96] text-white dark:text-zinc-950 shadow-lg shadow-teal-700/30 dark:shadow-teal-500/25 hover:shadow-xl flex items-center justify-center transition-all"
+          className="fixed bottom-[88px] right-4 md:bottom-7 md:right-7 z-30 w-14 h-14 rounded-full bg-teal-700 hover:bg-teal-800 dark:bg-teal-700 dark:hover:bg-teal-600 hover:scale-[1.03] active:scale-[0.96] text-white shadow-lg shadow-teal-700/30 dark:shadow-black/40 hover:shadow-xl flex items-center justify-center transition-all"
         >
           <Plus className="w-6 h-6 stroke-[2.5]" />
         </button>
@@ -770,7 +770,7 @@ export default function App() {
       {/* Mobile Floating Rounded Bottom Navigation Bar */}
       <nav
         aria-label="Navigasi Mobile"
-        className="md:hidden fixed bottom-3 left-3 right-3 z-30 bg-white/95 dark:bg-[#0B0C0E]/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-800 rounded-2xl shadow-lg shadow-slate-900/10 dark:shadow-black/60 p-1.5 grid grid-cols-4 gap-1 items-center"
+        className="md:hidden fixed bottom-3 left-3 right-3 z-30 bg-white/95 dark:bg-[#161920]/95 backdrop-blur-md border border-slate-200/90 dark:border-zinc-800 rounded-2xl shadow-lg shadow-slate-900/10 dark:shadow-black/45 p-1.5 grid grid-cols-4 gap-1 items-center"
       >
         {PRIMARY_TABS.map((item) => {
           const Icon = item.icon;
@@ -789,8 +789,8 @@ export default function App() {
               aria-current={active ? 'page' : undefined}
               className={`min-h-[48px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1.5 py-1.5 text-[11px] transition-all active:scale-[0.96] ${
                 active
-                  ? 'bg-teal-700 dark:bg-teal-500 text-white dark:text-zinc-950 font-semibold shadow-md shadow-teal-700/25 dark:shadow-teal-500/20'
-                  : 'text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100/80 dark:hover:bg-[#16191F]'
+                  ? 'bg-teal-700 dark:bg-teal-700 text-white font-semibold shadow-md shadow-teal-700/25 dark:shadow-none'
+                  : 'text-slate-500 dark:text-zinc-400 font-medium hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100/80 dark:hover:bg-[#1D212A]'
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" />
